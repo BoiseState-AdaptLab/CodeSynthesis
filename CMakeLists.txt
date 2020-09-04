@@ -9,9 +9,9 @@ set(CMAKE_CXX_STANDARD 11)
 set(CodeSynthesis_SOURCES src/smt/MinimalSatisfiablity.cpp src/smt/MinimalSatisfiablity.h)
 set(CodSynthesis_t_SOURCES test/smt/MinimalUnitTest.cpp test/unit_tests_main.cpp)
 
-
+include_directories(src/)
 enable_testing()
-
+add_compile_options(-g)
 
 #Add thread dependencies for gtest
 find_package(Threads)
@@ -40,6 +40,7 @@ add_subdirectory(lib)
 # BUILD CodeSynthesis_Driver
 add_executable(CodeSynthesis_Driver ${CodeSynthesis_SOURCES} src/main.cpp)
 add_dependencies(CodeSynthesis_Driver iegenlib_in)
+target_link_libraries(CodeSynthesis_Driver gtest iegenlib isl)
 
 #Set Target properties
 set_target_properties(CodeSynthesis_Driver
