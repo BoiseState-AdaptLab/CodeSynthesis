@@ -22,7 +22,6 @@ include_directories(${Threads_INCLUDE_DIR})
 
 #ADD EXTERNAL IEGEN LIB
 ExternalProject_Add(iegenlib_in
-        DOWNLOAD_COMMAND ""
         SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lib/IEGenLib
         CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_CURRENT_SOURCE_DIR}/lib/installed
         BUILD_COMMAND ${MAKE})
