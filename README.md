@@ -8,8 +8,6 @@ conversion.
 ```shell script
 git clone https://github.com/BoiseState-AdaptLab/CodeSynthesis
 cd CodeSynthesis
-git submodule init
-git submodule update
 mkdir build/
 cd build/
 cmake ../

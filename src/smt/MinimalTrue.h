@@ -2,8 +2,8 @@
 // Created by Tobi Popoola on 8/30/20.
 //
 
-#ifndef CODESYNTHESIS_MINIMALSATISFIABLITY_H
-#define CODESYNTHESIS_MINIMALSATISFIABLITY_H
+#ifndef CODESYNTHESIS_MINIMALTRUE_H
+#define CODESYNTHESIS_MINIMALTRUE_H
 
 #include <iegenlib/iegenlib.h>
 #include <string>
@@ -22,8 +22,15 @@ namespace code_synthesis {
             /// \param currentExpr
             /// \param unknownTerm
             /// \return
-            static std::vector<Exp*> getRHS(Exp* currentExpr, Term *unknownTerm);
+            static std::vector<Exp*> getRHS(
+                    Exp* currentExpr, Term *unknownTerm);
 
+            /// Function flattens a sparse constraint : set, relation
+            /// to individual terms
+            /// \param sparseConstraint
+            /// \return
+            static std::list<Term*>  getTermList(
+                    SparseConstraints * sparseConstraint);
         public:
             /// Function synthesizes statement from a constraint.
             /// This statement reorders an unknown expression to
@@ -33,13 +40,21 @@ namespace code_synthesis {
             /// \param unknownTerm
             /// \return
             static Stmt * synthStmt(Exp *constraint, Term *unknownTerm);
+
+            /// This function uses a transformation relation and a set to
+            /// identify unknowns in a transformation. This is an important
+            /// step in code synthesis.
+            /// \param transformRelation
+            /// \param set
+            /// \return list of unknown terms in transform relation
+            static std::list<Term*> evaluateUnknowns(Relation * transformRelation,Set* set);
         };
 
         class Stmt {
 
         public:
-            std::unique_ptr<Exp> rhs;
-            std::unique_ptr<Exp> lhs;
+            Exp* rhs;
+            Exp* lhs;
             std::string toString() const;
 
         };
@@ -49,4 +64,4 @@ namespace code_synthesis {
 
 
 
-#endif //CODESYNTHESIS_MINIMALSATISFIABLITY_H
+#endif //CODESYNTHESIS_MINIMALTRUE_H

@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 #include <iegenlib.h>
-#include <smt/MinimalSatisfiablity.h>
+#include <smt/MinimalTrue.h>
 
 using namespace code_synthesis::smt;
 class MinimalUnitTest : public::testing::Test{

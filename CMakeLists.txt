@@ -2,11 +2,13 @@ cmake_minimum_required(VERSION 3.17)
 project(CodeSynthesis)
 
 include(${CMAKE_ROOT}/Modules/ExternalProject.cmake)
+include(FetchContent)
+
 
 set(CMAKE_CXX_STANDARD 11)
 
 #SOURCE FILES ADDED HERE
-set(CodeSynthesis_SOURCES src/smt/MinimalSatisfiablity.cpp src/smt/MinimalSatisfiablity.h)
+set(CodeSynthesis_SOURCES src/smt/MinimalTrue.cpp src/smt/MinimalTrue.h)
 set(CodSynthesis_t_SOURCES test/smt/MinimalUnitTest.cpp test/unit_tests_main.cpp)
 
 include_directories(src/)
@@ -22,19 +24,36 @@ include_directories(${Threads_INCLUDE_DIR})
 
 #ADD EXTERNAL IEGEN LIB
 ExternalProject_Add(iegenlib_in
+        GIT_REPOSITORY "https://github.com/CompOpt4Apps/IEGenLib.git"
+        GIT_TAG "0cfa0a82fc83cb9fa61376ed98fc2786f6e18cb6"
+        GIT_SHALLOW TRUE
         SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lib/IEGenLib
         CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_CURRENT_SOURCE_DIR}/lib/installed
         BUILD_COMMAND ${MAKE})
+
+# Add depeendence on GTEST
+
+FetchContent_Declare(
+        googletest
+        GIT_REPOSITORY https://github.com/google/googletest.git
+        GIT_TAG        release-1.8.0
+)
+
+FetchContent_GetProperties(googletest)
+if(NOT googletest_POPULATED)
+    FetchContent_Populate(googletest)
+    add_subdirectory(${googletest_SOURCE_DIR} ${googletest_BINARY_DIR})
+endif()
+
 
 # INCLUDE EXTERNAL
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/lib/installed/include)
 link_directories( "${CMAKE_CURRENT_SOURCE_DIR}/lib/installed/lib" )
 link_directories( "${CMAKE_CURRENT_SOURCE_DIR}/lib/IEGenLib/lib/installed/lib" )
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/lib/IEGenLib/lib/gtest/include)
+#include_directories(${CMAKE_CURRENT_SOURCE_DIR}/lib/IEGenLib/lib/gtest/include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/lib/IEGenLib/lib/installed/include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/lib/installed/include/iegenlib)
 
-add_subdirectory(lib)
 
 # BUILD CodeSynthesis_Driver
 add_executable(CodeSynthesis_Driver ${CodeSynthesis_SOURCES} src/main.cpp)

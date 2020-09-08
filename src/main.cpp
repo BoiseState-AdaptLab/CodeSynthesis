@@ -1,5 +1,5 @@
 #include <iostream>
-#include <smt/MinimalSatisfiablity.h>
+#include <smt/MinimalTrue.h>
 using namespace code_synthesis::smt;
 int main() {
     // row(n)
@@ -15,7 +15,7 @@ int main() {
     e2->setEquality();
 
     Stmt* stmt = MinimalSatisfiablity::synthStmt(e2,rowUF);
-
+    std::cerr << stmt->toString() << "\n";
     //EXPECT_EQ("row(n) = i", stmt->toString());
 //EXPECT_EQ("row(n) = i", stmt->toString());
     return 0;
