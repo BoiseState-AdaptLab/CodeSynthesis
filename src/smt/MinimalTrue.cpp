@@ -16,16 +16,29 @@ Stmt * MinimalSatisfiablity::synthStmt
     return stmt;
 }
 
-std::list<Term*>  getTermList(
+std::list<Term*> MinimalSatisfiablity::getTermList(
         SparseConstraints * sparseConstraint){
     std::list<Term*> terms;
-    for(auto it =
-            sparseConstraint->conjunctionBegin();it !=
-            sparseConstraint->conjunctionEnd();it++){
-        for(auto jt = (*it)->equalities().begin();
-            jt != (*it)->equalities().end(); jt++ ){
 
-            terms.merge((*jt)->getTermList());
+    for (auto conj : sparseConstraint->mConjunctions) {
+        for (auto eq: conj->equalities()) {
+            for (auto term: eq->getTermList()) {
+                if (!term->isConst() &&
+                    std::find(terms.begin(), terms.end(), term)
+                    == terms.end()) {
+                    terms.push_back(term);
+                }
+            }
+        }
+
+        for (auto ineq: conj->inequalities()) {
+            for (auto term: ineq->getTermList()) {
+                if (!term->isConst() &&
+                    std::find(terms.begin(), terms.end(), term)
+                    == terms.end()) {
+                    terms.push_back(term);
+                }
+            }
         }
     }
     return terms;
@@ -33,7 +46,16 @@ std::list<Term*>  getTermList(
 
 std::list<Term*> MinimalSatisfiablity::evaluateUnknowns
     (Relation * transformRelation,Set* set){
-    std::list<Term*> unknownTerms;
+    std::list<Term*> setTerms = getTermList(set);
+    std::list<Term*> relationTerms= getTermList(transformRelation);
+    // Terms in relations and not in set are unknowns.
+    for(auto term :relationTerms){
+        if (std::find(setTerms.begin(),
+                      setTerms.end(),(term))!= setTerms.end()){
+            relationTerms.remove(term);
+        }
+    }
+    return relationTerms;
 
 }
 

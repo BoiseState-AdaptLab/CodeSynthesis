@@ -28,20 +28,22 @@ TEST_F(MinimalUnitTest,TEST_EXPRESSION_TREE){
     conj1->addInequality(e1);
     EXPECT_EQ("{ [a, b] : -a + b >= 0 }", conj1->prettyPrintString());
 }
-TEST_F(MinimalUnitTest,TEST_STATEMENT_SYNTHESIS_EQUALITY){
+
+TEST_F(MinimalUnitTest,TEST_TERM_LIST){
+    Set* dense = new Set("{[i,j]: i >= 0 and i < NR and"
+                         " j >= 0 and j < NC and Ad(i,j) > 0}");
+    auto list = MinimalSatisfiablity::getTermList(dense);
+    EXPECT_EQ((*list.begin())->toString(),"i");
+}
+
+TEST_F(MinimalUnitTest,TEST_UNKNOWN_TERMS){
     // row(n)
-    Exp* e1 = new Exp();
-    e1->addTerm(new VarTerm("n"));
-    UFCallTerm * rowUF = new UFCallTerm("row",1);
-    rowUF->setParamExp(0,e1);
-
-    // row(n) - i = 0
-    Exp* e2 = new Exp();
-    e2->addTerm(rowUF);
-    e2->addTerm(new VarTerm(-1,"i"));
-    e2->setEquality();
-
-    Stmt* stmt = MinimalSatisfiablity::synthStmt(e2,rowUF->clone());
-
-    EXPECT_EQ("row(n) = i", stmt->toString());
+    Set* dense = new Set("{[i,j]: i >= 0 and i < NR and"
+                         " j >= 0 and j < NC and Ad(i,j) > 0}");
+    Relation * dense_coo  = new Relation("{[i,j] -> [n]:"
+                                         " row(n) = i and col(n) = j and "
+                                         " i < NR and j >= 0 and j < NC}");
+    auto list =MinimalSatisfiablity::evaluateUnknowns(dense_coo,dense);
+    for(auto const & l : list)
+        std::cerr << "Hhh->" <<l->toString() << "\n";
 }

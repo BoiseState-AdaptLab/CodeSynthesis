@@ -25,12 +25,6 @@ namespace code_synthesis {
             static std::vector<Exp*> getRHS(
                     Exp* currentExpr, Term *unknownTerm);
 
-            /// Function flattens a sparse constraint : set, relation
-            /// to individual terms
-            /// \param sparseConstraint
-            /// \return
-            static std::list<Term*>  getTermList(
-                    SparseConstraints * sparseConstraint);
         public:
             /// Function synthesizes statement from a constraint.
             /// This statement reorders an unknown expression to
@@ -48,6 +42,13 @@ namespace code_synthesis {
             /// \param set
             /// \return list of unknown terms in transform relation
             static std::list<Term*> evaluateUnknowns(Relation * transformRelation,Set* set);
+
+            /// Function flattens a sparse constraint : set, relation
+            /// to individual terms
+            /// \param sparseConstraint
+            /// \return
+            static std::list<Term*>  getTermList(
+                    SparseConstraints * sparseConstraint);
         };
 
         class Stmt {
