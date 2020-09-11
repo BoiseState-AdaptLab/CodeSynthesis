@@ -16,15 +16,6 @@ namespace code_synthesis {
         /// minimal satisfiablity of a constraint.
         class MinimalSatisfiablity {
         private:
-            /// Function recursively visits an expression
-            /// and flattens Expressions that are not \param unknownTerm
-            /// to be placed on the right hand side.
-            /// \param currentExpr
-            /// \param unknownTerm
-            /// \return
-            static std::vector<Exp*> getRHS(
-                    Exp* currentExpr, Term *unknownTerm);
-
         public:
             /// Function synthesizes statement from a constraint.
             /// This statement reorders an unknown expression to
@@ -50,10 +41,13 @@ namespace code_synthesis {
             static std::list<Term*>  getTermList(
                     SparseConstraints * sparseConstraint);
         };
-
+        /// Stmt class holds a synthesized statement.
+        /// This synthesized statement holds information
+        /// about the execution schedule and domain.
         class Stmt {
 
         public:
+            Set * domain;
             Exp* rhs;
             Exp* lhs;
             std::string toString() const;

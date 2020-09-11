@@ -33,17 +33,23 @@ TEST_F(MinimalUnitTest,TEST_TERM_LIST){
     Set* dense = new Set("{[i,j]: i >= 0 and i < NR and"
                          " j >= 0 and j < NC and Ad(i,j) > 0}");
     auto list = MinimalSatisfiablity::getTermList(dense);
-    EXPECT_EQ((*list.begin())->toString(),"i");
+    EXPECT_EQ((*list.begin())->prettyPrintString(dense->getTupleDecl()),"i");
 }
 
 TEST_F(MinimalUnitTest,TEST_UNKNOWN_TERMS){
     // row(n)
-    Set* dense = new Set("{[i,j]: i >= 0 and i < NR and"
+    auto dense = new Set("{[i,j]: i >= 0 and i < NR and"
                          " j >= 0 and j < NC and Ad(i,j) > 0}");
-    Relation * dense_coo  = new Relation("{[i,j] -> [n]:"
+    auto dense_coo  = new Relation("{[i,j] -> [n]:"
                                          " row(n) = i and col(n) = j and "
                                          " i < NR and j >= 0 and j < NC}");
     auto list =MinimalSatisfiablity::evaluateUnknowns(dense_coo,dense);
-    for(auto const & l : list)
-        std::cerr << "Hhh->" <<l->toString() << "\n";
+
+    EXPECT_EQ((*list.begin())->
+        prettyPrintString(dense_coo->getTupleDecl()),"row(n)");
+    EXPECT_EQ((*(++list.begin()))->
+        prettyPrintString(dense_coo->getTupleDecl()),"col(n)");
+
+
+
 }
