@@ -16,7 +16,40 @@ namespace code_synthesis {
         /// minimal satisfiablity of a constraint.
         class MinimalSatisfiablity {
         private:
+            /// This gets the list of all expressions in a conjunction.
+            /// Each expression in this list is newly allocated and
+            /// the caller is responsible for deallocating
+            /// \param conjunction
+            /// \return
+            static std::list<Exp*> getExprs(Conjunction* conjunction);
+
+
+
+            /// Intersects two lists
+            /// \tparam T type of the list
+            /// \param a first list
+            /// \param b second list
+            /// \return returns a list intersection
+            template <typename  T>
+            static std::list<T*> intersectLists(const std::list<T*>& a,
+                                               const std::list<T*>&b);
+
+            /// Compares terms absolutely without regards for
+            //  their coefficients.
+            /// \param a term a
+            /// \param b term b
+            /// \return true if abs(a) is equal to abs(b)
+            static bool compareAbsTerms(const Term * a, const Term* b);
+
+
+
         public:
+            struct TermCompare {
+                bool operator()(const Term*& a, const Term*& b) const {
+                    return (*a)==(*b);
+                }
+            };
+
             /// Function synthesizes statement from a constraint.
             /// This statement reorders an unknown expression to
             /// be on the lhs of a constraint equality;
@@ -40,6 +73,57 @@ namespace code_synthesis {
             /// \return
             static std::list<Term*>  getTermList(
                     SparseConstraints * sparseConstraint);
+
+            /// Function flattens Parameters in a UF
+            /// to individual terms
+            /// \param ufCallTerm
+            /// \return List of terms in ufcall Parameters
+            static std::list <Term*>
+                    getParamTermList(const UFCallTerm *ufCallTerm);
+
+
+                /// Returns a minimally true expression from
+            /// an inequality expression.
+            /// \param expr
+            /// \return
+            static Exp* getMinTrueExpr(Exp* expr);
+
+
+            /// Check if a term is contained in a list of terms. This
+            /// goes recursively deeper into UFCall terms.
+            /// \param terms list of terms
+            /// \param term  been searched for
+            /// \return true if term is in there and returns false otherwise.
+            static bool containsTerm (const std::list<Term*>&terms,
+                                      const Term * term);
+
+
+            /// Counts number of tuple variables in a term list.
+            /// \param terms
+            /// \return
+            static int getTupleVarCount(std::list<Term*>& terms);
+
+
+            /// This function gets the domain of an unknown
+            /// Term in a relation
+            /// \param relation containing domain information
+            /// \param unknownTerm unkown term currently being investigated
+            /// \param unkownTerms unknown terms in the relation
+            /// \throw Exception if relation has no constraint
+            /// \return
+            static Set* getDomain (Relation* relation, Term *unknownTerm,
+                                   std::list<Term*>& unkownTerms);
+
+            /// This function extracts dependents to term from a
+            /// conjunction, a term x is a dependent to term y
+            /// if term x exists in some constraint involving term y
+            /// \param conjunction
+            /// \param term
+            /// \return
+            static std::list<Term*> getDependents(Conjunction * conjunction,Term* term);
+
+
+
         };
         /// Stmt class holds a synthesized statement.
         /// This synthesized statement holds information

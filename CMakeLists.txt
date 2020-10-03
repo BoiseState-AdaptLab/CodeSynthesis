@@ -9,7 +9,7 @@ set(CMAKE_CXX_STANDARD 11)
 
 #SOURCE FILES ADDED HERE
 set(CodeSynthesis_SOURCES src/smt/MinimalTrue.cpp src/smt/MinimalTrue.h)
-set(CodSynthesis_t_SOURCES test/smt/MinimalUnitTest.cpp test/unit_tests_main.cpp)
+set(CodSynthesis_t_SOURCES test/smt/CodeSynthesisUnitTest.cpp test/unit_tests_main.cpp)
 
 include_directories(src/)
 enable_testing()
@@ -24,9 +24,8 @@ include_directories(${Threads_INCLUDE_DIR})
 
 #ADD EXTERNAL IEGEN LIB
 ExternalProject_Add(iegenlib_in
-        GIT_REPOSITORY "https://github.com/CompOpt4Apps/IEGenLib.git"
-        GIT_TAG "0cfa0a82fc83cb9fa61376ed98fc2786f6e18cb6"
-        GIT_SHALLOW TRUE
+        GIT_REPOSITORY "https://github.com/BoiseState-AdaptLab/IEGenLib.git"
+        GIT_TAG "a0c8f86b927e760c936d0f00932b3c6255dce7a3"
         SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lib/IEGenLib
         CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_CURRENT_SOURCE_DIR}/lib/installed
         BUILD_COMMAND ${MAKE})
@@ -53,7 +52,7 @@ link_directories( "${CMAKE_CURRENT_SOURCE_DIR}/lib/IEGenLib/lib/installed/lib" )
 #include_directories(${CMAKE_CURRENT_SOURCE_DIR}/lib/IEGenLib/lib/gtest/include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/lib/IEGenLib/lib/installed/include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/lib/installed/include/iegenlib)
-
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/lib/IEGenLib/lib/isl/include)
 
 # BUILD CodeSynthesis_Driver
 add_executable(CodeSynthesis_Driver ${CodeSynthesis_SOURCES} src/main.cpp)
