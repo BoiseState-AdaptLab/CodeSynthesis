@@ -126,8 +126,15 @@ TEST_F (CodeSynthesisUnitTest, TEST_DOMAIN_EXTRACT){
 
     Set* rowDomain = MinimalSatisfiablity::
             getDomain(restrictDomain,(*list.begin()),list);
-
+    
     EXPECT_EQ("{ [i, j, tv2] : i >= 0 && j >= 0"
               " && Ad(i, j) - 1 >= 0 && -i + NR - 1"
               " >= 0 && -j + NC - 1 >= 0 }",rowDomain->prettyPrintString());
+
+    // Column Domain
+    Set* colDomain = MinimalSatisfiablity::
+        getDomain(restrictDomain,(*(++list.begin())),list);
+    EXPECT_EQ("{ [i, j, tv2] : i >= 0 && "
+              "j >= 0 && Ad(i, j) - 1 >= 0 && "
+              "-j + NC - 1 >= 0 }",colDomain->prettyPrintString());
 }
