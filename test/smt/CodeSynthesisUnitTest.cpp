@@ -137,4 +137,6 @@ TEST_F (CodeSynthesisUnitTest, TEST_DOMAIN_EXTRACT){
     EXPECT_EQ("{ [i, j, tv2] : i >= 0 && "
               "j >= 0 && Ad(i, j) - 1 >= 0 && "
               "-j + NC - 1 >= 0 }",colDomain->prettyPrintString());
+
+
 }

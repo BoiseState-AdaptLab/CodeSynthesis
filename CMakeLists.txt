@@ -8,7 +8,7 @@ include(FetchContent)
 set(CMAKE_CXX_STANDARD 11)
 
 #SOURCE FILES ADDED HERE
-set(CodeSynthesis_SOURCES src/smt/MinimalTrue.cpp src/smt/MinimalTrue.h)
+set(CodeSynthesis_SOURCES src/smt/MinimalTrue.cpp src/smt/MinimalTrue.h src/code-gen/CodeGen.cpp src/code-gen/CodeGen.h src/code-gen/OmegaLib.cpp src/code-gen/OmegaLib.h)
 set(CodSynthesis_t_SOURCES test/smt/CodeSynthesisUnitTest.cpp test/unit_tests_main.cpp)
 
 include_directories(src/)

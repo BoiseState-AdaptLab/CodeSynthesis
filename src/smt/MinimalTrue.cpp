@@ -234,7 +234,7 @@ Set *MinimalSatisfiablity::getDomain(Relation *relation, Term *unknownTerm,
 
         // Pack up the result of the algorithm as a
         // new conjunction
-        TupleDecl tupleDecl (relation->getTupleDecl().size());
+        TupleDecl tupleDecl (tupleConstraintVar.size());
 
         //TODO: Work on this below.
         // This is necessary to be able to remap previous
@@ -245,14 +245,17 @@ Set *MinimalSatisfiablity::getDomain(Relation *relation, Term *unknownTerm,
 
         int tupleID = 0;
         for (auto var : tupleConstraintVar){
+            remapLocation[var->tvloc()] = tupleID;
+            var->remapLocation(remapLocation);
             tupleDecl.setTupleElem(var->tvloc(),var->prettyPrintString
                 (relation->getTupleDecl(),true));
+            tupleID++;
         }
 
         // Remapping of tuple variables not working across board
         // because we cant just change the variable pointer and
         // expect every occurrence of that variable to change
-        // in the constraint list. This is solley because, Iegenlib
+        // in the constraint list. This is solely because, Iegenlib
         // does a lot of cloning. This means that cloned variables
         // would not be the same as the tuple variable been modified
         // here. Therefore that is discouraged.
