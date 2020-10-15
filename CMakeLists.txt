@@ -8,8 +8,22 @@ include(FetchContent)
 set(CMAKE_CXX_STANDARD 11)
 
 #SOURCE FILES ADDED HERE
-set(CodeSynthesis_SOURCES src/smt/MinimalTrue.cpp src/smt/MinimalTrue.h src/code-gen/CodeGen.cpp src/code-gen/CodeGen.h src/code-gen/OmegaLib.cpp src/code-gen/OmegaLib.h)
-set(CodSynthesis_t_SOURCES test/smt/CodeSynthesisUnitTest.cpp test/unit_tests_main.cpp)
+set(CodeSynthesis_SOURCES
+        src/smt/MinimalTrue.cpp
+        src/smt/MinimalTrue.h
+        src/code-gen/CodeGen.cpp
+        src/code-gen/CodeGen.h
+        src/code-gen/OmegaLib.cpp
+        src/code-gen/OmegaLib.h
+        src/code-gen/Computation.hpp
+        src/code-gen/Computation.cc
+        src/utils/Utils.cpp
+        src/utils/Utils.h
+        src/CodeSynthesis.cpp src/CodeSynthesis.h)
+set(CodSynthesis_t_SOURCES
+        test/smt/CodeSynthesisUnitTest.cpp
+        test/unit_tests_main.cpp
+       )
 
 include_directories(src/)
 enable_testing()
@@ -29,6 +43,8 @@ ExternalProject_Add(iegenlib_in
         SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lib/IEGenLib
         CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_CURRENT_SOURCE_DIR}/lib/installed
         BUILD_COMMAND ${MAKE})
+
+
 
 # Add depeendence on GTEST
 

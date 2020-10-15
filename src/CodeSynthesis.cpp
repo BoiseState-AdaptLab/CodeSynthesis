@@ -1,14 +1,18 @@
 //
-// Created by Tobi Popoola on 8/30/20.
+// Created by Tobi Popoola on 10/7/20.
 //
 
-#include "MinimalTrue.h"
+#include "CodeSynthesis.h"
+
+
 #include <algorithm>
+#include <tuple>
 #include <unordered_set>
+#include <map>
 #include <utils/Utils.h>
-using namespace code_synthesis::smt;
+using namespace code_synthesis;
 using iegenlib::Exp;
-Stmt * MinimalSatisfiablity::synthStmt
+Stmt * CodeSynthesis::synthStmt
         (Exp *constraint, Term *unknownTerm)
 {
     Stmt* stmt = new Stmt();
@@ -22,7 +26,7 @@ Stmt * MinimalSatisfiablity::synthStmt
 /// to individual terms
 /// \param sparseConstraint
 /// \return
-std::list<Term*> MinimalSatisfiablity::getTermList(
+std::list<Term*> CodeSynthesis::getTermList(
         SparseConstraints * sparseConstraint){
     std::list<Term*> terms;
     for (auto conj : sparseConstraint->mConjunctions) {
@@ -32,8 +36,8 @@ std::list<Term*> MinimalSatisfiablity::getTermList(
                 t->setCoefficient(abs(t->coefficient()));
                 if (t->isConst() || std::find_if(terms.begin(), terms.end(),
                                                  [&t](const Term *a) {
-                    return (*a)==(*t);
-                }) != terms.end()){
+                                                     return (*a)==(*t);
+                                                 }) != terms.end()){
                     delete t;
                     continue;
                 }
@@ -48,8 +52,8 @@ std::list<Term*> MinimalSatisfiablity::getTermList(
                 t->setCoefficient(abs(t->coefficient()));
                 if (t->isConst() || std::find_if(terms.begin(), terms.end(),
                                                  [&t](const Term *a) {
-                    return (*a)== (*t);
-                }) != terms.end()){
+                                                     return (*a)== (*t);
+                                                 }) != terms.end()){
                     delete t;
                     continue;
                 }
@@ -62,17 +66,17 @@ std::list<Term*> MinimalSatisfiablity::getTermList(
     return terms;
 }
 
-std::list<Term*> MinimalSatisfiablity::evaluateUnknowns
-    (Relation * transformRelation,Set* set){
-    std::list<Term*> setTerms = getTermList(set);
-    std::list<Term*> relationTerms= getTermList(transformRelation);
+std::list<Term *> CodeSynthesis::evaluateUnknowns
+        () {
+    std::list<Term*> setTerms = getTermList(originalSpace);
+    std::list<Term*> relationTerms= getTermList(mapToNewSpace);
     // Terms in relations and not in set are unknowns.
     auto i = relationTerms.begin();
     while (i!=relationTerms.end()){
         auto term = *i;
 
         if (std::find_if(setTerms.begin(),
-                         setTerms.end(),[&term,&set](const Term *a){
+                         setTerms.end(),[&term](const Term *a){
                     return (*term) == (*a);
                 })!= setTerms.end()){
             i = relationTerms.erase(i);
@@ -91,7 +95,7 @@ std::string Stmt::toString() const {
     return ss.str();
 }
 
-Exp *MinimalSatisfiablity::getMinTrueExpr(Exp *expr) {
+Exp *CodeSynthesis::getMinTrueExpr(Exp *expr) {
     Exp * copy = new Exp(*expr);
     if (copy->isEquality())
         return copy;
@@ -100,12 +104,12 @@ Exp *MinimalSatisfiablity::getMinTrueExpr(Exp *expr) {
 
 }
 
-std::list<Term *> MinimalSatisfiablity::getDependents(Conjunction *conjunction, Term *term) {
+std::list<Term *> CodeSynthesis::getDependents(Conjunction *conjunction, Term *term) {
 
     return std::list<Term *>();
 }
 
-int MinimalSatisfiablity::getTupleVarCount(std::list<Term *> &terms) {
+int CodeSynthesis::getTupleVarCount(std::list<Term *> &terms) {
     return std::count_if(terms.begin(),terms.end(),[](Term * a){
         return a->isTupleExp();
     });
@@ -117,7 +121,7 @@ int MinimalSatisfiablity::getTupleVarCount(std::list<Term *> &terms) {
 /// the caller is responsible for deallocating
 /// \param conjunction
 /// \return
-std::list<Exp *> MinimalSatisfiablity::getExprs(Conjunction *conjunction) {
+std::list<Exp *> CodeSynthesis::getExprs(Conjunction *conjunction) {
     std::list<Exp *> exps;
     for (auto eq: conjunction->equalities()) {
         exps.push_back(eq->clone());
@@ -132,13 +136,15 @@ std::list<Exp *> MinimalSatisfiablity::getExprs(Conjunction *conjunction) {
 
 /// This function gets the domain of an unknown
 /// Term in a relation
-/// \param relation containing domain information
 /// \param unknownTerm unkown term currently being investigated
 /// \param unkownTerms unknown terms in the relation
 /// \throw Exception if relation has no constraint
 /// \return
-Set *MinimalSatisfiablity::getDomain(Relation *relation, Term *unknownTerm,
-                                     std::list<Term *>& unkownTerms) {
+Set *CodeSynthesis::getDomain(Term *unknownTerm,
+                              std::list<Term *> &unkownTerms) {
+    // Restrict the original space using the map to new space.
+    Relation * relation = mapToNewSpace->Restrict(originalSpace);
+
     if(relation->getNumConjuncts()==0){
         throw assert_exception("getDomain: Relation should have constraints");
     }
@@ -184,13 +190,13 @@ Set *MinimalSatisfiablity::getDomain(Relation *relation, Term *unknownTerm,
             dependentStack.pop();
             auto topString = top->toString(false,false);
             if(auto tupleTerm = dynamic_cast<TupleVarTerm*>
-                    (top)){
+            (top)){
 
                 tupleConstraintVar.insert(tupleTerm);
             }
-            auto it = constraints.begin();
-            while( it!=constraints.end() ){
-                auto exp = *it;
+            auto it2 = constraints.begin();
+            while(it2 != constraints.end() ){
+                auto exp = *it2;
                 auto st =exp->prettyPrintString(relation->getTupleDecl());
                 // Check if the current expression does not
                 // intersect with any of the unknown term.
@@ -217,7 +223,7 @@ Set *MinimalSatisfiablity::getDomain(Relation *relation, Term *unknownTerm,
                                 // arguments
                                 for (auto t : ufTerm->getParamExp(i)->getTermList()){
                                     if (!t->isConst() && !compareAbsTerms
-                                        (t, top)){
+                                            (t, top)){
                                         dependentStack.push(t);
                                     }
                                 }
@@ -231,16 +237,16 @@ Set *MinimalSatisfiablity::getDomain(Relation *relation, Term *unknownTerm,
                     domainConstraints.insert(exp);
 
                     // Take the constraint out of the
-                    it = constraints.erase(it);
+                    it2 = constraints.erase(it2);
                     continue;
                 }
-                it++;
+                it2++;
             }
 
 
         }
 
-       // Pack up the result of the algorithm as a
+        // Pack up the result of the algorithm as a
         // new conjunction
         TupleDecl tupleDecl (tupleConstraintVar.size());
 
@@ -256,7 +262,7 @@ Set *MinimalSatisfiablity::getDomain(Relation *relation, Term *unknownTerm,
             remapLocation[var->tvloc()] = tupleID;
             var->remapLocation(remapLocation);
             tupleDecl.setTupleElem(tupleID,var->prettyPrintString
-                (relation->getTupleDecl(),true));
+                    (relation->getTupleDecl(),true));
             tupleID++;
         }
         Conjunction * resConj = new Conjunction(tupleDecl);
@@ -287,11 +293,11 @@ Set *MinimalSatisfiablity::getDomain(Relation *relation, Term *unknownTerm,
 /// \param terms list of terms
 /// \param term  been searched for
 /// \return true if term is in there and returns false otherwise.
-bool MinimalSatisfiablity::containsTerm(const std::list<Term *> &terms,
+bool CodeSynthesis::containsTerm(const std::list<Term *> &terms,
                                         const Term *term) {
 
     return std::find_if(terms.begin(),
-                     terms.end(),[&term](Term *a){
+                        terms.end(),[&term](Term *a){
                 bool res = compareAbsTerms(a,term);
                 if (!res && a->isUFCall()){
                     UFCallTerm* ufCallTerm = dynamic_cast<UFCallTerm*>(a);
@@ -304,8 +310,8 @@ bool MinimalSatisfiablity::containsTerm(const std::list<Term *> &terms,
             })!= terms.end();
 }
 
-std::list <Term*> MinimalSatisfiablity::
-    getParamTermList(const UFCallTerm *ufCallTerm) {
+std::list <Term*> CodeSynthesis::
+getParamTermList(const UFCallTerm *ufCallTerm) {
     std::list<Term*> ufTerms;
     for(int i = 0; i < ufCallTerm->numArgs();i++ ){
         for(auto t : ufCallTerm->getParamExp(i)
@@ -324,17 +330,17 @@ std::list <Term*> MinimalSatisfiablity::
 /// \param b second list
 /// \return returns a list intersection
 template<typename T>
-std::list<T*> MinimalSatisfiablity::intersectLists(const std::list<T*> &a,
-                                                  const std::list<T*> &b) {
+std::list<T*> CodeSynthesis::intersectLists(const std::list<T*> &a,
+                                                   const std::list<T*> &b) {
     // TODO: Work on this to dereference a pointer
     std::list<T*> ret;
     std::unordered_set<T*>set;
     std::for_each(a.begin(),a.end(),[&set](T* h){
         set.insert(h);
     });
-    std::for_each(b.begin(),b.end(),[&set,&ret](T* l){
+    std::for_each(b.begin(),b.end(),[&set,&ret,this](T* l){
 
-        auto iter = std::find_if(set.begin(),set.end(),[&l](T* a){
+        auto iter = std::find_if(set.begin(),set.end(),[&l,this](T* a){
 
             return compareAbsTerms(a,l);
         });
@@ -350,7 +356,7 @@ std::list<T*> MinimalSatisfiablity::intersectLists(const std::list<T*> &a,
 /// \param a term a
 /// \param b term b
 /// \return true if abs(a) is equal to abs(b)
-bool MinimalSatisfiablity::compareAbsTerms(const Term *a, const Term *b) {
+bool CodeSynthesis::compareAbsTerms(const Term *a, const Term *b) {
     Term* a_copy = a->clone();
     Term* b_copy = b->clone();
     a_copy->setCoefficient(1);
@@ -359,4 +365,66 @@ bool MinimalSatisfiablity::compareAbsTerms(const Term *a, const Term *b) {
     delete  a_copy;
     delete b_copy;
     return res;
+}
+
+CodeSynthesis::~CodeSynthesis() {
+    delete mapToNewSpace;
+    delete originalSpace;
+}
+
+Computation* CodeSynthesis::generateInspectorComputation() {
+   // First extract unknowns the information provided.
+   Computation * comp = new Computation();
+   std::list<Term*> unknownTerms =
+           evaluateUnknowns();
+
+   // Extract statement, domain and data spaces for each unknown.
+   int stmtID = 0;
+   int maxSchedule = 0;
+   // TODO: work on generating execution schedule
+   std::map<int,std::list<std::string>> executionSchedules;
+   for(auto t : unknownTerms){
+       // Have statement for creating unknownTerm
+       std::string allocStmt = getAllocationStmt(t);
+       comp->stmtsInfoMap[stmtID] =
+               StmtInfo(allocStmt,"{[]}","{[]->[]}",
+                            std::vector<std::pair<std::string,std::string>>(),
+                            std::vector<std::pair<std::string,std::string>>());
+
+
+
+
+       // Have statement for inserting into unknown Term.
+       stmtID++;
+       Set * insertStmtDomain = getDomain(t,unknownTerms);
+
+       comp->stmtsInfoMap[stmtID] =
+               StmtInfo("---",insertStmtDomain->prettyPrintString(),"{"+
+                        insertStmtDomain->getTupleDecl().toString(true)+"->[]}",
+                        std::vector<std::pair<std::string,std::string>>(),
+                        std::vector<std::pair<std::string,std::string>>());
+
+
+
+
+
+       stmtID++;
+   }
+
+   return comp;
+
+}
+/// This returns a string to allocate memory for an unknown
+/// term.
+/// \param unknownTerm
+/// \return
+std::string CodeSynthesis::getAllocationStmt(Term *unknownTerm) {
+    if (!unknownTerm->isUFCall())
+        throw assert_exception("Unknown term must be a UF");
+    UFCallTerm * ufCallTerm = (UFCallTerm*) unknownTerm;
+    std::stringstream  allocationString;
+    allocationString <<ufCallTerm->name()<<" = newUF(" <<
+        ufCallTerm->numArgs()<<");";
+
+    return allocationString.str() ;
 }

@@ -50,6 +50,12 @@ namespace code_synthesis {
                 }
             };
 
+            struct TupleLexOrder {
+                bool operator()(const TupleVarTerm* a, const TupleVarTerm* b) const {
+                    return (*a) < (*b);
+                }
+            };
+
             /// Function synthesizes statement from a constraint.
             /// This statement reorders an unknown expression to
             /// be on the lhs of a constraint equality;
