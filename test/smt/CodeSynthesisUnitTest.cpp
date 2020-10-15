@@ -39,7 +39,7 @@ TEST_F(CodeSynthesisUnitTest, TEST_TERM_LIST){
     EXPECT_EQ((*list.begin())->prettyPrintString(dense->getTupleDecl()),"i");
 }
 
-TEST_F(CodeSynthesisUnitTest, TEST_UNKNOWN_TERMS){
+TEST_F(CodeSynthesisUnitTest, TEST_UNKNOWN_TERMS_COO){
     // row(n)
     auto denseIterationSpace = new Set("{[i,j]: i >= 0 and i < NR and"
                          " j >= 0 and j < NC and Ad(i,j) > 0}");
@@ -51,6 +51,21 @@ TEST_F(CodeSynthesisUnitTest, TEST_UNKNOWN_TERMS){
         prettyPrintString(mapFromDenseToCoo->getTupleDecl()), "row(n)");
     EXPECT_EQ((*(++list.begin()))->
         prettyPrintString(mapFromDenseToCoo->getTupleDecl()), "col(n)");
+    EXPECT_EQ(list.size(),2);
+}
+
+TEST_F(CodeSynthesisUnitTest, TEST_UNKNOWN_TERMS_CSR){
+    // row(n)
+    auto denseIterationSpace = new Set("{[i,j]: i >= 0 and i < NR and"
+                         " j >= 0 and j < NC and Ad(i,j) > 0}");
+    auto mapFromDenseToCsr  = new Relation("{[i,j] -> [k]:"
+                                         " rowptr(i) <= k and rowptr(i+1) > k and col(k) = j and i >= 0 and "
+                                         " i < NR and j >= 0 and j < NC}");
+    auto list =MinimalSatisfiablity::evaluateUnknowns(mapFromDenseToCsr, denseIterationSpace);
+    EXPECT_EQ((*list.begin())->
+        prettyPrintString(mapFromDenseToCsr->getTupleDecl()), "row(n)");
+    EXPECT_EQ((*(++list.begin()))->
+        prettyPrintString(mapFromDenseToCsr->getTupleDecl()), "col(n)");
     EXPECT_EQ(list.size(),2);
 }
 
