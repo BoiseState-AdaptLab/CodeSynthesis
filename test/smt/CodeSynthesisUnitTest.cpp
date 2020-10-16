@@ -63,10 +63,14 @@ TEST_F(CodeSynthesisUnitTest, TEST_UNKNOWN_TERMS_CSR){
                                          " i < NR and j >= 0 and j < NC}");
     auto list =MinimalSatisfiablity::evaluateUnknowns(mapFromDenseToCsr, denseIterationSpace);
     EXPECT_EQ((*list.begin())->
-        prettyPrintString(mapFromDenseToCsr->getTupleDecl()), "row(n)");
+        prettyPrintString(mapFromDenseToCsr->getTupleDecl()), "col(k)");
     EXPECT_EQ((*(++list.begin()))->
-        prettyPrintString(mapFromDenseToCsr->getTupleDecl()), "col(n)");
-    EXPECT_EQ(list.size(),2);
+        prettyPrintString(mapFromDenseToCsr->getTupleDecl()), "k");
+    EXPECT_EQ((*(++(++list.begin())))->
+        prettyPrintString(mapFromDenseToCsr->getTupleDecl()), "rowptr(i)");
+    EXPECT_EQ((*(++(++(++list.begin()))))->
+        prettyPrintString(mapFromDenseToCsr->getTupleDecl()), "rowptr(i + 1)");
+    EXPECT_EQ(list.size(),4);
 }
 
 TEST_F(CodeSynthesisUnitTest, TEST_MINIMAL_TRUE){
