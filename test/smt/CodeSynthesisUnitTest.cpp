@@ -114,6 +114,21 @@ TEST_F(CodeSynthesisUnitTest, TEST_UNKNOWN_TERMS_DIA){
     EXPECT_EQ(list.size(),2);
 }
 
+TEST_F(CodeSynthesisUnitTest, TEST_UNKNOWN_TERMS_ELL){
+    //what about k? 
+    //why does it think that i is unknown? 
+
+    auto denseIterationSpace = new Set("{[i,j]: i >= 0 and i < NR and"
+                         " j >= 0 and j < NC and Ad(i,j) > 0}");
+    auto mapFromDenseToEll  = new Relation("{[i,j] -> [i, k]:"
+                                         " j = cols(i, k)}");
+    auto list =MinimalSatisfiablity::evaluateUnknowns(mapFromDenseToEll, denseIterationSpace);
+    EXPECT_EQ((*list.begin())->
+        prettyPrintString(mapFromDenseToEll->getTupleDecl()), "i");
+    EXPECT_EQ((*(++list.begin()))->
+        prettyPrintString(mapFromDenseToEll->getTupleDecl()), "cols(i, k)");
+    EXPECT_EQ(list.size(),2);
+}
 
 TEST_F(CodeSynthesisUnitTest, TEST_MINIMAL_TRUE){
     // -a + b >= 0
