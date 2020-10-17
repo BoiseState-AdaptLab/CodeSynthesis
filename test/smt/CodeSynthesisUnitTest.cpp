@@ -97,6 +97,24 @@ TEST_F(CodeSynthesisUnitTest, TEST_UNKNOWN_TERMS_BCSR){
 
 }
 
+
+TEST_F(CodeSynthesisUnitTest, TEST_UNKNOWN_TERMS_DIA){
+    //what about d? 
+    //why does it think that j is unknown? 
+
+    auto denseIterationSpace = new Set("{[i,j]: i >= 0 and i < NR and"
+                         " j >= 0 and j < NC and Ad(i,j) > 0}");
+    auto mapFromDenseToDia  = new Relation("{[i,j] -> [j, d]:"
+                                         " (i - j) = diags(d)}");
+    auto list =MinimalSatisfiablity::evaluateUnknowns(mapFromDenseToDia, denseIterationSpace);
+    EXPECT_EQ((*list.begin())->
+        prettyPrintString(mapFromDenseToDia->getTupleDecl()), "j");
+    EXPECT_EQ((*(++list.begin()))->
+        prettyPrintString(mapFromDenseToDia->getTupleDecl()), "diags(d)");
+    EXPECT_EQ(list.size(),2);
+}
+
+
 TEST_F(CodeSynthesisUnitTest, TEST_MINIMAL_TRUE){
     // -a + b >= 0
     Exp * e1 = new Exp();
