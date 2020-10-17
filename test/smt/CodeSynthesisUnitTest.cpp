@@ -55,7 +55,6 @@ TEST_F(CodeSynthesisUnitTest, TEST_UNKNOWN_TERMS_COO){
 }
 
 TEST_F(CodeSynthesisUnitTest, TEST_UNKNOWN_TERMS_CSR){
-    // row(n)
     auto denseIterationSpace = new Set("{[i,j]: i >= 0 and i < NR and"
                          " j >= 0 and j < NC and Ad(i,j) > 0}");
     auto mapFromDenseToCsr  = new Relation("{[i,j] -> [k]:"
@@ -71,6 +70,31 @@ TEST_F(CodeSynthesisUnitTest, TEST_UNKNOWN_TERMS_CSR){
     EXPECT_EQ((*(++(++(++list.begin()))))->
         prettyPrintString(mapFromDenseToCsr->getTupleDecl()), "rowptr(i + 1)");
     EXPECT_EQ(list.size(),4);
+}
+
+TEST_F(CodeSynthesisUnitTest, TEST_UNKNOWN_TERMS_BCSR){
+    //what about b? 
+    //naming for i' and j'
+
+    auto denseIterationSpace = new Set("{[i,j]: i >= 0 and i < NR and"
+                         " j >= 0 and j < NC and Ad(i,j) > 0}");
+    auto mapFromDenseToBcsr  = new Relation("{[i,j] -> [b, ii, jj]:"
+                                         " (ip, jp) = blocks(b) and ii = i - ip and jj = j - jp}");
+    auto list =MinimalSatisfiablity::evaluateUnknowns(mapFromDenseToBcsr, denseIterationSpace);
+    EXPECT_EQ((*list.begin())->
+        prettyPrintString(mapFromDenseToBcsr->getTupleDecl()), "blocks(b)");
+    EXPECT_EQ((*(++list.begin()))->
+        prettyPrintString(mapFromDenseToBcsr->getTupleDecl()), "( ip, jp )");
+    EXPECT_EQ((*(++(++list.begin())))->
+        prettyPrintString(mapFromDenseToBcsr->getTupleDecl()), "ii");
+    EXPECT_EQ((*(++(++(++list.begin()))))->
+        prettyPrintString(mapFromDenseToBcsr->getTupleDecl()), "ip");
+    EXPECT_EQ((*(++(++(++(++list.begin())))))->
+        prettyPrintString(mapFromDenseToBcsr->getTupleDecl()), "jj");
+    EXPECT_EQ((*(++(++(++(++(++list.begin()))))))->
+        prettyPrintString(mapFromDenseToBcsr->getTupleDecl()), "jp");
+    EXPECT_EQ(list.size(),6);
+
 }
 
 TEST_F(CodeSynthesisUnitTest, TEST_MINIMAL_TRUE){
