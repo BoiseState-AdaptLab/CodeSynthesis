@@ -117,18 +117,16 @@ int CodeSynthesis::getTupleVarCount(std::list<Term *> &terms) {
 }
 
 /// This gets the list of all expressions in a conjunction.
-/// Each expression in this list is newly allocated and
-/// the caller is responsible for deallocating
 /// \param conjunction
 /// \return
 std::list<Exp *> CodeSynthesis::getExprs(Conjunction *conjunction) {
     std::list<Exp *> exps;
     for (auto eq: conjunction->equalities()) {
-        exps.push_back(eq->clone());
+        exps.push_back(eq);
     }
 
     for (auto ineq: conjunction->inequalities()) {
-        exps.push_back(ineq->clone());
+        exps.push_back(ineq);
     }
 
     return  exps;

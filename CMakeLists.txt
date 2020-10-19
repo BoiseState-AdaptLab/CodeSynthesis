@@ -71,7 +71,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/lib/installed/include/iegenlib)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/lib/IEGenLib/lib/isl/include)
 
 # BUILD CodeSynthesis_Driver
-add_executable(CodeSynthesis_Driver ${CodeSynthesis_SOURCES} src/main.cpp)
+add_executable(CodeSynthesis_Driver ${CodeSynthesis_SOURCES} src/drivers/code_synthesis_main.cpp)
 add_dependencies(CodeSynthesis_Driver iegenlib_in)
 target_link_libraries(CodeSynthesis_Driver gtest iegenlib isl)
 
@@ -89,6 +89,7 @@ add_dependencies(CodeSynthesis_t iegenlib_in)
 #Tell included gtest headers to NOT use tuple support.
 add_definitions(-DGTEST_HAS_TR1_TUPLE=0)
 add_test(NAME unit_tests COMMAND CodeSynthesis_t)
+add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} --verbose)
 
 target_link_libraries(CodeSynthesis_t gtest iegenlib isl)
 set_target_properties(CodeSynthesis_t
