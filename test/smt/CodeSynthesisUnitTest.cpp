@@ -39,6 +39,12 @@ TEST_F(CodeSynthesisUnitTest, TEST_TERM_LIST){
     EXPECT_EQ((*list.begin())->prettyPrintString(dense->getTupleDecl()),"i");
 }
 
+////////////////////////////////////////////
+//                                        //
+//          TEST_UNKNOWN_TERMS            //
+//                                        //
+////////////////////////////////////////////
+
 TEST_F(CodeSynthesisUnitTest, TEST_UNKNOWN_TERMS_COO){
     // row(n)
     auto denseIterationSpace = new Set("{[i,j]: i >= 0 and i < NR and"
@@ -73,8 +79,8 @@ TEST_F(CodeSynthesisUnitTest, TEST_UNKNOWN_TERMS_CSR){
 }
 
 TEST_F(CodeSynthesisUnitTest, TEST_UNKNOWN_TERMS_BCSR){
-    //what about b? 
-    //naming for i' and j'
+
+
 
     auto denseIterationSpace = new Set("{[i,j]: i >= 0 and i < NR and"
                          " j >= 0 and j < NC and Ad(i,j) > 0}");
@@ -99,7 +105,7 @@ TEST_F(CodeSynthesisUnitTest, TEST_UNKNOWN_TERMS_BCSR){
 
 
 TEST_F(CodeSynthesisUnitTest, TEST_UNKNOWN_TERMS_DIA){
-    //what about d? 
+
     //why does it think that j is unknown? 
 
     auto denseIterationSpace = new Set("{[i,j]: i >= 0 and i < NR and"
@@ -108,14 +114,11 @@ TEST_F(CodeSynthesisUnitTest, TEST_UNKNOWN_TERMS_DIA){
                                          " (i - j) = diags(d)}");
     auto list =MinimalSatisfiablity::evaluateUnknowns(mapFromDenseToDia, denseIterationSpace);
     EXPECT_EQ((*list.begin())->
-        prettyPrintString(mapFromDenseToDia->getTupleDecl()), "j");
-    EXPECT_EQ((*(++list.begin()))->
         prettyPrintString(mapFromDenseToDia->getTupleDecl()), "diags(d)");
-    EXPECT_EQ(list.size(),2);
+    EXPECT_EQ(list.size(),1);
 }
 
 TEST_F(CodeSynthesisUnitTest, TEST_UNKNOWN_TERMS_ELL){
-    //what about k? 
     //why does it think that i is unknown? 
 
     auto denseIterationSpace = new Set("{[i,j]: i >= 0 and i < NR and"
@@ -124,11 +127,10 @@ TEST_F(CodeSynthesisUnitTest, TEST_UNKNOWN_TERMS_ELL){
                                          " j = cols(i, k)}");
     auto list =MinimalSatisfiablity::evaluateUnknowns(mapFromDenseToEll, denseIterationSpace);
     EXPECT_EQ((*list.begin())->
-        prettyPrintString(mapFromDenseToEll->getTupleDecl()), "i");
-    EXPECT_EQ((*(++list.begin()))->
         prettyPrintString(mapFromDenseToEll->getTupleDecl()), "cols(i, k)");
-    EXPECT_EQ(list.size(),2);
+    EXPECT_EQ(list.size(),1);
 }
+
 
 TEST_F(CodeSynthesisUnitTest, TEST_MINIMAL_TRUE){
     // -a + b >= 0
