@@ -19,14 +19,14 @@ namespace code_synthesis {
         }
     };
 
-    class Stmt {
-
-    public:
-        Set * domain;
+    struct Stmt {
+        TupleDecl tupleDecl;
+        Stmt(TupleDecl tupleDecl):tupleDecl(tupleDecl){}
         Exp* rhs;
         Exp* lhs;
         std::string toString() const;
 
+        std::string toPrettyPrintString() const;
     };
 
     class CodeSynthesis {
@@ -50,7 +50,7 @@ namespace code_synthesis {
         /// \param b second list
         /// \return returns a list intersection
         template <typename  T>
-        std::list<T*> intersectLists(const std::list<T*>& a,
+        static std::list<T*> intersectLists(const std::list<T*>& a,
                                             const std::list<T*>&b);
 
         /// Compares terms absolutely without regards for
@@ -61,14 +61,16 @@ namespace code_synthesis {
         static bool compareAbsTerms(const Term * a, const Term* b);
 
 
-        /// Function synthesizes statement from a constraint.
-        /// This statement reorders an unknown expression to
-        /// be on the lhs of a constraint equality;
-        /// \param constraint.
-        /// \param known
-        /// \param unknownTerm
+        /// Function synthesizes list of statements for an unknown
+        /// term.
+        /// \param unknownTerm term to be synthesized
         /// \return
-        Stmt * synthStmt(Exp *constraint, Term *unknownTerm);
+        std::list<Stmt *> synthesizeStatements(Term *unknownTerm);
+
+
+
+
+
 
         /// This function uses a transformation relation and a set to
         /// identify unknowns in a transformation. This is an important
@@ -133,7 +135,13 @@ namespace code_synthesis {
         /// term.
         /// \param unknownTerm
         /// \return
-        std::string getAllocationStmt (Term* unknownTerm);
+        static std::string getAllocationStmt (Term* unknownTerm);
+
+        /// Gets formatted tuple string from a list
+        /// \param list
+        /// \return a string of formatted tuple strings
+        static std::string getFormattedTupleString
+                            (const std::list<std::string>& list);
 
 
     public:

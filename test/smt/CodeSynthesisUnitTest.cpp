@@ -225,7 +225,7 @@ TEST_F (CodeSynthesisUnitTest, TEST_DOMAIN_EXTRACT){
 
 }
 
-TEST_F (CodeSynthesisUnitTest, TEST_INSPECTOR_GENERATION) {
+TEST_F (CodeSynthesisUnitTest, TEST_INSPECTOR_GENERATION_DENSE_TO_COO) {
     std::string denseSpace  = "{[i,j]: i >= 0 and i < NR and"
                               " j >= 0 and j < NC and Ad(i,j) > 0}";
     std::string mapFromDenseToCoo = "{[i,j] -> [n]:"
@@ -234,6 +234,31 @@ TEST_F (CodeSynthesisUnitTest, TEST_INSPECTOR_GENERATION) {
 
     CodeSynthesis* synth = new CodeSynthesis(mapFromDenseToCoo, denseSpace);
     Computation *comp = synth->generateInspectorComputation();
-    //comp->printInfo();
+
+    EXPECT_EQ(comp->getStmtSource(0),"row = newUF(1);");
+    EXPECT_EQ(comp->getIterSpace(0), "{  }");
+    EXPECT_EQ(comp->getExecSched(0), "{ [0, 0, 0, 0, 0] }");
+
+
+    EXPECT_EQ(comp->getStmtSource(1),"row.insert(i);");
+    EXPECT_EQ(comp->getIterSpace(1),
+              "{ [i, j] : i >= 0 && j >= 0 && Ad(i, j) - 1 >= 0"
+              " && -i + NR - 1 >= 0 && -j + NC - 1 >= 0 }");
+    EXPECT_EQ(comp->getExecSched(1),
+              "{ [i, j] -> [1, i, 0, j, 0] : i - i = 0 && j - j = 0 }");
+
+    EXPECT_EQ(comp->getStmtSource(2),"col = newUF(1);");
+    EXPECT_EQ(comp->getIterSpace(2), "{  }");
+    EXPECT_EQ(comp->getExecSched(2),
+              "{ [2, 0, 0, 0, 0] }");
+
+    EXPECT_EQ(comp->getStmtSource(3),"col.insert(j);");
+    EXPECT_EQ(comp->getIterSpace(3),
+              "{ [i, j] : i >= 0 && j >= 0 && Ad(i, j) - 1"
+              " >= 0 && -i + NR - 1 >= 0 && -j + NC - 1 >= 0 }");
+    EXPECT_EQ(comp->getExecSched(3),
+              "{ [i, j] -> [3, i, 0, j, 0] : i - i = 0 && j - j = 0 }");
+
+    comp->printInfo();
 
 }

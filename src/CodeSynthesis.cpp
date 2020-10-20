@@ -12,15 +12,6 @@
 #include <utils/Utils.h>
 using namespace code_synthesis;
 using iegenlib::Exp;
-Stmt * CodeSynthesis::synthStmt
-        (Exp *constraint, Term *unknownTerm)
-{
-    Stmt* stmt = new Stmt();
-    stmt->lhs = new Exp();
-    Exp * rhsExpr  = constraint->solveForFactor(unknownTerm->clone());
-    stmt->rhs = rhsExpr;
-    return stmt;
-}
 
 /// Function flattens a sparse constraint : set, relation
 /// to individual terms
@@ -92,6 +83,31 @@ std::list<Term *> CodeSynthesis::evaluateUnknowns
 std::string Stmt::toString() const {
     std::stringstream ss;
     ss<<lhs->toString() << " = " << rhs->toString();
+    return ss.str();
+}
+
+
+std::string Stmt::toPrettyPrintString() const {
+    std::stringstream ss;
+    // If LHS is a UF we will be doing insert
+    // and expecting the allocation makes this
+    // possible. This is also necessary where
+    // the iterators in the UF do not exist
+    // in the constraint and that is pretty
+    // weird. TODO: look into this situation.
+    if (lhs-> getTermList().front()->isUFCall()){
+       UFCallTerm * uf = (UFCallTerm*) lhs->
+               getTermList().front();
+       ss << uf->name() << ".insert(";
+       ss << rhs->prettyPrintString(tupleDecl);
+
+       ss << ");";
+
+    }else{
+        ss<<lhs->prettyPrintString(tupleDecl)
+          << " = " << rhs->prettyPrintString(tupleDecl);
+    }
+
     return ss.str();
 }
 
@@ -336,9 +352,9 @@ std::list<T*> CodeSynthesis::intersectLists(const std::list<T*> &a,
     std::for_each(a.begin(),a.end(),[&set](T* h){
         set.insert(h);
     });
-    std::for_each(b.begin(),b.end(),[&set,&ret,this](T* l){
+    std::for_each(b.begin(),b.end(),[&set,&ret](T* l){
 
-        auto iter = std::find_if(set.begin(),set.end(),[&l,this](T* a){
+        auto iter = std::find_if(set.begin(),set.end(),[&l](T* a){
 
             return compareAbsTerms(a,l);
         });
@@ -381,34 +397,60 @@ Computation* CodeSynthesis::generateInspectorComputation() {
    int maxSchedule = 0;
    // TODO: work on generating execution schedule
    std::map<int,std::list<std::string>> executionSchedules;
+
    for(auto t : unknownTerms){
        // Have statement for creating unknownTerm
        std::string allocStmt = getAllocationStmt(t);
+
        comp->stmtsInfoMap[stmtID] =
                StmtInfo(allocStmt,"{[]}","{[]->[]}",
                             std::vector<std::pair<std::string,std::string>>(),
                             std::vector<std::pair<std::string,std::string>>());
+       executionSchedules[stmtID].push_back(std::to_string(stmtID));
+       if (executionSchedules[stmtID].size() > maxSchedule){
+          maxSchedule =executionSchedules[stmtID].size();
+       }
 
 
-
-
-       // Have statement for inserting into unknown Term.
+       // Synthesize statements for creating unknown term
        stmtID++;
        Set * insertStmtDomain = getDomain(t,unknownTerms);
-
-       comp->stmtsInfoMap[stmtID] =
-               StmtInfo("---",insertStmtDomain->prettyPrintString(),"{"+
-                        insertStmtDomain->getTupleDecl().toString(true)+"->[]}",
-                        std::vector<std::pair<std::string,std::string>>(),
-                        std::vector<std::pair<std::string,std::string>>());
-
-
-
-
-
-       stmtID++;
+       std::list<Stmt*> synthStmts = synthesizeStatements(t);
+       for(auto st: synthStmts){
+           // TODO: at this point build a dependency graph
+           // for which inspector should be created before the other.
+           //
+           comp->stmtsInfoMap[stmtID] =
+                   StmtInfo(st->toPrettyPrintString(),insertStmtDomain->
+                   prettyPrintString(),"{"+
+                   insertStmtDomain->getTupleDecl().toString(true)+"->[]}",
+                   std::vector<std::pair<std::string,std::string>>(),
+                            std::vector<std::pair<std::string,std::string>>());
+           executionSchedules[stmtID].push_back(std::to_string(stmtID));
+           for(int i = 0 ; i < insertStmtDomain->getArity(); i++){
+               // Add domain tuple variable, "0" to execution schedule.
+               executionSchedules[stmtID].push_back(insertStmtDomain->
+               getTupleDecl().elemVarString(i));
+               executionSchedules[stmtID].push_back("0");
+           }
+           if (executionSchedules[stmtID].size() > maxSchedule){
+               maxSchedule =executionSchedules[stmtID].size();
+           }
+           stmtID++;
+       }
    }
-
+   // Update execution schedule
+   for(auto schedule : executionSchedules){
+       const auto domain = comp->stmtsInfoMap[schedule.first].
+               iterationSpace.get();
+       unsigned int padding = maxSchedule - schedule.second.size();
+       for(int i = 0;i<padding;i++){
+           schedule.second.push_back("0");
+       }
+       comp->setExecSched(schedule.first,
+                          "{" +domain->getTupleDecl().toString(true)
+                          +"->"+getFormattedTupleString(schedule.second) + "}");
+   }
    return comp;
 
 }
@@ -425,4 +467,48 @@ std::string CodeSynthesis::getAllocationStmt(Term *unknownTerm) {
         ufCallTerm->numArgs()<<");";
 
     return allocationString.str() ;
+}
+
+std::list<Stmt *> CodeSynthesis::synthesizeStatements(Term *unknownTerm) {
+    std::list<Stmt*> statements;
+    Relation * restrictedSpace = mapToNewSpace->Restrict(originalSpace);
+    if (restrictedSpace->getNumConjuncts()!=1){
+        throw assert_exception("Codesynthesis: Does not"
+                               " currently support unionised space/relation");
+    }
+    std::list<Exp*> restrictedExpressions =
+            getExprs((*restrictedSpace->conjunctionBegin()));
+
+    for(auto e : restrictedExpressions){
+        if (containsTerm(e->getTermList(),unknownTerm)){
+            auto minTrueExp = getMinTrueExpr(e);
+            auto statementExpression = minTrueExp->
+                    solveForFactor(unknownTerm->clone());
+            Stmt * stmt = new Stmt(restrictedSpace->getTupleDecl());
+            auto lhsExpr= new Exp();
+            lhsExpr->addTerm(unknownTerm);
+            stmt->lhs = lhsExpr;
+            stmt->rhs = statementExpression;
+            statements.push_back(stmt);
+        }
+    }
+
+    return statements;
+}
+
+std::string CodeSynthesis::getFormattedTupleString(const std::list<std::string>& list) {
+    std::stringstream ss;
+    ss << "[";
+    bool first = true;
+    for(auto l : list){
+        if(first){
+            ss << l;
+            first = false;
+        }else{
+            ss << "," <<l;
+        }
+
+    }
+    ss << "]";
+    return ss.str();
 }
