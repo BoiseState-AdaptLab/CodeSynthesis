@@ -399,7 +399,7 @@ Computation* CodeSynthesis::generateInspectorComputation() {
    std::map<int,std::list<std::string>> executionSchedules;
 
    for(auto t : unknownTerms){
-       // Have statement for creating unknownTerm
+       // Have statement for creating unknownTerm.
        std::string allocStmt = getAllocationStmt(t);
 
        comp->stmtsInfoMap[stmtID] =
@@ -445,7 +445,7 @@ Computation* CodeSynthesis::generateInspectorComputation() {
                iterationSpace.get();
        unsigned int padding = maxSchedule - schedule.second.size();
        for(int i = 0;i<padding;i++){
-           schedule.second.push_back("0");
+           schedule.second.emplace_back("0");
        }
        comp->setExecSched(schedule.first,
                           "{" +domain->getTupleDecl().toString(true)

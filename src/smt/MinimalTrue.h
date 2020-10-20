@@ -44,6 +44,8 @@ namespace code_synthesis {
 
 
         public:
+
+
             struct TermCompare {
                 bool operator()(const Term*& a, const Term*& b) const {
                     return (*a)==(*b);
@@ -55,6 +57,15 @@ namespace code_synthesis {
                     return (*a) < (*b);
                 }
             };
+
+            /// This function creates a mapping from a sourceMap
+            /// to a destination map. The output arity of sourceMap
+            /// and output arity of the destinationMap must be equal.
+            /// \param sourceMaptoDense
+            /// \param destinationMaptToDense
+            /// \return
+            static Relation * mapToNewSpace(Relation* sourceMap,
+                                            Relation* destinationMap);
 
             /// Function synthesizes statement from a constraint.
             /// This statement reorders an unknown expression to

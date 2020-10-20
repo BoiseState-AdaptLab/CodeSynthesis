@@ -360,3 +360,21 @@ bool MinimalSatisfiablity::compareAbsTerms(const Term *a, const Term *b) {
     delete b_copy;
     return res;
 }
+
+/// This function creates a mapping from a sourceMap
+/// to a destination map. The output arity of sourceMap
+/// and output arity of the destinationMap must be equal.
+/// \param sourceMaptoDense
+/// \param destinationMaptToDense
+/// \return
+Relation *MinimalSatisfiablity::mapToNewSpace(Relation *sourceMap,
+                                              Relation *destinationMap) {
+    if (sourceMap->outArity()!=destinationMap->outArity()){
+        throw assert_exception("source and destination map must have "
+                               "the same output arity.");
+    }
+    Relation * destinationInverse = destinationMap->Inverse();
+    Relation* result =  sourceMap->Compose(destinationInverse);
+    delete  destinationInverse;
+    return result;
+}

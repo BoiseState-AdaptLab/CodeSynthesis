@@ -262,3 +262,13 @@ TEST_F (CodeSynthesisUnitTest, TEST_INSPECTOR_GENERATION_DENSE_TO_COO) {
     comp->printInfo();
 
 }
+
+TEST_F (CodeSynthesisUnitTest, TEST_INSPECTOR_GENERATION_DENSE_TO_CSR) {
+    auto denseIterationSpace = "{[i,j]: i >= 0 and i < NR and"
+                                       " j >= 0 and j < NC and Ad(i,j) > 0}";
+    auto mapFromDenseToCsr  = "{[i,j] -> [k]:"
+                                           " rowptr(i) <= k and rowptr(i+1) > k and col(k) = j and i >= 0 and "
+                                           " i < NR and j >= 0 and j < NC}";
+
+    CodeSynthesis* synth = new CodeSynthesis(mapFromDenseToCsr , denseIterationSpace);
+}
