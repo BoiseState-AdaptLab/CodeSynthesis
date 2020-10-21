@@ -131,6 +131,28 @@ TEST_F(CodeSynthesisUnitTest, TEST_UNKNOWN_TERMS_ELL){
     EXPECT_EQ(list.size(),1);
 }
 
+TEST_F(CodeSynthesisUnitTest, TEST_UNKNOWN_TERMS_COO_CSR){
+    //why does it think that i and j are unknown? 
+
+    auto cooIterationSpace = new Set("{[n]: n >= 0 and n < NNZ and"
+                         " row(n) = i and col(n) = j and Ad(i,j) != 0}");
+    auto mapFromCooToCsr  = new Relation("{[n] -> [k, i, j]:"
+                                         " rowptr(i) <= k and k < rowptr(i + 1) and "
+                                         "col_csr(k) = j and row(n) = i and col(n) = j}");
+
+    auto list =MinimalSatisfiablity::evaluateUnknowns(mapFromCooToCsr, cooIterationSpace);
+    EXPECT_EQ((*list.begin())->
+        prettyPrintString(mapFromCooToCsr->getTupleDecl()), "col_csr(k)");
+    EXPECT_EQ((*(++list.begin()))->
+        prettyPrintString(mapFromCooToCsr->getTupleDecl()), "k");
+    EXPECT_EQ((*(++(++list.begin())))->
+        prettyPrintString(mapFromCooToCsr->getTupleDecl()), "rowptr(i)");
+    EXPECT_EQ((*(++(++(++list.begin()))))->
+        prettyPrintString(mapFromCooToCsr->getTupleDecl()), "rowptr(i + 1)");
+
+    EXPECT_EQ(list.size(),4);
+}
+
 
 TEST_F(CodeSynthesisUnitTest, TEST_MINIMAL_TRUE){
     // -a + b >= 0
