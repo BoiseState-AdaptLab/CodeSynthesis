@@ -9,24 +9,19 @@ set(CMAKE_CXX_STANDARD 11)
 
 #SOURCE FILES ADDED HERE
 set(CodeSynthesis_SOURCES
-        src/smt/MinimalTrue.cpp
-        src/smt/MinimalTrue.h
-        src/code-gen/CodeGen.cpp
-        src/code-gen/CodeGen.h
-        src/code-gen/OmegaLib.cpp
-        src/code-gen/OmegaLib.h
-        src/code-gen/Computation.hpp
-        src/code-gen/Computation.cc
         src/utils/Utils.cpp
         src/utils/Utils.h
-        src/CodeSynthesis.cpp src/CodeSynthesis.h)
+	src/Visitors.cc
+	src/Visitors.h
+        src/CodeSynthesis.cc 
+	src/CodeSynthesis.h)
 set(CodSynthesis_t_SOURCES
         test/smt/CodeSynthesisUnitTest.cpp
         test/unit_tests_main.cpp
        )
 
 include_directories(src/)
-enable_testing()
+#enable_testing()
 add_compile_options(-g)
 
 #Add thread dependencies for gtest
@@ -73,7 +68,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/lib/IEGenLib/lib/isl/include)
 # BUILD CodeSynthesis_Driver
 add_executable(CodeSynthesis_Driver ${CodeSynthesis_SOURCES} src/drivers/code_synthesis_main.cpp)
 add_dependencies(CodeSynthesis_Driver iegenlib_in)
-target_link_libraries(CodeSynthesis_Driver gtest iegenlib isl)
+target_link_libraries(CodeSynthesis_Driver gtest iegenlib isl codegen omega )
 
 #Set Target properties
 set_target_properties(CodeSynthesis_Driver
@@ -82,19 +77,19 @@ set_target_properties(CodeSynthesis_Driver
         LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
         )
-
+#TODO: Enable testing after restructuring project.
 #ADD TEST
-add_executable(CodeSynthesis_t ${CodeSynthesis_SOURCES} ${CodSynthesis_t_SOURCES} )
-add_dependencies(CodeSynthesis_t iegenlib_in)
+#add_executable(CodeSynthesis_t ${CodeSynthesis_SOURCES} ${CodSynthesis_t_SOURCES} )
+#add_dependencies(CodeSynthesis_t iegenlib_in)
 #Tell included gtest headers to NOT use tuple support.
-add_definitions(-DGTEST_HAS_TR1_TUPLE=0)
-add_test(NAME unit_tests COMMAND CodeSynthesis_t)
-add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} --verbose)
+#add_definitions(-DGTEST_HAS_TR1_TUPLE=0)
+#add_test(NAME unit_tests COMMAND CodeSynthesis_t)
+#add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} --verbose)
 
-target_link_libraries(CodeSynthesis_t gtest iegenlib isl)
-set_target_properties(CodeSynthesis_t
-        PROPERTIES
-        ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
-        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
-        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/test"
-        )
+#target_link_libraries(CodeSynthesis_t gtest iegenlib isl)
+#set_target_properties(CodeSynthesis_t
+#        PROPERTIES
+#        ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
+#        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
+#        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/test"
+#        )
