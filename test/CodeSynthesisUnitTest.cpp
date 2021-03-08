@@ -4,16 +4,23 @@
 
 #include <gtest/gtest.h>
 #include <iegenlib.h>
-#include <smt/MinimalTrue.h>
 #include <CodeSynthesis.h>
 
 
-using namespace code_synthesis::smt;
 using namespace code_synthesis;
 class CodeSynthesisUnitTest : public::testing::Test{
 protected:
     virtual void SetUp(){}
     virtual void TearDown(){}
+    void solveForOutput(std::string rel, std::string expected){
+        SCOPED_TRACE(rel);
+	iegenlib::Relation* relO = new Relation(rel);
+	iegenlib::Relation* res  = CodeSynthesis::solveForOutputTuple(relO);
+	std::string resString = res->prettyPrintString();
+	delete res;
+	delete relO;
+	EXPECT_EQ(resString,expected);
+    }
 };
 
 
@@ -31,11 +38,13 @@ TEST_F(CodeSynthesisUnitTest, TEST_EXPRESSION_TREE){
     conj1->addInequality(e1);
     EXPECT_EQ("{ [a, b] : -a + b >= 0 }", conj1->prettyPrintString());
 }
-
+/*
+ * TODO: Switch test to for private functions in CodeSynthesis
+*/
 TEST_F(CodeSynthesisUnitTest, TEST_TERM_LIST){
     Set* dense = new Set("{[i,j]: i >= 0 and i < NR and"
                          " j >= 0 and j < NC and Ad(i,j) > 0}");
-    auto list = MinimalSatisfiablity::getTermList(dense);
+    auto list = CodeSynthesis::getTermList(dense);
     EXPECT_EQ((*list.begin())->prettyPrintString(dense->getTupleDecl()),"i");
 }
 
@@ -44,29 +53,37 @@ TEST_F(CodeSynthesisUnitTest, TEST_TERM_LIST){
 //          TEST_UNKNOWN_TERMS            //
 //                                        //
 ////////////////////////////////////////////
-
+/*
 TEST_F(CodeSynthesisUnitTest, TEST_UNKNOWN_TERMS_COO){
     // row(n)
-    auto denseIterationSpace = new Set("{[i,j]: i >= 0 and i < NR and"
-                         " j >= 0 and j < NC and Ad(i,j) > 0}");
-    auto mapFromDenseToCoo  = new Relation("{[i,j] -> [n]:"
-                                         " row(n) = i and col(n) = j and  i >= 0 and "
-                                         " i < NR and j >= 0 and j < NC}");
-    auto list =MinimalSatisfiablity::evaluateUnknowns(mapFromDenseToCoo, denseIterationSpace);
+    std::string denseIterationSpace = 
+        "{[i,j]: i >= 0 and i < NR and j >= 0 and j < NC and Ad(i,j) > 0}";
+
+    std::string mapFromDenseToCoo  = 
+	"{[i,j] -> [n]: row(n) = i and col(n) = j and  i >= 0 and "
+        " i < NR and j >= 0 and j < NC}";
+    CodeSynthesis codeSynthesis = new CodeSynthesis(
+        mapFromDenseToCoo,denseIterationSpace);
+    auto list =codeSynthesis->evaluateUnknowns(mapFromDenseToCoo, denseIterationSpace);
     EXPECT_EQ((*list.begin())->
         prettyPrintString(mapFromDenseToCoo->getTupleDecl()), "row(n)");
     EXPECT_EQ((*(++list.begin()))->
         prettyPrintString(mapFromDenseToCoo->getTupleDecl()), "col(n)");
     EXPECT_EQ(list.size(),2);
+    delete codeSynthesis;
 }
 
 TEST_F(CodeSynthesisUnitTest, TEST_UNKNOWN_TERMS_CSR){
-    auto denseIterationSpace = new Set("{[i,j]: i >= 0 and i < NR and"
-                         " j >= 0 and j < NC and Ad(i,j) > 0}");
-    auto mapFromDenseToCsr  = new Relation("{[i,j] -> [k]:"
-                                         " rowptr(i) <= k and rowptr(i+1) > k and col(k) = j and i >= 0 and "
-                                         " i < NR and j >= 0 and j < NC}");
-    auto list =MinimalSatisfiablity::evaluateUnknowns(mapFromDenseToCsr, denseIterationSpace);
+    const char* denseIterationSpace =
+        "{[i,j]: i >= 0 and i < NR and"
+        " j >= 0 and j < NC and Ad(i,j) > 0}";
+    const char* mapFromDenseToCsr  = 
+	"{[i,j] -> [k]: rowptr(i) <= k and rowptr(i+1)"
+        " > k and col(k) = j and i >= 0 and i < NR and"
+	" j >= 0 and j < NC}";
+    CodeSynthesis codeSynthesis = new CodeSynthesis(
+        mapFromDenseToCsr,denseIterationSpace);
+    auto list =codeSynthesis->evaluateUnknowns();
     EXPECT_EQ((*list.begin())->
         prettyPrintString(mapFromDenseToCsr->getTupleDecl()), "col(k)");
     EXPECT_EQ((*(++list.begin()))->
@@ -76,8 +93,9 @@ TEST_F(CodeSynthesisUnitTest, TEST_UNKNOWN_TERMS_CSR){
     EXPECT_EQ((*(++(++(++list.begin()))))->
         prettyPrintString(mapFromDenseToCsr->getTupleDecl()), "rowptr(i + 1)");
     EXPECT_EQ(list.size(),4);
+    delete codeSynthesis;
 }
-
+/*
 TEST_F(CodeSynthesisUnitTest, TEST_UNKNOWN_TERMS_BCSR){
 
 
@@ -86,7 +104,7 @@ TEST_F(CodeSynthesisUnitTest, TEST_UNKNOWN_TERMS_BCSR){
                          " j >= 0 and j < NC and Ad(i,j) > 0}");
     auto mapFromDenseToBcsr  = new Relation("{[i,j] -> [b, ii, jj]:"
                                          " (ip, jp) = blocks(b) and ii = i - ip and jj = j - jp}");
-    auto list =MinimalSatisfiablity::evaluateUnknowns(mapFromDenseToBcsr, denseIterationSpace);
+    auto list =CodeSynthesis::evaluateUnknowns(mapFromDenseToBcsr, denseIterationSpace);
     EXPECT_EQ((*list.begin())->
         prettyPrintString(mapFromDenseToBcsr->getTupleDecl()), "blocks(b)");
     EXPECT_EQ((*(++list.begin()))->
@@ -112,7 +130,7 @@ TEST_F(CodeSynthesisUnitTest, TEST_UNKNOWN_TERMS_DIA){
                          " j >= 0 and j < NC and Ad(i,j) > 0}");
     auto mapFromDenseToDia  = new Relation("{[i,j] -> [j, d]:"
                                          " (i - j) = diags(d)}");
-    auto list =MinimalSatisfiablity::evaluateUnknowns(mapFromDenseToDia, denseIterationSpace);
+    auto list =CodeSynthesis::evaluateUnknowns(mapFromDenseToDia, denseIterationSpace);
     EXPECT_EQ((*list.begin())->
         prettyPrintString(mapFromDenseToDia->getTupleDecl()), "diags(d)");
     EXPECT_EQ(list.size(),1);
@@ -125,7 +143,7 @@ TEST_F(CodeSynthesisUnitTest, TEST_UNKNOWN_TERMS_ELL){
                          " j >= 0 and j < NC and Ad(i,j) > 0}");
     auto mapFromDenseToEll  = new Relation("{[i,j] -> [i, k]:"
                                          " j = cols(i, k)}");
-    auto list =MinimalSatisfiablity::evaluateUnknowns(mapFromDenseToEll, denseIterationSpace);
+    auto list =CodeSynthesis::evaluateUnknowns(mapFromDenseToEll, denseIterationSpace);
     EXPECT_EQ((*list.begin())->
         prettyPrintString(mapFromDenseToEll->getTupleDecl()), "cols(i, k)");
     EXPECT_EQ(list.size(),1);
@@ -140,7 +158,7 @@ TEST_F(CodeSynthesisUnitTest, TEST_UNKNOWN_TERMS_COO_CSR){
                                          " rowptr(i) <= k and k < rowptr(i + 1) and "
                                          "col_csr(k) = j and row(n) = i and col(n) = j}");
 
-    auto list =MinimalSatisfiablity::evaluateUnknowns(mapFromCooToCsr, cooIterationSpace);
+    auto list =CodeSynthesis::evaluateUnknowns(mapFromCooToCsr, cooIterationSpace);
     EXPECT_EQ((*list.begin())->
         prettyPrintString(mapFromCooToCsr->getTupleDecl()), "col_csr(k)");
     EXPECT_EQ((*(++list.begin()))->
@@ -152,7 +170,7 @@ TEST_F(CodeSynthesisUnitTest, TEST_UNKNOWN_TERMS_COO_CSR){
 
     EXPECT_EQ(list.size(),4);
 }
-
+*/
 
 TEST_F(CodeSynthesisUnitTest, TEST_MINIMAL_TRUE){
     // -a + b >= 0
@@ -162,7 +180,7 @@ TEST_F(CodeSynthesisUnitTest, TEST_MINIMAL_TRUE){
     e1->setInequality();
 
     //-a + b = 0
-    Exp * minTrueExp = MinimalSatisfiablity::getMinTrueExpr(e1);
+    Exp * minTrueExp = CodeSynthesis::getMinTrueExpr(e1);
 
     EXPECT_TRUE(minTrueExp->isEquality());
 
@@ -208,10 +226,10 @@ TEST_F(CodeSynthesisUnitTest, TEST_CONTAINS_TERM){
     EXPECT_EQ(false,(*tupleVarTerm)==(*tupleVarTerm2));
     EXPECT_EQ(false,(*(*uf->getParamExp(0)->getTermList().begin())) ==(*tupleVarTerm2));
 
-    EXPECT_EQ(true,MinimalSatisfiablity::
+    EXPECT_EQ(true,CodeSynthesis::
             containsTerm(e1->getTermList(),tupleVarTerm));
 
-    EXPECT_EQ(false,MinimalSatisfiablity::
+    EXPECT_EQ(false,CodeSynthesis::
                 containsTerm(e1->getTermList(),tupleVarTerm2));
 
     EXPECT_EQ("{ [i, j] : -a + b - row(-i, j) >= 0 }",conj1->prettyPrintString());
@@ -219,26 +237,25 @@ TEST_F(CodeSynthesisUnitTest, TEST_CONTAINS_TERM){
 
 
 TEST_F (CodeSynthesisUnitTest, TEST_DOMAIN_EXTRACT){
-    auto denseIterationSpace = new Set("{[i,j]: i >= 0 and i < NR and"
-                         " j >= 0 and j < NC and Ad(i,j) > 0}");
-    auto mapFromDenseToCoo  = new Relation("{[i,j] -> [n]:"
+    auto denseIterationSpace = "{[i,j]: i >= 0 and i < NR and"
+                         " j >= 0 and j < NC and Ad(i,j) > 0}";
+    auto mapFromDenseToCoo  = "{[i,j] -> [n]:"
                                    " row(n) = i and col(n) = j and  i >= 0 and "
-                                   " i < NR and j >= 0 and j < NC}");
-    auto list =MinimalSatisfiablity::evaluateUnknowns(mapFromDenseToCoo, denseIterationSpace);
-    Relation * restrictDomain = mapFromDenseToCoo->Restrict(denseIterationSpace);
+                                   " i < NR and j >= 0 and j < NC}";
+    CodeSynthesis * codeSynthesis = new CodeSynthesis(mapFromDenseToCoo,
+        denseIterationSpace);
+    auto list =codeSynthesis->evaluateUnknowns();
 
-
-
-    Set* rowDomain = MinimalSatisfiablity::
-            getDomain(restrictDomain,(*list.begin()),list);
+    Set* rowDomain = codeSynthesis->
+            getDomain((*list.begin()),list);
     
     EXPECT_EQ("{ [i, j] : i >= 0 && j >= 0 && Ad(i, j) - 1"
               " >= 0 && -i + NR - 1 >= 0 && -j + NC - 1 >= 0 }",
               rowDomain->prettyPrintString());
 
     // Column Domain
-    Set* colDomain = MinimalSatisfiablity::
-                    getDomain(restrictDomain,(*(++list.begin())),list);
+    Set* colDomain = codeSynthesis->
+                    getDomain((*(++list.begin())),list);
 
     EXPECT_EQ("{ [i, j] : i >= 0 && j >= 0 && Ad(i, j) - 1"
               " >= 0 && -i + NR - 1 >= 0 && -j + NC - 1 >= 0 }",
@@ -259,40 +276,63 @@ TEST_F (CodeSynthesisUnitTest, TEST_INSPECTOR_GENERATION_DENSE_TO_COO) {
     CodeSynthesis* synth = new CodeSynthesis(mapFromDenseToCoo, denseSpace);
     Computation *comp = synth->generateInspectorComputation();
 
-    EXPECT_EQ(comp->getStmtSource(0),"row = newUF(1);");
-    EXPECT_EQ(comp->getIterSpace(0), "{  }");
-    EXPECT_EQ(comp->getExecSched(0), "{ [0, 0, 0, 0, 0] }");
+    EXPECT_EQ(comp->getStmt(0)->getStmtSourceCode(),"row = newUF(1);");
+    EXPECT_EQ(comp->getStmt(0)->getIterationSpace()->prettyPrintString()
+		    , "{  }");
+    EXPECT_EQ(comp->getStmt(0)->getExecutionSchedule()->prettyPrintString()
+		    , "{ [0, 0, 0, 0, 0] }");
 
 
-    EXPECT_EQ(comp->getStmtSource(1),"row.insert(i);");
-    EXPECT_EQ(comp->getIterSpace(1),
-              "{ [i, j] : i >= 0 && j >= 0 && Ad(i, j) - 1 >= 0"
-              " && -i + NR - 1 >= 0 && -j + NC - 1 >= 0 }");
-    EXPECT_EQ(comp->getExecSched(1),
-              "{ [i, j] -> [1, i, 0, j, 0] : i - i = 0 && j - j = 0 }");
+    EXPECT_EQ(comp->getStmt(1)->getStmtSourceCode(),"row.insert(i);");
+    EXPECT_EQ(comp->getStmt(1)->getIterationSpace()->prettyPrintString(), 
+		    "{ [i, j] : i >= 0 && j >= 0 && Ad(i, j) - 1 >= 0"
+		    " && -i + NR - 1 >= 0 && -j + NC - 1 >= 0 }");
+    EXPECT_EQ(comp->getStmt(1)->getExecutionSchedule()->prettyPrintString(), 
+		    "{ [i, j] -> [1, i, 0, j, 0] : i - i = 0 && j - j = 0 }");
 
-    EXPECT_EQ(comp->getStmtSource(2),"col = newUF(1);");
-    EXPECT_EQ(comp->getIterSpace(2), "{  }");
-    EXPECT_EQ(comp->getExecSched(2),
-              "{ [2, 0, 0, 0, 0] }");
-
-    EXPECT_EQ(comp->getStmtSource(3),"col.insert(j);");
-    EXPECT_EQ(comp->getIterSpace(3),
-              "{ [i, j] : i >= 0 && j >= 0 && Ad(i, j) - 1"
-              " >= 0 && -i + NR - 1 >= 0 && -j + NC - 1 >= 0 }");
-    EXPECT_EQ(comp->getExecSched(3),
-              "{ [i, j] -> [3, i, 0, j, 0] : i - i = 0 && j - j = 0 }");
-
+    EXPECT_EQ(comp->getStmt(2)->getStmtSourceCode(),"col = newUF(1);");
+    EXPECT_EQ(comp->getStmt(2)->getIterationSpace()->prettyPrintString(),
+		    "{ [i, j] : i >= 0 && j >= 0 && Ad(i, j) - 1"
+		    " >= 0 && -i + NR - 1 >= 0 && -j + NC - 1 >= 0 }");
+    EXPECT_EQ(comp->getStmt(3)->getStmtSourceCode(),"col.insert(j);");
+    EXPECT_EQ(comp->getStmt(3)->getIterationSpace()->prettyPrintString(),
+		    "{ [i, j] : i >= 0 && j >= 0 && Ad(i, j) - 1"
+		    " >= 0 && -i + NR - 1 >= 0 && -j + NC - 1 >= 0 }");
+    EXPECT_EQ(comp->getStmt(3)->getExecutionSchedule()->prettyPrintString(), 
+		    "{ [i, j] -> [3, i, 0, j, 0] : i - i = 0 && j - j = 0 }");
+   
     comp->printInfo();
-
+    EXPECT_EQ("",comp->codeGen());
 }
 
 TEST_F (CodeSynthesisUnitTest, TEST_INSPECTOR_GENERATION_DENSE_TO_CSR) {
     auto denseIterationSpace = "{[i,j]: i >= 0 and i < NR and"
                                        " j >= 0 and j < NC and Ad(i,j) > 0}";
-    auto mapFromDenseToCsr  = "{[i,j] -> [k]:"
-                                           " rowptr(i) <= k and rowptr(i+1) > k and col(k) = j and i >= 0 and "
-                                           " i < NR and j >= 0 and j < NC}";
+    auto mapFromDenseToCsr  = 
+        "{[i,j] -> [k]: rowptr(i) <= k and rowptr(i+1)"
+	" > k and col(k) = j and i >= 0 and "
+        " i < NR and j >= 0 and j < NC}";
 
     CodeSynthesis* synth = new CodeSynthesis(mapFromDenseToCsr , denseIterationSpace);
+}
+
+TEST_F (CodeSynthesisUnitTest, TEST_SOLVE_FOR_OUTPUT){
+    std::string rel = 
+        "{[i,j] -> [k]: A(i,j) > 0 and rowptr(i) <= k"
+	" and k < rowptr(i+ 1) and col(k) =j and 0 <= i"
+	" and i < NR and 0 <= j and j < NC}";
+    std::string res =  
+        "{[i,j] -> [k]: A(i,j) > 0 and rowptr(i) <= k"
+	" and k < rowptr(i+ 1) and k = col_inv(i,j) and 0 <= i"
+	" and i < NR and 0 <= j and j < NC}";
+    solveForOutput(rel,res);
+    
+
+    solveForOutput("{[i,j] -> [n] : 0 <= n and n < NNZ and row(n) = i"
+		   " and col(n) = j and 0 <= i and i < NR and 0 <= j "
+		   " and j < NC} ",
+		   "{[i,j] -> [n] : 0 <= n and n < NNZ and rowcol_inv(i,j) = n"
+		   " and 0 <= i and i < NR and 0 <= j "
+		   " and j < NC }");
+
 }

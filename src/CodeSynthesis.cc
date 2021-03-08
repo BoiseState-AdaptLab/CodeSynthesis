@@ -10,6 +10,7 @@
 #include <unordered_set>
 #include <map>
 #include <utils/Utils.h>
+#include <assert.h>
 using namespace code_synthesis;
 using iegenlib::Exp;
 
@@ -481,3 +482,25 @@ std::string CodeSynthesis::getFormattedTupleString(const std::list<std::string>&
   ss << "]";
   return ss.str();
 }
+
+
+
+iegenlib::Relation* CodeSynthesis::solveForOutputTuple(iegenlib::Relation* r){
+    assert(r->outArity()==1 && "Output arity must be 1"); 
+    // Get Expressions involving output tuple variables
+    TupleVarTerm * term= new TupleVarTerm(r->inArity());
+    ExpTermVisitor expVisit(term);
+    r->acceptVisitor(&expVisit);
+    auto exps = expVisit.getExpressions(); 
+    
+    for(auto &e : exps){
+        auto solution = e->solveForFactor(term);
+	if( not solution){
+	    continue;
+	}
+       
+    }
+    return r; 
+
+}
+

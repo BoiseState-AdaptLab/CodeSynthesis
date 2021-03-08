@@ -3,6 +3,9 @@
 
 #include  <iegenlib/set_relation/Visitor.h>
 #include  <list>
+#include <vector>
+#include <algorithm>
+#include "CodeSynthesis.h"
 /// TermVisitor class extracts all 
 /// the terms in a Set/Relation
 ///
@@ -16,6 +19,22 @@ class TermVisitor : public Visitor {
     void preVisitVarTerm(iegenlib::VarTerm * t) override;
     void preVisitTupleExpTerm(iegenlib::TupleExpTerm * t) override;
     std::list<iegenlib::Term*> getTerms(){return terms;}
+
+};
+
+/// This visitor extracts expressions 
+/// involving term
+class ExpTermVisitor: public Visitor {
+  private:
+    std::vector<iegenlib::Exp*> exps;
+    iegenlib::TupleVarTerm* term;
+    std::stack<iegenlib::Exp*> expStack;
+  public:
+    explicit ExpTermVisitor(TupleVarTerm *term): term(term){}
+    void preVisitTupleVarTerm(iegenlib::TupleVarTerm *t) override;
+    void preVisitExp(iegenlib::Exp* e) override;
+    void postVisitExp(iegenlib::Exp* e) override;
+    std::vector<iegenlib::Exp*> getExpressions(); 
 
 };
 

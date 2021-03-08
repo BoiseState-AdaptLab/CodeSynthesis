@@ -7,6 +7,7 @@
 #include <iegenlib.h>
 
 #include <utility>
+#include <vector>
 #include <computation/Computation.h>
 namespace code_synthesis {
   /// Class contains functionality to generate SPF Computation
@@ -35,6 +36,17 @@ namespace code_synthesis {
       Relation* mapToNewSpace;
       Set* originalSpace;
 
+
+  public:
+      CodeSynthesis(std::string mapToNewSpace, std::string originalSpace):
+          mapToNewSpace(new Relation(std::move(mapToNewSpace))),
+          originalSpace(new Set(std::move(originalSpace))){};
+
+      ~CodeSynthesis();
+
+      /// Generates inspector computation.
+      /// \return Computation object, representing the synthesis.
+      Computation*  generateInspectorComputation ();
 
       /// This gets the list of all expressions in a conjunction.
       /// Each expression in this list is newly allocated and
@@ -144,20 +156,15 @@ namespace code_synthesis {
       /// \return a string of formatted tuple strings
       static std::string getFormattedTupleString
                           (const std::list<std::string>& list);
+      
+      
+      /// Function gets expressions involving term.
+      static std::vector<iegenlib::Exp*> getExpInvolvingTerm(
+          iegenlib::TupleVarTerm*);
 
-
-  public:
-      CodeSynthesis(std::string mapToNewSpace, std::string originalSpace):
-          mapToNewSpace(new Relation(std::move(mapToNewSpace))),
-          originalSpace(new Set(std::move(originalSpace))){};
-
-      ~CodeSynthesis();
-
-      /// Generates inspector computation.
-      /// \return Computation object, representing the synthesis.
-      Computation*  generateInspectorComputation ();
-
-
+      /// This function solves for output tuple in a relation and
+      /// gets all constraints involving the output tuple.
+      static iegenlib::Relation* solveForOutputTuple(iegenlib::Relation*);
 
 
 
