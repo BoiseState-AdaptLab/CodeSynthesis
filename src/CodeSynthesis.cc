@@ -13,7 +13,6 @@
 #include <assert.h>
 using namespace code_synthesis;
 using iegenlib::Exp;
-
 /// TODO: Change to use TermVisitor
 /// Function flattens a sparse constraint : set, relation
 /// to individual terms
@@ -370,11 +369,10 @@ Computation* CodeSynthesis::generateInspectorComputation() {
    for(auto t : unknownTerms){
      // Have statement for creating unknownTerm.
      std::string allocStmt = getAllocationStmt(t);
-
+     
      comp->addStmt(
-             iegenlib::Stmt(allocStmt,"{[]}","{[]->[]}",
-                          std::vector<std::pair<std::string,std::string>>(),
-                          std::vector<std::pair<std::string,std::string>>()));
+             new iegenlib::Stmt(allocStmt,"{[]}","{[]->[]}",
+		     {},{}));
      executionSchedules[stmtID].push_back(std::to_string(stmtID));
      if (executionSchedules[stmtID].size() > maxSchedule){
         maxSchedule =executionSchedules[stmtID].size();
@@ -390,11 +388,10 @@ Computation* CodeSynthesis::generateInspectorComputation() {
          // for which inspector should be created before the other.
          //
          comp->addStmt(
-                 iegenlib::Stmt(st->toPrettyPrintString(),insertStmtDomain->
+                 new iegenlib::Stmt(st->toPrettyPrintString(),insertStmtDomain->
                  prettyPrintString(),"{"+
                  insertStmtDomain->getTupleDecl().toString(true)+"->[]}",
-                 std::vector<std::pair<std::string,std::string>>(),
-                          std::vector<std::pair<std::string,std::string>>()));
+		 {},{}));
          executionSchedules[stmtID].push_back(std::to_string(stmtID));
          for(int i = 0 ; i < insertStmtDomain->getArity(); i++){
              // Add domain tuple variable, "0" to execution schedule.
