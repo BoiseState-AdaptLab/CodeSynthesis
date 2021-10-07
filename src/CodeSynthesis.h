@@ -37,7 +37,7 @@ namespace code_synthesis {
       Set* originalSpace;
 
 
-  public:
+  public: 
       CodeSynthesis(std::string mapToNewSpace, std::string originalSpace):
           mapToNewSpace(new Relation(std::move(mapToNewSpace))),
           originalSpace(new Set(std::move(originalSpace))){};
@@ -81,6 +81,8 @@ namespace code_synthesis {
       std::list<Stmt *> synthesizeStatements(Term *unknownTerm);
 
 
+      static std::string constraintToStatement(Exp* constraint,
+		      std::string unknownUF, int inputArity);
 
 
 

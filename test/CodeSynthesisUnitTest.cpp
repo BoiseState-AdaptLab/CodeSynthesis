@@ -336,3 +336,65 @@ TEST_F (CodeSynthesisUnitTest, TEST_SOLVE_FOR_OUTPUT){
 		   " and j < NC }");
 
 }
+
+TEST_F(CodeSynthesisUnitTest, TEST_CONSTRAINT_TO_STATEMENT){
+    // UF(x,y) = n
+    // {[x,y] -> [n]}
+    Exp * e1 = new Exp();
+    UFCallTerm* uf = new UFCallTerm("UF",2);
+    Exp* eArg1 = new Exp();
+    eArg1->addTerm(new TupleVarTerm(1,0));
+    Exp* eArg2 = new Exp();
+    eArg2->addTerm(new TupleVarTerm(1,1));
+    uf->setParamExp(0,eArg1);
+    uf->setParamExp(1,eArg2);
+    e1->addTerm(uf);
+    e1->addTerm(new TupleVarTerm(-1,2));
+    e1->setEquality();
+
+    std::string statement = CodeSynthesis::constraintToStatement(e1,"UF",2);
+    EXPECT_EQ(statement,"UF.insert(__tv0, __tv1)");
+
+    //{[ii,kk,jj,hr,hc] -> [k]}
+    //rowptr(5 * ii + hr) = k
+    e1 = new Exp();
+    UFCallTerm* rowptr = new UFCallTerm("rowptr",1);
+    Exp *paramExp = new Exp();
+    paramExp->addTerm(new TupleVarTerm(5,0));
+    paramExp->addTerm(new TupleVarTerm(1,3));
+    rowptr->setParamExp(0,paramExp);
+    e1->addTerm(rowptr);
+    e1->addTerm(new TupleVarTerm(-1,5));
+    e1->setEquality();
+    statement = CodeSynthesis::constraintToStatement(e1,"rowptr",5);
+    EXPECT_EQ(statement,"rowptr.insert(5 __tv0 + __tv3)");
+    
+
+
+    // col(colinv(5ii+hr,5jj+hc)) = 5jj + hc // case 2
+    e1 = new Exp();
+    UFCallTerm* colUF = new UFCallTerm("col",1);
+    UFCallTerm* colInv = new UFCallTerm("colinv",2);
+    Exp* colUFArg1 = new Exp();
+    colUFArg1->addTerm(colInv);
+    
+    Exp* colInvArg1 = new Exp();
+    colInvArg1->addTerm(new TupleVarTerm(5,0));
+    colInvArg1->addTerm(new TupleVarTerm(1,3));
+    Exp* colInvArg2 = new Exp();
+    colInvArg2->addTerm(new TupleVarTerm(5,2));
+    colInvArg2->addTerm(new TupleVarTerm(1,4));
+    colInv->setParamExp(0,colInvArg1);
+    colInv->setParamExp(1,colInvArg2);
+
+    colUF->setParamExp(0,colUFArg1); 
+    e1->addTerm(colUF);
+    e1->addTerm( new TupleVarTerm(-5,2));
+    e1->addTerm( new TupleVarTerm(-1,4));
+    e1->setEquality(); 
+    statement = CodeSynthesis::constraintToStatement(e1,"col",5);
+
+    EXPECT_EQ(statement,"col(colinv(5 __tv0 + __tv3, 5 __tv2 + __tv4))=5 __tv2 + __tv4");
+}
+
+

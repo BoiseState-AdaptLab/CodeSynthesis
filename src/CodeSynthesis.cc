@@ -435,6 +435,63 @@ std::string CodeSynthesis::getAllocationStmt(Term *unknownTerm) {
   return allocationString.str() ;
 }
 
+static UFCallTerm* findCallTerm(Exp* exp, std::string ufName){
+   UFCallTerm* res = nullptr;
+   for(auto t : exp->getTermList()){
+      if (t->isUFCall() && ((UFCallTerm*)t)->name() == ufName){
+         res = (UFCallTerm*)t;
+	 break;
+      }
+   }
+   return res;
+}
+
+
+std::string CodeSynthesis::
+constraintToStatement(Exp* constraint, 
+		std::string unknownUF, 
+		int inputArity){
+   UFCallTerm* ufTerm = findCallTerm(constraint,unknownUF);
+   if (ufTerm == NULL){
+      return "";
+   }
+   // Solve for UF term.
+   Term* ufClone = ufTerm->clone();
+   ufClone->setCoefficient(1);
+   Exp* solvedUFConst = constraint->solveForFactor(ufClone);
+   std::stringstream ss;
+   if (constraint->isEquality()){
+      //Case 1
+      // If rhs only has one term and the term is an output tuple
+      // var term.
+      if (solvedUFConst->getTermList().size()== 1
+   		   && solvedUFConst->getTerm()->type() == "TupleVarTerm"
+		   && ((TupleVarTerm*)solvedUFConst->getTerm())->
+		      tvloc() >= inputArity){
+      
+         ss << unknownUF << ".insert(";
+         bool firstArg = true;
+         for (int i = 0;i <ufTerm->numArgs(); ++i) {
+             if (not firstArg) { ss << ", "; }
+             if (ufTerm->getParamExp(i)) { ss << ufTerm->getParamExp(i)->toString(); }
+             firstArg = false;
+         }
+         ss << ")";
+      }else{
+         //Case 2
+	 //UF(x) = F(x)
+	 //solved for must not depend on output term,
+	 //Will need the number of tuple declarations here.
+         bool dependsOnOutput  = false;
+         ss << ufTerm->toString() << "=" << solvedUFConst->toString();
+      }
+   
+   }
+
+   return ss.str();
+}
+
+
 std::list<code_synthesis::Stmt *> CodeSynthesis::synthesizeStatements(
 		Term *unknownTerm) {
   std::list<code_synthesis::Stmt*> statements;
