@@ -435,7 +435,7 @@ std::string CodeSynthesis::getAllocationStmt(Term *unknownTerm) {
   return allocationString.str() ;
 }
 
-static UFCallTerm* findCallTerm(Exp* exp, std::string ufName){
+UFCallTerm* CodeSynthesis::findCallTerm(Exp* exp, std::string ufName){
    UFCallTerm* res = nullptr;
    for(auto t : exp->getTermList()){
       if (t->isUFCall() && ((UFCallTerm*)t)->name() == ufName){
@@ -450,7 +450,7 @@ static UFCallTerm* findCallTerm(Exp* exp, std::string ufName){
 std::string CodeSynthesis::
 constraintToStatement(Exp* constraint, 
 		std::string unknownUF, 
-		int inputArity){
+		int inputArity, int tupleSize){
    UFCallTerm* ufTerm = findCallTerm(constraint,unknownUF);
    if (ufTerm == NULL){
       return "";
@@ -473,7 +473,8 @@ constraintToStatement(Exp* constraint,
          bool firstArg = true;
          for (int i = 0;i <ufTerm->numArgs(); ++i) {
              if (not firstArg) { ss << ", "; }
-             if (ufTerm->getParamExp(i)) { ss << ufTerm->getParamExp(i)->toString(); }
+             if (ufTerm->getParamExp(i)) { 
+		     ss << ufTerm->getParamExp(i)->toString(); }
              firstArg = false;
          }
          ss << ")";
@@ -483,9 +484,53 @@ constraintToStatement(Exp* constraint,
 	 //solved for must not depend on output term,
 	 //Will need the number of tuple declarations here.
          bool dependsOnOutput  = false;
-         ss << ufTerm->toString() << "=" << solvedUFConst->toString();
+	 for(int i = inputArity; i < tupleSize; i++){
+            TupleVarTerm t(1,i);
+	    if (solvedUFConst->dependsOn(t)){
+	       dependsOnOutput = true;
+	       break;
+	    }
+	 }
+	 if (not dependsOnOutput){
+            ss << ufTerm->toString(true) << "=" << solvedUFConst->toString();
+	 }
       }
    
+   }else {
+      // All cases in this section 
+      // arity(y) > arity(x)
+      int x_arity = 0;
+      int y_arity = 0;
+      for(int i = 0 ; i < inputArity; i++){
+         TupleVarTerm t(1,i);
+         for(int k = 0; k < ufTerm->numArgs(); k++){
+	    if(ufTerm->getParamExp(k)->
+			    dependsOn(t)){
+	       x_arity++;
+	       break; 
+	    }
+	 }
+         if(solvedUFConst->dependsOn(t)){
+	    y_arity++;
+	 }
+      }
+      if (y_arity > x_arity){
+         // Case 3
+         // UF(x) <= F(y) 
+         if (ufTerm->coefficient() < 0){
+            ss << ufTerm->toString(true) << "=" 
+		    << "min(" << ufTerm->toString(true)
+		    <<"," << solvedUFConst->toString()
+		    << ")";
+	 }else if (ufTerm->coefficient() > 0){
+	 
+            ss << ufTerm->toString(true) << "=" 
+		    << "max(" << ufTerm->toString(true)
+		    <<"," << solvedUFConst->toString()
+		    << ")";
+	 }
+      }
+      
    }
 
    return ss.str();

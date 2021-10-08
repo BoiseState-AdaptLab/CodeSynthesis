@@ -352,7 +352,7 @@ TEST_F(CodeSynthesisUnitTest, TEST_CONSTRAINT_TO_STATEMENT){
     e1->addTerm(new TupleVarTerm(-1,2));
     e1->setEquality();
 
-    std::string statement = CodeSynthesis::constraintToStatement(e1,"UF",2);
+    std::string statement = CodeSynthesis::constraintToStatement(e1,"UF",2,3);
     EXPECT_EQ(statement,"UF.insert(__tv0, __tv1)");
 
     //{[ii,kk,jj,hr,hc] -> [k]}
@@ -366,18 +366,14 @@ TEST_F(CodeSynthesisUnitTest, TEST_CONSTRAINT_TO_STATEMENT){
     e1->addTerm(rowptr);
     e1->addTerm(new TupleVarTerm(-1,5));
     e1->setEquality();
-    statement = CodeSynthesis::constraintToStatement(e1,"rowptr",5);
+    statement = CodeSynthesis::constraintToStatement(e1,"rowptr",5,6);
     EXPECT_EQ(statement,"rowptr.insert(5 __tv0 + __tv3)");
     
 
 
     // col(colinv(5ii+hr,5jj+hc)) = 5jj + hc // case 2
     e1 = new Exp();
-    UFCallTerm* colUF = new UFCallTerm("col",1);
     UFCallTerm* colInv = new UFCallTerm("colinv",2);
-    Exp* colUFArg1 = new Exp();
-    colUFArg1->addTerm(colInv);
-    
     Exp* colInvArg1 = new Exp();
     colInvArg1->addTerm(new TupleVarTerm(5,0));
     colInvArg1->addTerm(new TupleVarTerm(1,3));
@@ -386,15 +382,83 @@ TEST_F(CodeSynthesisUnitTest, TEST_CONSTRAINT_TO_STATEMENT){
     colInvArg2->addTerm(new TupleVarTerm(1,4));
     colInv->setParamExp(0,colInvArg1);
     colInv->setParamExp(1,colInvArg2);
-
+    
+    
+    UFCallTerm* colUF = new UFCallTerm("col",1);
+    Exp* colUFArg1 = new Exp();
+    colUFArg1->addTerm(colInv);
     colUF->setParamExp(0,colUFArg1); 
     e1->addTerm(colUF);
     e1->addTerm( new TupleVarTerm(-5,2));
     e1->addTerm( new TupleVarTerm(-1,4));
     e1->setEquality(); 
-    statement = CodeSynthesis::constraintToStatement(e1,"col",5);
+    statement = CodeSynthesis::constraintToStatement(e1,"col",5,6);
 
     EXPECT_EQ(statement,"col(colinv(5 __tv0 + __tv3, 5 __tv2 + __tv4))=5 __tv2 + __tv4");
+    delete e1;
+    
+    // rowptr(5ii + hr) <= colinv(5ii+hr,5jj+hc)
+    // case 3 
+    colInv = new UFCallTerm("colinv",2);
+    colInvArg1 = new Exp();
+    colInvArg1->addTerm(new TupleVarTerm(5,0));
+    colInvArg1->addTerm(new TupleVarTerm(1,3));
+    colInvArg2 = new Exp();
+    colInvArg2->addTerm(new TupleVarTerm(5,2));
+    colInvArg2->addTerm(new TupleVarTerm(1,4));
+    colInv->setParamExp(0,colInvArg1);
+    colInv->setParamExp(1,colInvArg2);
+
+    rowptr = new UFCallTerm(-1,"rowptr",1);
+    paramExp = new Exp();
+    paramExp->addTerm(new TupleVarTerm(5,0));
+    paramExp->addTerm(new TupleVarTerm(1,3));
+    rowptr->setParamExp(0,paramExp);
+    
+    e1 = new Exp();
+    e1->setInequality();
+    e1->addTerm(rowptr);
+    e1->addTerm(colInv);
+    
+    statement = CodeSynthesis::constraintToStatement(e1,"rowptr",5,6);
+
+    EXPECT_EQ(statement, 
+		    "rowptr(5 __tv0 + __tv3)=min(rowptr(5 __tv0 + __tv3),"
+		    "colinv(5 __tv0 + __tv3, 5 __tv2 + __tv4))");
+    delete e1;
+
+    // rowptr(5ii + hr + 1) >= colinv(5ii+hr,5jj+hc) + 1
+    // case 4 
+    colInv = new UFCallTerm(-1,"colinv",2);
+    colInvArg1 = new Exp();
+    colInvArg1->addTerm(new TupleVarTerm(5,0));
+    colInvArg1->addTerm(new TupleVarTerm(1,3));
+    colInvArg2 = new Exp();
+    colInvArg2->addTerm(new TupleVarTerm(5,2));
+    colInvArg2->addTerm(new TupleVarTerm(1,4));
+    colInv->setParamExp(0,colInvArg1);
+    colInv->setParamExp(1,colInvArg2);
+
+    rowptr = new UFCallTerm("rowptr",1);
+    paramExp = new Exp();
+    paramExp->addTerm(new TupleVarTerm(5,0));
+    paramExp->addTerm(new TupleVarTerm(1,3));
+    rowptr->setParamExp(0,paramExp);
+    
+    e1 = new Exp();
+    e1->setInequality();
+    e1->addTerm(rowptr);
+    e1->addTerm(colInv);
+    e1->addTerm(new Term(-1));
+
+    
+    statement = CodeSynthesis::constraintToStatement(e1,"rowptr",5,6);
+
+    EXPECT_EQ(statement, 
+		    "rowptr(5 __tv0 + __tv3)=max(rowptr(5 __tv0 + "
+		    "__tv3),colinv(5 __tv0 + __tv3, 5 __tv2 + __tv4) + 1)");
+    delete e1;
+
 }
 
 
