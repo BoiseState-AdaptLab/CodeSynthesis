@@ -161,7 +161,16 @@ namespace code_synthesis {
       static std::string getFormattedTupleString
                           (const std::list<std::string>& list);
       
-      
+       
+      /// Function creates an execution schedule from a set
+      /// and sets the outermost loop to position pos
+      /// Example:
+      ///   {[n,k]: C1 ^ C2}, pos=1
+      ///   {[n,k] -> [1,n,0,k,0]}
+      /// This functionality helps with code synthesis.
+      static iegenlib::Relation* getExecutionSchedule(iegenlib::Set*, int pos); 
+
+
       /// Function gets expressions involving term.
       static std::vector<iegenlib::Exp*> getExpInvolvingTerm(
           iegenlib::TupleVarTerm*);

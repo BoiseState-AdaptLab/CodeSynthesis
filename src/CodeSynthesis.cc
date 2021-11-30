@@ -359,6 +359,8 @@ Computation* CodeSynthesis::generateInspectorComputation() {
    Computation * comp = new Computation();
    std::list<Term*> unknownTerms =
          evaluateUnknowns();
+   
+   // Solve for Permutation
 
    // Extract statement, domain and data spaces for each unknown.
    int stmtID = 0;
@@ -603,3 +605,33 @@ iegenlib::Relation* CodeSynthesis::solveForOutputTuple(iegenlib::Relation* r){
 
 }
 
+/// Function creates an execution schedule from a set
+/// and sets the outermost loop to position pos
+/// Example:
+///   {[n,k]: C1 ^ C2}, pos=1
+///   {[n,k] -> [1,n,0,k,0]}
+/// This functionality helps with code synthesis.
+iegenlib::Relation* CodeSynthesis::getExecutionSchedule(iegenlib::Set* s,
+	       	int pos){
+    stringstream ss;
+    TupleDecl td = s->getTupleDecl();
+    ss << "{" << td.toString(true);
+    int execTupSize= td.size() * 2;
+    ss << " -> [" << pos << ",";
+    for(int i = 0; i < execTupSize; i++){
+        if ( i %2 == 0){
+	    int originalPos = i / 2;
+	    std::string tupleVar = td.elemVarString(originalPos);
+            ss << tupleVar;
+        }else{
+	    ss << "0";
+	}
+
+	if (i < execTupSize -1 ){
+	    ss <<",";
+
+	}
+    }
+    ss << "]}";
+    return new Relation(ss.str());
+}	

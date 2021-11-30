@@ -266,7 +266,7 @@ TEST_F (CodeSynthesisUnitTest, TEST_DOMAIN_EXTRACT){
 
 }
 
-TEST_F (CodeSynthesisUnitTest, TEST_INSPECTOR_GENERATION_DENSE_TO_COO) {
+TEST_F (CodeSynthesisUnitTest, DISABLED_TEST_INSPECTOR_GENERATION_DENSE_TO_COO) {
     std::string denseSpace  = "{[i,j]: i >= 0 and i < NR and"
                               " j >= 0 and j < NC and Ad(i,j) > 0}";
     std::string mapFromDenseToCoo = "{[i,j] -> [n]:"
@@ -462,3 +462,10 @@ TEST_F(CodeSynthesisUnitTest, TEST_CONSTRAINT_TO_STATEMENT){
 }
 
 
+
+TEST_F(CodeSynthesisUnitTest, EXECUTION_SCHEDULE_SYNTHESIS){
+    Set* set = new Set("{[n,k]: n <= 0 and k >= M}");
+    Relation * rel = CodeSynthesis::getExecutionSchedule(set,0);
+    EXPECT_EQ("{ [n, k] -> [0, n, 0, k, 0] : n - n = 0 && k - k = 0 }",
+		    rel->prettyPrintString());
+}
