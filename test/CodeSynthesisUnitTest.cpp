@@ -468,4 +468,287 @@ TEST_F(CodeSynthesisUnitTest, EXECUTION_SCHEDULE_SYNTHESIS){
     Relation * rel = CodeSynthesis::getExecutionSchedule(set,0);
     EXPECT_EQ("{ [n, k] -> [0, n, 0, k, 0] : n - n = 0 && k - k = 0 }",
 		    rel->prettyPrintString());
+    delete rel;
+    rel = CodeSynthesis::getExecutionSchedule(set,1);
+    EXPECT_EQ("{ [n, k] -> [1, n, 0, k, 0] : n - n = 0 && k - k = 0 }",
+		    rel->prettyPrintString());
+    delete rel;
+    delete set;
+}
+
+TEST_F(CodeSynthesisUnitTest, CASE_TEST){
+    // UF(x,y) = n
+    // {[x,y] -> [n]}
+    Exp * e1 = new Exp();
+    UFCallTerm* uf = new UFCallTerm("UF",2);
+    Exp* eArg1 = new Exp();
+    eArg1->addTerm(new TupleVarTerm(1,0));
+    Exp* eArg2 = new Exp();
+    eArg2->addTerm(new TupleVarTerm(1,1));
+    uf->setParamExp(0,eArg1);
+    uf->setParamExp(1,eArg2);
+    e1->addTerm(uf);
+    e1->addTerm(new TupleVarTerm(-1,2));
+    e1->setEquality();
+
+    SynthExpressionCase caseR = 
+	    CodeSynthesis::GetUFExpressionSynthCase(e1,"UF",2,3);
+    EXPECT_EQ(caseR,CASE1);
+
+    //{[ii,kk,jj,hr,hc] -> [k]}
+    //rowptr(5 * ii + hr) = k
+    e1 = new Exp();
+    UFCallTerm* rowptr = new UFCallTerm("rowptr",1);
+    Exp *paramExp = new Exp();
+    paramExp->addTerm(new TupleVarTerm(5,0));
+    paramExp->addTerm(new TupleVarTerm(1,3));
+    rowptr->setParamExp(0,paramExp);
+    e1->addTerm(rowptr);
+    e1->addTerm(new TupleVarTerm(-1,5));
+    e1->setEquality();
+    caseR = CodeSynthesis::GetUFExpressionSynthCase(e1,"rowptr",5,6);
+    EXPECT_EQ(caseR,CASE1);
+    
+
+
+    // col(colinv(5ii+hr,5jj+hc)) = 5jj + hc // case 2
+    e1 = new Exp();
+    UFCallTerm* colInv = new UFCallTerm("colinv",2);
+    Exp* colInvArg1 = new Exp();
+    colInvArg1->addTerm(new TupleVarTerm(5,0));
+    colInvArg1->addTerm(new TupleVarTerm(1,3));
+    Exp* colInvArg2 = new Exp();
+    colInvArg2->addTerm(new TupleVarTerm(5,2));
+    colInvArg2->addTerm(new TupleVarTerm(1,4));
+    colInv->setParamExp(0,colInvArg1);
+    colInv->setParamExp(1,colInvArg2);
+    
+    
+    UFCallTerm* colUF = new UFCallTerm("col",1);
+    Exp* colUFArg1 = new Exp();
+    colUFArg1->addTerm(colInv);
+    colUF->setParamExp(0,colUFArg1); 
+    e1->addTerm(colUF);
+    e1->addTerm( new TupleVarTerm(-5,2));
+    e1->addTerm( new TupleVarTerm(-1,4));
+    e1->setEquality(); 
+    caseR = CodeSynthesis::GetUFExpressionSynthCase(e1,"col",5,6);
+
+    EXPECT_EQ(caseR,CASE2);
+    delete e1;
+    
+    // rowptr(5ii + hr) <= colinv(5ii+hr,5jj+hc)
+    // case 3 
+    colInv = new UFCallTerm("colinv",2);
+    colInvArg1 = new Exp();
+    colInvArg1->addTerm(new TupleVarTerm(5,0));
+    colInvArg1->addTerm(new TupleVarTerm(1,3));
+    colInvArg2 = new Exp();
+    colInvArg2->addTerm(new TupleVarTerm(5,2));
+    colInvArg2->addTerm(new TupleVarTerm(1,4));
+    colInv->setParamExp(0,colInvArg1);
+    colInv->setParamExp(1,colInvArg2);
+
+    rowptr = new UFCallTerm(-1,"rowptr",1);
+    paramExp = new Exp();
+    paramExp->addTerm(new TupleVarTerm(5,0));
+    paramExp->addTerm(new TupleVarTerm(1,3));
+    rowptr->setParamExp(0,paramExp);
+    
+    e1 = new Exp();
+    e1->setInequality();
+    e1->addTerm(rowptr);
+    e1->addTerm(colInv);
+    
+    caseR = CodeSynthesis::GetUFExpressionSynthCase(e1,"rowptr",5,6);
+
+    EXPECT_EQ(caseR, CASE3);
+    delete e1;
+
+    // rowptr(5ii + hr + 1) >= colinv(5ii+hr,5jj+hc) + 1
+    // case 4 
+    colInv = new UFCallTerm(-1,"colinv",2);
+    colInvArg1 = new Exp();
+    colInvArg1->addTerm(new TupleVarTerm(5,0));
+    colInvArg1->addTerm(new TupleVarTerm(1,3));
+    colInvArg2 = new Exp();
+    colInvArg2->addTerm(new TupleVarTerm(5,2));
+    colInvArg2->addTerm(new TupleVarTerm(1,4));
+    colInv->setParamExp(0,colInvArg1);
+    colInv->setParamExp(1,colInvArg2);
+
+    rowptr = new UFCallTerm("rowptr",1);
+    paramExp = new Exp();
+    paramExp->addTerm(new TupleVarTerm(5,0));
+    paramExp->addTerm(new TupleVarTerm(1,3));
+    rowptr->setParamExp(0,paramExp);
+    
+    e1 = new Exp();
+    e1->setInequality();
+    e1->addTerm(rowptr);
+    e1->addTerm(colInv);
+    e1->addTerm(new Term(-1));
+
+    
+    caseR = CodeSynthesis::GetUFExpressionSynthCase(e1,"rowptr",5,6);
+    EXPECT_EQ(caseR, CASE4);
+    delete e1;
+
+}
+
+
+TEST_F(CodeSynthesisUnitTest, EXPRESSION_DATA_ACCESS_SYNTHESIS){
+    // UF(x,y) = n
+    // {[x,y] -> [n]}
+    Exp * e1 = new Exp();
+    UFCallTerm* uf = new UFCallTerm("UF",2);
+    Exp* eArg1 = new Exp();
+    eArg1->addTerm(new TupleVarTerm(1,0));
+    Exp* eArg2 = new Exp();
+    eArg2->addTerm(new TupleVarTerm(1,1));
+    uf->setParamExp(0,eArg1);
+    uf->setParamExp(1,eArg2);
+    e1->addTerm(uf);
+    e1->addTerm(new TupleVarTerm(-1,2));
+    e1->setEquality();
+
+    SynthExpressionCase caseR = 
+	    CodeSynthesis::GetUFExpressionSynthCase(e1,"UF",2,3);
+    auto writeAccess = CodeSynthesis::GetWrites("UF",e1,caseR,2);
+    auto readAccess = CodeSynthesis::GetReads("UF",e1,caseR,2);
+    EXPECT_EQ(1,writeAccess.size());
+    EXPECT_EQ(0,readAccess.size());
+    
+    auto write = writeAccess[0];
+    EXPECT_EQ("UF",write.first);
+    EXPECT_EQ("{{[tv0, tv1]->[0]}}",write.second);
+    delete e1;
+
+
+    //{[ii,kk,jj,hr,hc] -> [k]}
+    //rowptr(5 * ii + hr) = k
+    e1 = new Exp();
+    UFCallTerm* rowptr = new UFCallTerm("rowptr",1);
+    Exp *paramExp = new Exp();
+    paramExp->addTerm(new TupleVarTerm(5,0));
+    paramExp->addTerm(new TupleVarTerm(1,3));
+    rowptr->setParamExp(0,paramExp);
+    e1->addTerm(rowptr);
+    e1->addTerm(new TupleVarTerm(-1,5));
+    e1->setEquality();
+    caseR = CodeSynthesis::GetUFExpressionSynthCase(e1,"rowptr",5,6);
+    writeAccess = CodeSynthesis::GetWrites("rowptr",e1,caseR,5);
+    readAccess = CodeSynthesis::GetReads("rowptr",e1,caseR,5);
+    EXPECT_EQ(1,writeAccess.size());
+    EXPECT_EQ(0,readAccess.size());
+    
+    write = writeAccess[0];
+    EXPECT_EQ("rowptr",write.first);
+    EXPECT_EQ("{[tv0, tv1, tv2, tv3, tv4]->[0]}}",write.second);
+    delete e1;
+
+
+    // col(colinv(5ii+hr,5jj+hc)) = 5jj + hc + NR// case 2
+    e1 = new Exp();
+    UFCallTerm* colInv = new UFCallTerm("colinv",2);
+    Exp* colInvArg1 = new Exp();
+    colInvArg1->addTerm(new TupleVarTerm(5,0));
+    colInvArg1->addTerm(new TupleVarTerm(1,3));
+    Exp* colInvArg2 = new Exp();
+    colInvArg2->addTerm(new TupleVarTerm(5,2));
+    colInvArg2->addTerm(new TupleVarTerm(1,4));
+    colInv->setParamExp(0,colInvArg1);
+    colInv->setParamExp(1,colInvArg2);
+    
+    
+    UFCallTerm* colUF = new UFCallTerm("col",1);
+    Exp* colUFArg1 = new Exp();
+    colUFArg1->addTerm(colInv);
+    colUF->setParamExp(0,colUFArg1); 
+    e1->addTerm(colUF);
+    //RHS 5jj + hc + NR
+    e1->addTerm( new TupleVarTerm(-5,2));
+    e1->addTerm( new TupleVarTerm(-1,4));
+    e1->addTerm(new VarTerm(-1,"NR"));
+    
+    e1->setEquality(); 
+    caseR = CodeSynthesis::GetUFExpressionSynthCase(e1,"col",5,6);
+
+    writeAccess = CodeSynthesis::GetWrites("col",e1,caseR,5);
+    readAccess = CodeSynthesis::GetReads("col",e1,caseR,5);
+    EXPECT_EQ(1,writeAccess.size());
+    EXPECT_EQ(2,readAccess.size());
+    
+    write = writeAccess[0];
+    EXPECT_EQ("col",write.first);
+    EXPECT_EQ("{[tv0,tv1,tv2,tv3,tv4] -> [tv5]: tv5 ="
+		    " colinv(5 tv0+ tv2 ,5 tv0 + tv3)}",
+		    write.second);
+
+    auto read1 = readAccess[0];
+    EXPECT_EQ("colinv",read1.first);
+    EXPECT_EQ("",read1.second);
+    
+    auto read2 = readAccess[1];
+    EXPECT_EQ("NR",read2.first);
+    EXPECT_EQ("",read2.second);  
+    delete e1;
+    
+
+    //TODO: complete tests for Cases 3 & 4
+    // rowptr(5ii + hr) <= colinv(5ii+hr,5jj+hc)
+    // case 3 
+    colInv = new UFCallTerm("colinv",2);
+    colInvArg1 = new Exp();
+    colInvArg1->addTerm(new TupleVarTerm(5,0));
+    colInvArg1->addTerm(new TupleVarTerm(1,3));
+    colInvArg2 = new Exp();
+    colInvArg2->addTerm(new TupleVarTerm(5,2));
+    colInvArg2->addTerm(new TupleVarTerm(1,4));
+    colInv->setParamExp(0,colInvArg1);
+    colInv->setParamExp(1,colInvArg2);
+
+    rowptr = new UFCallTerm(-1,"rowptr",1);
+    paramExp = new Exp();
+    paramExp->addTerm(new TupleVarTerm(5,0));
+    paramExp->addTerm(new TupleVarTerm(1,3));
+    rowptr->setParamExp(0,paramExp);
+    
+    e1 = new Exp();
+    e1->setInequality();
+    e1->addTerm(rowptr);
+    e1->addTerm(colInv);
+    
+    caseR = CodeSynthesis::GetUFExpressionSynthCase(e1,"rowptr",5,6);
+
+    delete e1;
+
+    // rowptr(5ii + hr + 1) >= colinv(5ii+hr,5jj+hc) + 1
+    // case 4 
+    colInv = new UFCallTerm(-1,"colinv",2);
+    colInvArg1 = new Exp();
+    colInvArg1->addTerm(new TupleVarTerm(5,0));
+    colInvArg1->addTerm(new TupleVarTerm(1,3));
+    colInvArg2 = new Exp();
+    colInvArg2->addTerm(new TupleVarTerm(5,2));
+    colInvArg2->addTerm(new TupleVarTerm(1,4));
+    colInv->setParamExp(0,colInvArg1);
+    colInv->setParamExp(1,colInvArg2);
+
+    rowptr = new UFCallTerm("rowptr",1);
+    paramExp = new Exp();
+    paramExp->addTerm(new TupleVarTerm(5,0));
+    paramExp->addTerm(new TupleVarTerm(1,3));
+    rowptr->setParamExp(0,paramExp);
+    
+    e1 = new Exp();
+    e1->setInequality();
+    e1->addTerm(rowptr);
+    e1->addTerm(colInv);
+    e1->addTerm(new Term(-1));
+
+    
+    caseR = CodeSynthesis::GetUFExpressionSynthCase(e1,"rowptr",5,6);
+    delete e1;
+    
 }

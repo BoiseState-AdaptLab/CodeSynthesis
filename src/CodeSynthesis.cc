@@ -448,14 +448,17 @@ UFCallTerm* CodeSynthesis::findCallTerm(Exp* exp, std::string ufName){
    return res;
 }
 
-
+//TODO:Refactor this code so that we can 
+//create a function for get case. This function 
+//will take necessary parameter regarding what 
+//case.
 std::string CodeSynthesis::
 constraintToStatement(Exp* constraint, 
 		std::string unknownUF, 
 		int inputArity, int tupleSize){
    UFCallTerm* ufTerm = findCallTerm(constraint,unknownUF);
    if (ufTerm == NULL){
-      return "";
+      throw assert_exception("UFCallTerm must exist in expression");
    }
    // Solve for UF term.
    Term* ufClone = ufTerm->clone();
@@ -534,7 +537,7 @@ constraintToStatement(Exp* constraint,
       }
       
    }
-
+   delete solvedUFConst;
    return ss.str();
 }
 
@@ -634,4 +637,199 @@ iegenlib::Relation* CodeSynthesis::getExecutionSchedule(iegenlib::Set* s,
     }
     ss << "]}";
     return new Relation(ss.str());
+}
+
+
+
+
+// class DataAccessVisitor recursively visits 
+// an expression and extracts data access 
+// relations for UFCalls and Symbolic Constants.
+class DataAccessVisitor: public Visitor{
+private:
+    std::vector<std::pair<std::string,std::string>> dAccess;
+    int arity;
+public:
+    DataAccessVisitor(unsigned int arity): arity(arity){}
+    void preVisitUFCallTerm(UFCallTerm * t);
+    void preVisitVarTerm(VarTerm* t);
+    std::vector<std::pair<std::string,std::string>> getDataAccess(){ 
+	    return dAccess;}
+};
+
+void DataAccessVisitor::preVisitVarTerm(VarTerm* t){
+   // Constant variable term becomes
+   // N
+   // {"N", "{[Z]->[0]}"}
+   std::string dataName = t->symbol();
+   Relation* rel = new Relation(arity,1);
+   Conjunction* conj = new Conjunction(arity,1);
+   rel->addConjunction(conj);
+   Exp* e = new Exp();
+   TupleVarTerm *tupTerm = new TupleVarTerm(1,arity +1);
+   e->setEquality();
+   e->addTerm(tupTerm);
+   conj->addEquality(e);
+   std::string relString = rel->toString();
+   delete rel;
+   dAccess.push_back({dataName,relString});
+}
+void DataAccessVisitor::preVisitUFCallTerm(UFCallTerm* t){
+    // The goal of this code section is to add
+    // a constraint to the create relation such that
+    // UF(x)
+    //
+    // {UF, {[Z]->[y]: y = x }
+    // and x can contain tuple variables in Z 
+    std::string ufName = t->name();
+    Relation* rel = new Relation(arity,t->numArgs());
+    Conjunction* conj = new Conjunction(arity,t->numArgs());
+    rel->addConjunction(conj);
+    for(int i = 0; i < t->numArgs(); i++){
+        Exp* e = new Exp();
+	e->setEquality();
+	TupleVarTerm* tupTerm = new TupleVarTerm(1,arity+i);
+	Exp* paramClone = t->getParamExp(i)->clone();
+	paramClone->multiplyBy(-1);
+	e->addTerm(tupTerm);
+	e->addExp(paramClone);
+	conj->addEquality(e);
+    } 
+    std::string relString = rel->toString();
+    dAccess.push_back({ufName,relString});
+    delete rel;
+}
+
+
+/// Function returns a list of write accesses.
+std::vector<std::pair<std::string,std::string>> CodeSynthesis::GetWrites(
+     std::string uf, iegenlib::Exp* constraint,
+     SynthExpressionCase expCase,int arity){
+    std::vector<std::pair<std::string,std::string>> result;
+    UFCallTerm* ufTerm = findCallTerm(constraint,uf);
+    if (ufTerm == NULL){
+       throw assert_exception("UFCallTerm must exist in expression");
+    }
+    // Solve for UF term.
+    Term* ufClone = ufTerm->clone();
+    ufClone->setCoefficient(1);
+    Exp* solvedUFConst = constraint->solveForFactor(ufClone);
+    if (expCase == CASE1){
+        // This is for case 1 where 
+	// we have an insert abstraction
+	TupleDecl tdl(arity);
+	result.push_back({uf,"{"+tdl.toString(true)+
+            "->[0]}"});
+    }else if (expCase ==  CASE2 ||
+		   expCase == CASE3 ||
+		   expCase == CASE4){
+	DataAccessVisitor dV(arity);
+	ufTerm->acceptVisitor(&dV);
+	// We know there is only one UF write,
+	// so we only pick up data accesses 
+	// that involves UF on LHS
+	for(auto dAccess: dV.getDataAccess()){
+	    if (dAccess.first == uf){
+	        result.push_back(dAccess);
+	    } 
+	}
+    }
+    return result;
 }	
+
+/// This function returns a list of read access made by an expression
+/// based on its case.
+std::vector<std::pair<std::string,std::string>> CodeSynthesis::GetReads(
+        std::string uf,iegenlib::Exp* constraint,SynthExpressionCase expCase,
+	int arity){
+    UFCallTerm* ufTerm = findCallTerm(constraint,uf);
+    if (ufTerm == NULL){
+       throw assert_exception("UFCallTerm must exist in expression");
+    }
+    
+    // Solve for UF term.
+    Term* ufClone = ufTerm->clone();
+    ufClone->setCoefficient(1);
+    Exp* solvedUFConst = constraint->solveForFactor(ufClone);
+    DataAccessVisitor dV(arity);
+    solvedUFConst->acceptVisitor(&dV);
+    return dV.getDataAccess();
+}
+
+
+
+/// Function returns case of expression as regards a UF. 
+SynthExpressionCase CodeSynthesis::GetUFExpressionSynthCase(Exp* constraint,
+      std::string unknownUF, int inputArity, int tupleSize){
+   SynthExpressionCase caseResult = UNDEFINED;
+   UFCallTerm* ufTerm = findCallTerm(constraint,unknownUF);
+   if (ufTerm == NULL){
+      throw assert_exception("UFCallTerm must exist in expression");
+   }
+   // Solve for UF term.
+   Term* ufClone = ufTerm->clone();
+   ufClone->setCoefficient(1);
+   Exp* solvedUFConst = constraint->solveForFactor(ufClone);
+   std::stringstream ss;
+   if (constraint->isEquality()){
+      //Case 1
+      // If rhs only has one term and the term is an output tuple
+      // var term.
+      if (solvedUFConst->getTermList().size()== 1
+   		   && solvedUFConst->getTerm()->type() == "TupleVarTerm"
+		   && ((TupleVarTerm*)solvedUFConst->getTerm())->
+		      tvloc() >= inputArity){
+          caseResult = CASE1;
+      }else{
+         //Case 2
+	 //UF(x) = F(x)
+	 //solved for must not depend on output term,
+	 //Will need the number of tuple declarations here.
+         bool dependsOnOutput  = false;
+	 for(int i = inputArity; i < tupleSize; i++){
+            TupleVarTerm t(1,i);
+	    if (solvedUFConst->dependsOn(t)){
+	       dependsOnOutput = true;
+	       break;
+	    }
+	 }
+	 if (not dependsOnOutput){
+		 
+             caseResult = CASE2;
+           
+	 }
+      }
+   
+   }else {
+      // All cases in this section 
+      // arity(y) > arity(x)
+      int x_arity = 0;
+      int y_arity = 0;
+      for(int i = 0 ; i < inputArity; i++){
+         TupleVarTerm t(1,i);
+         for(int k = 0; k < ufTerm->numArgs(); k++){
+	    if(ufTerm->getParamExp(k)->
+			    dependsOn(t)){
+	       x_arity++;
+	       break; 
+	    }
+	 }
+         if(solvedUFConst->dependsOn(t)){
+	    y_arity++;
+	 }
+      }
+      if (y_arity > x_arity){
+         // Case 3
+         // UF(x) <= F(y) 
+         if (ufTerm->coefficient() < 0){
+	     caseResult = CASE3; 
+	 }else if (ufTerm->coefficient() > 0){
+	     caseResult = CASE4;
+	 }
+      }
+      
+   }
+   delete solvedUFConst;
+   return caseResult;
+}	
+

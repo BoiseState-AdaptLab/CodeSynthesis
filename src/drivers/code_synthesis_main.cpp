@@ -26,44 +26,73 @@ int main() {
     int executionScheduleIndex  = 0;
 
     iegenlib::Relation* map1 = 
-	    new iegenlib::Relation("{[i,j]->[i,k,j]: i >= 0 and i < NR and"
+	    new iegenlib::Relation("{[i,j]->[k]: i >= 0 and i < NR and"
                               " j >= 0 and j < NC and rowptr(i) <= k < rowptr(i+1)"
 			      " and j = col1(k) and P(i,j) = k }");
     iegenlib::Relation* map2 =
-	   new iegenlib::Relation("{[n,i,j] -> [i,j]:"
+	   new iegenlib::Relation("{[n] -> [i,j]:"
                           " row(n) = i and 0 <= n and n < NNZ "
 			  "and col2(n) = j and  i >= 0 and "
                           " i < NR and j >= 0 and j < NC}");
     iegenlib::Relation* composeRel = map1->Compose(map2);
-    std::cerr << "composed relation: "<< composeRel->prettyPrintString();
-     iegenlib::Set* copyDomain = composeRel->ToSet();
-    std::cerr << "copy space: "<< copyDomain->prettyPrintString();
-    std::string copyStmt = "ACSR(n,k) = ACOO(n,k)";
-    iegenlib::Relation* execSchedule = code_synthesis::
-	    CodeSynthesis::getExecutionSchedule(
-			    copyDomain,executionScheduleIndex);
-    inspector.addStmt(new Stmt(copyStmt,copyDomain->toString(),execSchedule->prettyPrintString(),
-			    {{"ACOO" , "{[n,k] -> [n]}"}}, 
-			    {{"ACSR" , "{[n,k] -> [k]}"}}));
-
-   
-    
-
     iegenlib::Relation* transRel = composeRel->TransitiveClosure(); 
     std::cout <<"Transitive Closure: "<< transRel->prettyPrintString() << "\n";
-    // Assuming there is a symbol Iterator 
-    std::vector<std::string> unknowns {"rowptr","col1"};
+    std::list<iegenlib::Exp*> expList =
+    code_synthesis::CodeSynthesis::getExprs(*transRel->conjunctionBegin());    
+    
+    std::string pStmt;
+    iegenlib::Exp* pExp = NULL ;
+    // Solve for P
+    for(auto e : expList){
+        if (e->isEquality() && code_synthesis::
+			CodeSynthesis::findCallTerm(e,"P")!=NULL){
+	    pStmt = code_synthesis::CodeSynthesis::
+	         constraintToStatement(e,
+		   "P",composeRel->inArity(),composeRel->arity());
+	    pExp = e;
+	    break;
+	}
 
+	// TODO: Look for constraints that describes sorting.
+	// for help in initializing P DS.
+        	
+    }
+    
+    assert(pExp && "Synth Failure: No constraints involving P");
+     
+    // Get Domain for P
+    iegenlib::Set* pDomain = transRel->GetDomain("P");
+    
+    // Get execution schedule
+    iegenlib::Relation* pExecutionSchedule = code_synthesis::
+	    CodeSynthesis::getExecutionSchedule(
+			    pDomain,executionScheduleIndex++);
+    auto expCase = code_synthesis::CodeSynthesis::GetUFExpressionSynthCase(pExp,
+		   "P",composeRel->inArity(),composeRel->arity());
+    
+    // Get reads and writes.
+    auto writes = code_synthesis::CodeSynthesis::
+	    GetWrites("P",pExp,expCase,pDomain->arity()); 
+
+    auto reads = code_synthesis::CodeSynthesis::
+	    GetWrites("P",pExp,expCase,pDomain->arity()); 
+
+
+    inspector.addStmt(new Stmt(pStmt,pDomain->toString(),
+			    pExecutionSchedule->prettyPrintString(),
+			    reads,writes));
+
+    
+    std::vector<std::string> unknowns {"rowptr","col1"};
+     
     std::vector<iegenlib::Set*> unknownDomain;
     
     for(std::string unknown: unknowns){
         iegenlib::Set* domain = transRel->GetDomain(unknown);
         unknownDomain.push_back(domain);	
     }
-   
+    
 
-    std::list<iegenlib::Exp*> expList =
-    code_synthesis::CodeSynthesis::getExprs(*transRel->conjunctionBegin());    
     
     while (unknowns.size() >= 0){
 	std::string currentUF = unknowns.front();
@@ -83,5 +112,15 @@ int main() {
 	// Synthesize statements 
     }
     // CodeGen (RS2->S1(I)) - Data copy Code
-        return 0;
+    iegenlib::Set* copyDomain = composeRel->ToSet();
+    std::cerr << "copy space: "<< copyDomain->prettyPrintString();
+    std::string copyStmt = "ACSR(n,k) = ACOO(n,k)";
+    iegenlib::Relation* execSchedule = code_synthesis::
+	    CodeSynthesis::getExecutionSchedule(
+			    copyDomain,executionScheduleIndex);
+    inspector.addStmt(new Stmt(copyStmt,copyDomain->toString(),execSchedule->prettyPrintString(),
+			    {{"ACOO" , "{[n,k] -> [n]}"}}, 
+			    {{"ACSR" , "{[n,k] -> [k]}"}}));
+
+    return 0;
 }

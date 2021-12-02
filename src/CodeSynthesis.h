@@ -21,6 +21,28 @@ namespace code_synthesis {
       }
   };
 
+  /// Synthesizing statements for UFs in expressions results in 4 cases
+  /// Case 1
+  /// UF(x) = y
+  /// If rhs only has one term and the term is an output tuple
+  /// var term.
+  /// Case 2
+  ///UF(x) = F(x)
+  /// RHS of UF expression does not involve an output tuple variable
+  /// Case 3
+  /// UF(x) <= F(y)
+  /// where arity(x) < arity(y) and y is not an output tuple variable.
+  /// Case 4
+  /// UF(x) >= F(y)
+  /// where arity(x) < arity(y) and y is not an output tuple variable.
+  typedef enum {
+      CASE1,
+      CASE2,
+      CASE3,
+      CASE4,
+      UNDEFINED
+  } SynthExpressionCase;
+
   struct Stmt {
       TupleDecl tupleDecl;
       Stmt(TupleDecl tupleDecl):tupleDecl(tupleDecl){}
@@ -175,12 +197,39 @@ namespace code_synthesis {
       static std::vector<iegenlib::Exp*> getExpInvolvingTerm(
           iegenlib::TupleVarTerm*);
 
-      /// This function solves for output tuple in a relation and
+      /// Function solves for output tuple in a relation and
       /// gets all constraints involving the output tuple.
       static iegenlib::Relation* solveForOutputTuple(iegenlib::Relation*);
+      
+      
+      /// Function returns a list of read access on a UF.
+      static std::vector<std::pair<std::string,std::string>> GetReads(
+		      std::string uf,iegenlib::Exp* constraint,
+		     SynthExpressionCase expCase,int arity);   
 
 
+      /// Function returns a list of write accesses.
+      static std::vector<std::pair<std::string,std::string>> GetWrites(
+		     std::string uf, iegenlib::Exp* constraint,
+		     SynthExpressionCase expCase,int arity); 
 
+      /// Function returns case of expression as regards a UF. 
+      /// Case 1
+      /// UF(x) = y
+      /// If rhs only has one term and the term is an output tuple
+      /// var term.
+      /// Case 2
+      ///UF(x) = F(x)
+      /// RHS of UF expression does not involve an output tuple variable
+      /// Case 3
+      /// UF(x) <= F(y)
+      /// where arity(x) < arity(y) and y is not an output tuple variable.
+      /// Case 4
+      /// UF(x) >= F(y)
+      /// where arity(x) < arity(y) and y is not an output tuple variable.
+      /// Assumes that the UF exists in the expression.
+      static SynthExpressionCase GetUFExpressionSynthCase(Exp* constraint,
+		      std::string unknownUF, int inputArity, int tupleSize); 
   };
 }
 
