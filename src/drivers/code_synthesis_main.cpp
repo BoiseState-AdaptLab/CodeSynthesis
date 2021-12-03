@@ -60,8 +60,12 @@ int main() {
     
     assert(pExp && "Synth Failure: No constraints involving P");
      
+    std::vector<std::string> unknowns {"rowptr","col1"};
     // Get Domain for P
     iegenlib::Set* pDomain = composeRel->GetDomain("P");
+    // remove constraints involving unknown UFs
+    code_synthesis::CodeSynthesis::RemoveSymbolicConstraints(unknowns,pDomain);
+
     std::cout << "pDomain: " << pDomain->prettyPrintString() << "\n"; 
     
     // Get execution schedule
@@ -78,13 +82,10 @@ int main() {
     auto reads = code_synthesis::CodeSynthesis::
 	    GetReads("P",pExp,expCase,pDomain->arity()); 
 
-
-    inspector.addStmt(new Stmt(pStmt,pDomain->toString(),
+    
+    inspector.addStmt(new Stmt(pStmt,pDomain->prettyPrintString(),
 			    pExecutionSchedule->prettyPrintString(),
 			    reads,writes));
-
-    
-    std::vector<std::string> unknowns {"rowptr","col1"};
      
     std::vector<iegenlib::Set*> unknownDomain;
     
@@ -94,9 +95,8 @@ int main() {
     }
     
 
-    
-    while (unknowns.size() >= 0){
-	std::string currentUF = unknowns.front();
+     
+    for (auto currentUF : unknowns){
         std::list<iegenlib::Exp*> expUfs;
 	std::list<std::string> expStmts;
 	for(auto e : expList){
@@ -104,10 +104,7 @@ int main() {
 	      std::string expStmt = code_synthesis::CodeSynthesis::
 	         constraintToStatement(e,
 		   currentUF,composeRel->inArity(),composeRel->arity());
-	      if (expStmt.size() != 0){
-	         expUfs.push_back(e);
-		 expStmts.push_back(expStmt);
-	      }
+	      std::cerr <<expStmt << "\n";
 	   }
 	}
 	// Synthesize statements 
@@ -119,9 +116,11 @@ int main() {
     iegenlib::Relation* execSchedule = code_synthesis::
 	    CodeSynthesis::getExecutionSchedule(
 			    copyDomain,executionScheduleIndex);
-    inspector.addStmt(new Stmt(copyStmt,copyDomain->toString(),execSchedule->prettyPrintString(),
+    inspector.addStmt(new Stmt(copyStmt,copyDomain->prettyPrintString(),
+			    execSchedule->prettyPrintString(),
 			    {{"ACOO" , "{[n,k] -> [n]}"}}, 
 			    {{"ACSR" , "{[n,k] -> [k]}"}}));
-
+    inspector.padExecutionSchedules();
+    std::cerr << "ToDot \n" << inspector.codeGen();
     return 0;
 }

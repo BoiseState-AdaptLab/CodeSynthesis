@@ -229,7 +229,12 @@ namespace code_synthesis {
       /// where arity(x) < arity(y) and y is not an output tuple variable.
       /// Assumes that the UF exists in the expression.
       static SynthExpressionCase GetUFExpressionSynthCase(Exp* constraint,
-		      std::string unknownUF, int inputArity, int tupleSize); 
+		      std::string unknownUF, int inputArity, int tupleSize);
+      
+      /// Function removes constraints present in symbNames
+      /// from sparse constraints sc
+      static void RemoveSymbolicConstraints(const std::vector<std::string>& symbNames,
+		     SparseConstraints* sc); 
   };
 }
 

@@ -674,7 +674,7 @@ void DataAccessVisitor::preVisitVarTerm(VarTerm* t){
    Conjunction* conj = new Conjunction(arity+1,arity);
    rel->addConjunction(conj);
    Exp* e = new Exp();
-   TupleVarTerm *tupTerm = new TupleVarTerm(1,arity +1);
+   TupleVarTerm *tupTerm = new TupleVarTerm(1,arity);
    e->setEquality();
    e->addTerm(tupTerm);
    conj->addEquality(e);
@@ -852,3 +852,58 @@ SynthExpressionCase CodeSynthesis::GetUFExpressionSynthCase(Exp* constraint,
    return caseResult;
 }	
 
+void CodeSynthesis::RemoveSymbolicConstraints(const std::vector<std::string>& symbNames,
+		     SparseConstraints* sc){
+   for(auto it = sc->conjunctionBegin();
+                   it!= sc->conjunctionEnd();
+                   ++it){
+      Conjunction* conj = (*it);
+      auto itE = conj->equalities().begin();
+        while(itE != conj->equalities().end()){
+	   bool found = false;   
+	   for(auto t: (*itE)->getTermList()){
+		 std::string name;
+	         if(t->isUFCall()){
+	            UFCallTerm* ut = dynamic_cast<UFCallTerm*>(t);
+                    name = ut->name();
+		 }else{
+	            VarTerm* vt = dynamic_cast<VarTerm*>(t);
+		    name = vt? vt->symbol():"";
+		 }
+		 auto itU = 
+			std::find(symbNames.begin(),symbNames.end(),name);
+                 if(itU != symbNames.end()){
+		    delete (*itE);
+                    itE = conj->equalities().erase(itE);
+		     found = true;
+		     break;
+		 }
+	      }
+	   if (!found){ itE++;}
+      }
+
+      itE = conj->inequalities().begin();
+      while(itE != conj->inequalities().end()){
+	   bool found = false;   
+	   for(auto t: (*itE)->getTermList()){
+		 std::string name;
+	         if(t->isUFCall()){
+	            UFCallTerm* ut = dynamic_cast<UFCallTerm*>(t);
+                    name = ut->name();
+		 }else{
+	            VarTerm* vt = dynamic_cast<VarTerm*>(t);
+		    name = vt? vt->symbol():"";
+		 }
+		 auto itU = 
+			std::find(symbNames.begin(),symbNames.end(),name);
+                 if(itU != symbNames.end()){
+		     delete (*itE);
+                     itE = conj->equalities().erase(itE);
+		     found = true;
+		     break;
+		 }
+	      }
+	   if (!found){ itE++;}
+       }
+   }
+}

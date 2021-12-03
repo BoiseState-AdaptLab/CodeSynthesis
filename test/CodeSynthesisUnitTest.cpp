@@ -704,7 +704,7 @@ TEST_F(CodeSynthesisUnitTest, EXPRESSION_DATA_ACCESS_SYNTHESIS){
     
     auto read1 = readAccess[0];
     EXPECT_EQ("NR",read1.first);
-    EXPECT_EQ("{ [tv0, tv1, tv2, tv3, tv4] -> [tv5] : tv6 = 0 }",read1.second);  
+    EXPECT_EQ("{ [tv0, tv1, tv2, tv3, tv4] -> [tv5] : tv5 = 0 }",read1.second);  
     
     auto read2 = readAccess[1];
     EXPECT_EQ("colinv",read2.first);
@@ -768,5 +768,17 @@ TEST_F(CodeSynthesisUnitTest, EXPRESSION_DATA_ACCESS_SYNTHESIS){
     
     caseR = CodeSynthesis::GetUFExpressionSynthCase(e1,"rowptr",5,6);
     delete e1;
-    
+}
+
+TEST_F(CodeSynthesisUnitTest, TEST_REMOVE_SYMBOLIC_CONSTRAINTS){
+
+    iegenlib::Relation* map1 = 
+	    new iegenlib::Relation("{[i,j]->[k]: i >= 0 and i < NR and"
+                              " j >= 0 and j < NC and rowptr(i) <= k < rowptr(i+1)"
+			      " and j = col1(k) and P(i,j) = k }");
+     std::vector<std::string> ufs = { "rowptr","col1"};
+     CodeSynthesis::RemoveSymbolicConstraints(ufs,map1);
+     EXPECT_EQ("{ [i, j] -> [k] : k - P(i, j) = 0 && "
+	       "i >= 0 && j >= 0 && -i + NR - 1 >= 0"
+	       " && -j + NC - 1 >= 0 }",map1->prettyPrintString());
 }
