@@ -61,7 +61,8 @@ int main() {
     assert(pExp && "Synth Failure: No constraints involving P");
      
     // Get Domain for P
-    iegenlib::Set* pDomain = transRel->GetDomain("P");
+    iegenlib::Set* pDomain = composeRel->GetDomain("P");
+    std::cout << "pDomain: " << pDomain->prettyPrintString() << "\n"; 
     
     // Get execution schedule
     iegenlib::Relation* pExecutionSchedule = code_synthesis::
@@ -75,7 +76,7 @@ int main() {
 	    GetWrites("P",pExp,expCase,pDomain->arity()); 
 
     auto reads = code_synthesis::CodeSynthesis::
-	    GetWrites("P",pExp,expCase,pDomain->arity()); 
+	    GetReads("P",pExp,expCase,pDomain->arity()); 
 
 
     inspector.addStmt(new Stmt(pStmt,pDomain->toString(),

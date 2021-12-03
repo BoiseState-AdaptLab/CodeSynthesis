@@ -616,27 +616,34 @@ iegenlib::Relation* CodeSynthesis::solveForOutputTuple(iegenlib::Relation* r){
 /// This functionality helps with code synthesis.
 iegenlib::Relation* CodeSynthesis::getExecutionSchedule(iegenlib::Set* s,
 	       	int pos){
-    stringstream ss;
-    TupleDecl td = s->getTupleDecl();
-    ss << "{" << td.toString(true);
-    int execTupSize= td.size() * 2;
-    ss << " -> [" << pos << ",";
+    int size = s->getTupleDecl().size();
+    int execTupSize= size * 2;
+    Relation* result = new Relation(size,execTupSize+1);
+    Conjunction* conj = new Conjunction(size + execTupSize + 1,size);
+    result->addConjunction(conj);
+    Exp* e1 = new Exp();
+    TupleVarTerm* posTup = new TupleVarTerm(1,size);
+    Term * posTerm = new Term(-pos);
+    e1->addTerm(posTerm);
+    e1->addTerm(posTup);
+    e1->setEquality();
+    conj->addEquality(e1);
+
     for(int i = 0; i < execTupSize; i++){
+	Exp* e = new Exp();
+	e->setEquality();
+	TupleVarTerm* t2 = new TupleVarTerm(1,size+i+1);
+	e->addTerm(t2);
         if ( i %2 == 0){
 	    int originalPos = i / 2;
-	    std::string tupleVar = td.elemVarString(originalPos);
-            ss << tupleVar;
-        }else{
-	    ss << "0";
-	}
-
-	if (i < execTupSize -1 ){
-	    ss <<",";
-
-	}
+	    //Construct an expression with tuple var terms.
+	    TupleVarTerm* t1 = new TupleVarTerm(-1,originalPos);
+	    e->addTerm(t1);
+        }	
+	conj->addEquality(e);
     }
-    ss << "]}";
-    return new Relation(ss.str());
+    conj->pushConstConstraintsToTupleDecl();
+    return result;
 }
 
 
@@ -655,6 +662,7 @@ public:
     void preVisitVarTerm(VarTerm* t);
     std::vector<std::pair<std::string,std::string>> getDataAccess(){ 
 	    return dAccess;}
+    void clearDataAccesses(){dAccess.clear();}
 };
 
 void DataAccessVisitor::preVisitVarTerm(VarTerm* t){
@@ -663,14 +671,14 @@ void DataAccessVisitor::preVisitVarTerm(VarTerm* t){
    // {"N", "{[Z]->[0]}"}
    std::string dataName = t->symbol();
    Relation* rel = new Relation(arity,1);
-   Conjunction* conj = new Conjunction(arity,1);
+   Conjunction* conj = new Conjunction(arity+1,arity);
    rel->addConjunction(conj);
    Exp* e = new Exp();
    TupleVarTerm *tupTerm = new TupleVarTerm(1,arity +1);
    e->setEquality();
    e->addTerm(tupTerm);
    conj->addEquality(e);
-   std::string relString = rel->toString();
+   std::string relString = rel->prettyPrintString();
    delete rel;
    dAccess.push_back({dataName,relString});
 }
@@ -683,7 +691,7 @@ void DataAccessVisitor::preVisitUFCallTerm(UFCallTerm* t){
     // and x can contain tuple variables in Z 
     std::string ufName = t->name();
     Relation* rel = new Relation(arity,t->numArgs());
-    Conjunction* conj = new Conjunction(arity,t->numArgs());
+    Conjunction* conj = new Conjunction(arity + t->numArgs(),arity);
     rel->addConjunction(conj);
     for(int i = 0; i < t->numArgs(); i++){
         Exp* e = new Exp();
@@ -695,7 +703,7 @@ void DataAccessVisitor::preVisitUFCallTerm(UFCallTerm* t){
 	e->addExp(paramClone);
 	conj->addEquality(e);
     } 
-    std::string relString = rel->toString();
+    std::string relString = rel->prettyPrintString();
     dAccess.push_back({ufName,relString});
     delete rel;
 }
@@ -753,7 +761,18 @@ std::vector<std::pair<std::string,std::string>> CodeSynthesis::GetReads(
     Exp* solvedUFConst = constraint->solveForFactor(ufClone);
     DataAccessVisitor dV(arity);
     solvedUFConst->acceptVisitor(&dV);
-    return dV.getDataAccess();
+    auto result = dV.getDataAccess();
+    dV.clearDataAccesses();
+    // There might be some read accesses inside of the
+    // ufTerm. 
+    ufTerm->acceptVisitor(&dV);
+    auto ufTermDataAccesses = dV.getDataAccess();
+    for(auto dataAccess : ufTermDataAccesses){
+        if(dataAccess.first != uf){ 
+	    result.push_back(dataAccess);
+	}
+    }
+    return result;
 }
 
 

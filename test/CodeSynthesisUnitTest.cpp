@@ -316,7 +316,7 @@ TEST_F (CodeSynthesisUnitTest, TEST_INSPECTOR_GENERATION_DENSE_TO_CSR) {
     CodeSynthesis* synth = new CodeSynthesis(mapFromDenseToCsr , denseIterationSpace);
 }
 
-TEST_F (CodeSynthesisUnitTest, TEST_SOLVE_FOR_OUTPUT){
+TEST_F (CodeSynthesisUnitTest, DISABLED_TEST_SOLVE_FOR_OUTPUT){
     std::string rel = 
         "{[i,j] -> [k]: A(i,j) > 0 and rowptr(i) <= k"
 	" and k < rowptr(i+ 1) and col(k) =j and 0 <= i"
@@ -466,11 +466,27 @@ TEST_F(CodeSynthesisUnitTest, TEST_CONSTRAINT_TO_STATEMENT){
 TEST_F(CodeSynthesisUnitTest, EXECUTION_SCHEDULE_SYNTHESIS){
     Set* set = new Set("{[n,k]: n <= 0 and k >= M}");
     Relation * rel = CodeSynthesis::getExecutionSchedule(set,0);
-    EXPECT_EQ("{ [n, k] -> [0, n, 0, k, 0] : n - n = 0 && k - k = 0 }",
+    EXPECT_EQ("{ [tv0, tv1] -> [0, tv3, 0, tv5, 0] : tv0 - tv3 = 0 && tv1 - tv5 = 0 }",
 		    rel->prettyPrintString());
     delete rel;
     rel = CodeSynthesis::getExecutionSchedule(set,1);
-    EXPECT_EQ("{ [n, k] -> [1, n, 0, k, 0] : n - n = 0 && k - k = 0 }",
+    EXPECT_EQ("{ [tv0, tv1] -> [1, tv3, 0, tv5, 0] : tv0 - tv3 = 0 && tv1 - tv5 = 0 }",
+		    rel->prettyPrintString());
+    
+    delete set;
+    set = new Set("{[n,k,q]: n <= 0 and k >= M and q <= 20}");
+    rel = CodeSynthesis::getExecutionSchedule(set,0);
+    EXPECT_EQ("{ [tv0, tv1, tv2] -> [0, tv4, 0, tv6, 0, tv8, 0] :"
+	      " tv0 - tv4 = 0 && tv1 - tv6 = 0 && tv2 - tv8 = 0 }",
+		    rel->prettyPrintString());
+    delete set;
+    delete rel;
+    
+    set = new Set("{ [tv0, tv1, tv2]: tv0 >= N}");
+    rel = CodeSynthesis::getExecutionSchedule(set,0);
+    
+    EXPECT_EQ("{ [tv0, tv1, tv2] -> [0, tv4, 0, tv6, 0, tv8, 0] :"
+		    " tv0 - tv4 = 0 && tv1 - tv6 = 0 && tv2 - tv8 = 0 }",
 		    rel->prettyPrintString());
     delete rel;
     delete set;
@@ -621,7 +637,7 @@ TEST_F(CodeSynthesisUnitTest, EXPRESSION_DATA_ACCESS_SYNTHESIS){
     
     auto write = writeAccess[0];
     EXPECT_EQ("UF",write.first);
-    EXPECT_EQ("{{[tv0, tv1]->[0]}}",write.second);
+    EXPECT_EQ("{[tv0, tv1]->[0]}",write.second);
     delete e1;
 
 
@@ -644,7 +660,7 @@ TEST_F(CodeSynthesisUnitTest, EXPRESSION_DATA_ACCESS_SYNTHESIS){
     
     write = writeAccess[0];
     EXPECT_EQ("rowptr",write.first);
-    EXPECT_EQ("{[tv0, tv1, tv2, tv3, tv4]->[0]}}",write.second);
+    EXPECT_EQ("{[tv0, tv1, tv2, tv3, tv4]->[0]}",write.second);
     delete e1;
 
 
@@ -681,17 +697,19 @@ TEST_F(CodeSynthesisUnitTest, EXPRESSION_DATA_ACCESS_SYNTHESIS){
     
     write = writeAccess[0];
     EXPECT_EQ("col",write.first);
-    EXPECT_EQ("{[tv0,tv1,tv2,tv3,tv4] -> [tv5]: tv5 ="
-		    " colinv(5 tv0+ tv2 ,5 tv0 + tv3)}",
+    EXPECT_EQ("{ [tv0, tv1, tv2, tv3, tv4] -> [tv5] :"
+		    " tv5 - colinv(5 tv0 + tv3, 5 tv2 + tv4) = 0 }",
 		    write.second);
 
+    
     auto read1 = readAccess[0];
-    EXPECT_EQ("colinv",read1.first);
-    EXPECT_EQ("",read1.second);
+    EXPECT_EQ("NR",read1.first);
+    EXPECT_EQ("{ [tv0, tv1, tv2, tv3, tv4] -> [tv5] : tv6 = 0 }",read1.second);  
     
     auto read2 = readAccess[1];
-    EXPECT_EQ("NR",read2.first);
-    EXPECT_EQ("",read2.second);  
+    EXPECT_EQ("colinv",read2.first);
+    EXPECT_EQ("{ [tv0, tv1, tv2, tv3, tv4] -> [tv5, tv6] :"
+	      " 5 tv0 + tv3 - tv5 = 0 && 5 tv2 + tv4 - tv6 = 0 }",read2.second);
     delete e1;
     
 
