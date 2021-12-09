@@ -340,6 +340,10 @@ TEST_F (CodeSynthesisUnitTest, DISABLED_TEST_SOLVE_FOR_OUTPUT){
 TEST_F(CodeSynthesisUnitTest, TEST_CONSTRAINT_TO_STATEMENT){
     // UF(x,y) = n
     // {[x,y] -> [n]}
+    TupleDecl td(3);
+    td.setTupleElem(0,"x");
+    td.setTupleElem(1,"y");
+    td.setTupleElem(2,"n");
     Exp * e1 = new Exp();
     UFCallTerm* uf = new UFCallTerm("UF",2);
     Exp* eArg1 = new Exp();
@@ -352,11 +356,18 @@ TEST_F(CodeSynthesisUnitTest, TEST_CONSTRAINT_TO_STATEMENT){
     e1->addTerm(new TupleVarTerm(-1,2));
     e1->setEquality();
 
-    std::string statement = CodeSynthesis::constraintToStatement(e1,"UF",2,3);
-    EXPECT_EQ(statement,"UF.insert(__tv0, __tv1)");
+    std::string statement = CodeSynthesis::constraintToStatement(e1,"UF",2,td);
+    EXPECT_EQ(statement,"UF.insert(x, y)");
 
     //{[ii,kk,jj,hr,hc] -> [k]}
     //rowptr(5 * ii + hr) = k
+    TupleDecl td2(6);
+    td2.setTupleElem(0,"ii");
+    td2.setTupleElem(1,"kk");
+    td2.setTupleElem(2,"jj");
+    td2.setTupleElem(3,"hr");
+    td2.setTupleElem(4,"hc");
+    td2.setTupleElem(5,"k");
     e1 = new Exp();
     UFCallTerm* rowptr = new UFCallTerm("rowptr",1);
     Exp *paramExp = new Exp();
@@ -366,8 +377,8 @@ TEST_F(CodeSynthesisUnitTest, TEST_CONSTRAINT_TO_STATEMENT){
     e1->addTerm(rowptr);
     e1->addTerm(new TupleVarTerm(-1,5));
     e1->setEquality();
-    statement = CodeSynthesis::constraintToStatement(e1,"rowptr",5,6);
-    EXPECT_EQ(statement,"rowptr.insert(5 __tv0 + __tv3)");
+    statement = CodeSynthesis::constraintToStatement(e1,"rowptr",5,td2);
+    EXPECT_EQ(statement,"rowptr.insert(5 ii + hr)");
     
 
 
@@ -392,9 +403,9 @@ TEST_F(CodeSynthesisUnitTest, TEST_CONSTRAINT_TO_STATEMENT){
     e1->addTerm( new TupleVarTerm(-5,2));
     e1->addTerm( new TupleVarTerm(-1,4));
     e1->setEquality(); 
-    statement = CodeSynthesis::constraintToStatement(e1,"col",5,6);
+    statement = CodeSynthesis::constraintToStatement(e1,"col",5,td2);
 
-    EXPECT_EQ(statement,"col(colinv(5 __tv0 + __tv3, 5 __tv2 + __tv4))=5 __tv2 + __tv4");
+    EXPECT_EQ(statement,"col(colinv(5 ii + hr, 5 jj + hc))=5 jj + hc");
     delete e1;
     
     // rowptr(5ii + hr) <= colinv(5ii+hr,5jj+hc)
@@ -420,14 +431,14 @@ TEST_F(CodeSynthesisUnitTest, TEST_CONSTRAINT_TO_STATEMENT){
     e1->addTerm(rowptr);
     e1->addTerm(colInv);
     
-    statement = CodeSynthesis::constraintToStatement(e1,"rowptr",5,6);
+    statement = CodeSynthesis::constraintToStatement(e1,"rowptr",5,td2);
 
     EXPECT_EQ(statement, 
-		    "rowptr(5 __tv0 + __tv3)=min(rowptr(5 __tv0 + __tv3),"
-		    "colinv(5 __tv0 + __tv3, 5 __tv2 + __tv4))");
+		    "rowptr(5 ii + hr)=min(rowptr(5 ii + hr),"
+		    "colinv(5 ii + hr, 5 jj + hc))");
     delete e1;
 
-    // rowptr(5ii + hr + 1) >= colinv(5ii+hr,5jj+hc) + 1
+    // rowptr(5ii + hr) >= colinv(5ii+hr,5jj+hc) + 1
     // case 4 
     colInv = new UFCallTerm(-1,"colinv",2);
     colInvArg1 = new Exp();
@@ -452,11 +463,11 @@ TEST_F(CodeSynthesisUnitTest, TEST_CONSTRAINT_TO_STATEMENT){
     e1->addTerm(new Term(-1));
 
     
-    statement = CodeSynthesis::constraintToStatement(e1,"rowptr",5,6);
+    statement = CodeSynthesis::constraintToStatement(e1,"rowptr",5,td2);
 
     EXPECT_EQ(statement, 
-		    "rowptr(5 __tv0 + __tv3)=max(rowptr(5 __tv0 + "
-		    "__tv3),colinv(5 __tv0 + __tv3, 5 __tv2 + __tv4) + 1)");
+		    "rowptr(5 ii + hr)=max(rowptr(5 ii + "
+		    "hr),colinv(5 ii + hr, 5 jj + hc) + 1)");
     delete e1;
 
 }

@@ -455,11 +455,12 @@ UFCallTerm* CodeSynthesis::findCallTerm(Exp* exp, std::string ufName){
 std::string CodeSynthesis::
 constraintToStatement(Exp* constraint, 
 		std::string unknownUF, 
-		int inputArity, int tupleSize){
+		int inputArity,const TupleDecl& tupDecl){
    UFCallTerm* ufTerm = findCallTerm(constraint,unknownUF);
    if (ufTerm == NULL){
       throw assert_exception("UFCallTerm must exist in expression");
    }
+   int tupleSize = tupDecl.size();
    // Solve for UF term.
    Term* ufClone = ufTerm->clone();
    ufClone->setCoefficient(1);
@@ -479,7 +480,7 @@ constraintToStatement(Exp* constraint,
          for (int i = 0;i <ufTerm->numArgs(); ++i) {
              if (not firstArg) { ss << ", "; }
              if (ufTerm->getParamExp(i)) { 
-		     ss << ufTerm->getParamExp(i)->toString(); }
+		     ss << ufTerm->getParamExp(i)->prettyPrintString(tupDecl); }
              firstArg = false;
          }
          ss << ")";
@@ -497,7 +498,8 @@ constraintToStatement(Exp* constraint,
 	    }
 	 }
 	 if (not dependsOnOutput){
-            ss << ufTerm->toString(true) << "=" << solvedUFConst->toString();
+            ss << ufTerm->prettyPrintString(tupDecl,true) << "=" 
+		    << solvedUFConst->prettyPrintString(tupDecl);
 	 }
       }
    
@@ -523,15 +525,15 @@ constraintToStatement(Exp* constraint,
          // Case 3
          // UF(x) <= F(y) 
          if (ufTerm->coefficient() < 0){
-            ss << ufTerm->toString(true) << "=" 
-		    << "min(" << ufTerm->toString(true)
-		    <<"," << solvedUFConst->toString()
+            ss << ufTerm->prettyPrintString(tupDecl,true) << "=" 
+		    << "min(" << ufTerm->prettyPrintString(tupDecl,true)
+		    <<"," << solvedUFConst->prettyPrintString(tupDecl)
 		    << ")";
 	 }else if (ufTerm->coefficient() > 0){
 	 
-            ss << ufTerm->toString(true) << "=" 
-		    << "max(" << ufTerm->toString(true)
-		    <<"," << solvedUFConst->toString()
+            ss << ufTerm->prettyPrintString(tupDecl,true) << "=" 
+		    << "max(" << ufTerm->prettyPrintString(tupDecl,true)
+		    <<"," << solvedUFConst->prettyPrintString(tupDecl)
 		    << ")";
 	 }
       }

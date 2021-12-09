@@ -48,7 +48,7 @@ int main() {
 			CodeSynthesis::findCallTerm(e,"P")!=NULL){
 	    pStmt = code_synthesis::CodeSynthesis::
 	         constraintToStatement(e,
-		   "P",composeRel->inArity(),composeRel->arity());
+		   "P",composeRel->inArity(),composeRel->getTupleDecl());
 	    pExp = e;
 	    break;
 	}
@@ -93,8 +93,6 @@ int main() {
         iegenlib::Set* domain = transRel->GetDomain(unknown);
         unknownDomain.push_back(domain);	
     }
-    
-
      
     for (auto currentUF : unknowns){
         std::list<iegenlib::Exp*> expUfs;
@@ -103,7 +101,7 @@ int main() {
 	   if(code_synthesis::CodeSynthesis::findCallTerm(e,currentUF)!=NULL){
 	      std::string expStmt = code_synthesis::CodeSynthesis::
 	         constraintToStatement(e,
-		   currentUF,composeRel->inArity(),composeRel->arity());
+		   currentUF,composeRel->inArity(),composeRel->getTupleDecl());
 	      std::cerr <<expStmt << "\n";
 	   }
 	}
