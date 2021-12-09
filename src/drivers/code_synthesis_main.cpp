@@ -119,6 +119,7 @@ int main() {
 			    {{"ACOO" , "{[n,k] -> [n]}"}}, 
 			    {{"ACSR" , "{[n,k] -> [k]}"}}));
     inspector.padExecutionSchedules();
+    inspector.printInfo();
     std::cerr << "ToDot \n" << inspector.codeGen();
     return 0;
 }
