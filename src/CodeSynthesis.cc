@@ -871,7 +871,7 @@ SynthExpressionCase CodeSynthesis::GetUFExpressionSynthCase(Exp* constraint,
 	    y_arity++;
 	 }
       }
-      if (y_arity > x_arity){
+      if (y_arity >= x_arity){
          // Case 3
          // UF(x) <= F(y) 
          if (ufTerm->coefficient() < 0){

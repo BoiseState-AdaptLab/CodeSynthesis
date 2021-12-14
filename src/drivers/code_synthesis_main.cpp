@@ -27,11 +27,11 @@ int main() {
     iegenlib::Relation* map1 = 
 	    new iegenlib::Relation("{[i,j]->[k]: i >= 0 and i < NR and"
                               " j >= 0 and j < NC and rowptr(i) <= k < rowptr(i+1)"
-			      " and j = col1(k) and P(i,j) = k }");
+			      " and j = col2(k) and P(i,j) = k }");
     iegenlib::Relation* map2 =
 	   new iegenlib::Relation("{[n] -> [i,j]:"
-                          " row(n) = i and 0 <= n and n < NNZ "
-			  "and col2(n) = j and  i >= 0 and "
+                          " row1(n) = i and 0 <= n and n < NNZ "
+			  "and col1(n) = j and  i >= 0 and "
                           " i < NR and j >= 0 and j < NC}");
     iegenlib::Relation* composeRel = map1->Compose(map2);
     iegenlib::Relation* transRel = composeRel->TransitiveClosure(); 
@@ -58,7 +58,7 @@ int main() {
     
     assert(pExp && "Synth Failure: No constraints involving P");
      
-    std::vector<std::string> unknowns {"rowptr","col1"};
+    std::vector<std::string> unknowns {"rowptr","col2"};
     
     auto expCase = code_synthesis::CodeSynthesis::GetUFExpressionSynthCase(pExp,
 		   "P",composeRel->inArity(),composeRel->arity());
@@ -110,15 +110,17 @@ int main() {
         // skip UF for P since it has already been 
 	// synthesized at this point.
 	if(currentUF == "P") continue;
-
         std::list<iegenlib::Exp*> expUfs;
 	std::list<std::string> expStmts;
 	for(auto e : expList){
+           std::cout << "Expression: "<< e->
+		   prettyPrintString(transRel->getTupleDecl())<< "\n";
 	   if(code_synthesis::CodeSynthesis::findCallTerm(e,currentUF)!=NULL){
-	      
+		   std::cout << "found: here\n"; 
              auto ufCase = code_synthesis::CodeSynthesis::GetUFExpressionSynthCase(e,
 		   currentUF,transRel->inArity(),transRel->arity());
-             if(ufCase !=code_synthesis::UNDEFINED){
+	     std::cout << "case: " << ufCase << " \n";
+	     if(ufCase !=code_synthesis::UNDEFINED){
 	         std::string expStmt = code_synthesis::CodeSynthesis::
 	             constraintToStatement(e,
 		       currentUF,transRel->inArity(),transRel->getTupleDecl());
@@ -152,7 +154,7 @@ int main() {
 
 		 inspector.addStmt(new Stmt(expStmt,ufDomain->prettyPrintString(),
 					 ufExecSched->prettyPrintString(),
-					 reads,writes));
+					 ufReads,ufWrites));
                  delete ufDomain;
 		 delete ufExecSched;
 	     }
