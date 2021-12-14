@@ -38,15 +38,11 @@ int main() {
     std::list<iegenlib::Exp*> expList =
     code_synthesis::CodeSynthesis::getExprs(*transRel->conjunctionBegin());    
     
-    std::string pStmt;
     iegenlib::Exp* pExp = NULL ;
     // Solve for P
     for(auto e : expList){
         if (e->isEquality() && code_synthesis::
 			CodeSynthesis::findCallTerm(e,"P")!=NULL){
-	    pStmt = code_synthesis::CodeSynthesis::
-	         constraintToStatement(e,
-		   "P",composeRel->inArity(),composeRel->getTupleDecl());
 	    pExp = e;
 	    break;
 	}
@@ -62,6 +58,10 @@ int main() {
     
     auto expCase = code_synthesis::CodeSynthesis::GetUFExpressionSynthCase(pExp,
 		   "P",composeRel->inArity(),composeRel->arity());
+    std::string pStmt = code_synthesis::CodeSynthesis::
+	         constraintToStatement(pExp,
+		   "P",composeRel->getTupleDecl(),expCase);
+    
     
     // Convert compose relation to set.
     auto composeSet = composeRel->ToSet();
@@ -86,12 +86,14 @@ int main() {
 
     auto reads = code_synthesis::CodeSynthesis::
 	    GetReads("P",pExp,expCase,pDomain->arity()); 
-
-    code_synthesis::CodeSynthesis::addToDataSpace(inspector,
-			reads, "double");
+    
     
     code_synthesis::CodeSynthesis::addToDataSpace(inspector,
-				writes, "double");
+			reads, "double");
+    // Writes to P is considered a single data space
+    // but read from P is a 2d data space 
+    //code_synthesis::CodeSynthesis::addToDataSpace(inspector,
+    //				writes, "double");
 
     inspector.addStmt(new Stmt(pStmt,pDomain->prettyPrintString(),
 			    pExecutionSchedule->prettyPrintString(),
@@ -109,21 +111,19 @@ int main() {
     for (auto currentUF : unknowns){
         // skip UF for P since it has already been 
 	// synthesized at this point.
-	if(currentUF == "P") continue;
         std::list<iegenlib::Exp*> expUfs;
 	std::list<std::string> expStmts;
 	for(auto e : expList){
-           std::cout << "Expression: "<< e->
-		   prettyPrintString(transRel->getTupleDecl())<< "\n";
 	   if(code_synthesis::CodeSynthesis::findCallTerm(e,currentUF)!=NULL){
-		   std::cout << "found: here\n"; 
-             auto ufCase = code_synthesis::CodeSynthesis::GetUFExpressionSynthCase(e,
+             
+	     // Get case a uf in a constraint falls into.	   
+	     auto ufCase = code_synthesis::CodeSynthesis::GetUFExpressionSynthCase(e,
 		   currentUF,transRel->inArity(),transRel->arity());
-	     std::cout << "case: " << ufCase << " \n";
+	     // IF UF satisifies synthesis case
 	     if(ufCase !=code_synthesis::UNDEFINED){
 	         std::string expStmt = code_synthesis::CodeSynthesis::
 	             constraintToStatement(e,
-		       currentUF,transRel->inArity(),transRel->getTupleDecl());
+		       currentUF,transRel->getTupleDecl(),ufCase);
 		 Set* ufDomain = code_synthesis::CodeSynthesis::GetCaseDomain(
 				 currentUF,transSet,e,ufCase);
                  

@@ -104,7 +104,8 @@ namespace code_synthesis {
 
 
       static std::string constraintToStatement(Exp* constraint,
-		      std::string unknownUF, int inputArity,const TupleDecl& tupDecl);
+		      std::string unknownUF, const TupleDecl& tupDecl,
+		      SynthExpressionCase expCase);
 
       static UFCallTerm*
 	      findCallTerm(Exp* exp, std::string ufName);

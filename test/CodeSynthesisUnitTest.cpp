@@ -356,7 +356,10 @@ TEST_F(CodeSynthesisUnitTest, TEST_CONSTRAINT_TO_STATEMENT){
     e1->addTerm(new TupleVarTerm(-1,2));
     e1->setEquality();
 
-    std::string statement = CodeSynthesis::constraintToStatement(e1,"UF",2,td);
+    SynthExpressionCase caseR = 
+	    CodeSynthesis::GetUFExpressionSynthCase(e1,"UF",2,3);
+    std::string statement = CodeSynthesis::
+	    constraintToStatement(e1,"UF",td,caseR);
     EXPECT_EQ(statement,"UF.insert(x, y)");
 
     //{[ii,kk,jj,hr,hc] -> [k]}
@@ -377,7 +380,8 @@ TEST_F(CodeSynthesisUnitTest, TEST_CONSTRAINT_TO_STATEMENT){
     e1->addTerm(rowptr);
     e1->addTerm(new TupleVarTerm(-1,5));
     e1->setEquality();
-    statement = CodeSynthesis::constraintToStatement(e1,"rowptr",5,td2);
+    caseR = CodeSynthesis::GetUFExpressionSynthCase(e1,"rowptr",5,6);
+    statement = CodeSynthesis::constraintToStatement(e1,"rowptr",td2,caseR);
     EXPECT_EQ(statement,"rowptr.insert(5 ii + hr)");
     
 
@@ -403,7 +407,9 @@ TEST_F(CodeSynthesisUnitTest, TEST_CONSTRAINT_TO_STATEMENT){
     e1->addTerm( new TupleVarTerm(-5,2));
     e1->addTerm( new TupleVarTerm(-1,4));
     e1->setEquality(); 
-    statement = CodeSynthesis::constraintToStatement(e1,"col",5,td2);
+   
+    caseR = CodeSynthesis::GetUFExpressionSynthCase(e1,"col",5,6);
+    statement = CodeSynthesis::constraintToStatement(e1,"col",td2,caseR);
 
     EXPECT_EQ(statement,"col(colinv(5 ii + hr, 5 jj + hc))=5 jj + hc");
     delete e1;
@@ -431,10 +437,11 @@ TEST_F(CodeSynthesisUnitTest, TEST_CONSTRAINT_TO_STATEMENT){
     e1->addTerm(rowptr);
     e1->addTerm(colInv);
     
-    statement = CodeSynthesis::constraintToStatement(e1,"rowptr",5,td2);
+    caseR = CodeSynthesis::GetUFExpressionSynthCase(e1,"rowptr",5,6);
+    statement = CodeSynthesis::constraintToStatement(e1,"rowptr",td2,caseR);
 
     EXPECT_EQ(statement, 
-		    "rowptr(5 ii + hr)=min(rowptr(5 ii + hr),"
+		    "rowptr(5 ii + hr) = min("
 		    "colinv(5 ii + hr, 5 jj + hc))");
     delete e1;
 
@@ -463,11 +470,10 @@ TEST_F(CodeSynthesisUnitTest, TEST_CONSTRAINT_TO_STATEMENT){
     e1->addTerm(new Term(-1));
 
     
-    statement = CodeSynthesis::constraintToStatement(e1,"rowptr",5,td2);
-
+    caseR = CodeSynthesis::GetUFExpressionSynthCase(e1,"rowptr",5,6);
+    statement = CodeSynthesis::constraintToStatement(e1,"rowptr",td2,caseR);
     EXPECT_EQ(statement, 
-		    "rowptr(5 ii + hr)=max(rowptr(5 ii + "
-		    "hr),colinv(5 ii + hr, 5 jj + hc) + 1)");
+		    "rowptr(5 ii + hr) = max(colinv(5 ii + hr, 5 jj + hc) + 1)");
     delete e1;
 
 }

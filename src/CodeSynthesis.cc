@@ -448,14 +448,10 @@ UFCallTerm* CodeSynthesis::findCallTerm(Exp* exp, std::string ufName){
    return res;
 }
 
-//TODO:Refactor this code so that we can 
-//create a function for get case. This function 
-//will take necessary parameter regarding what 
-//case.
 std::string CodeSynthesis::
 constraintToStatement(Exp* constraint, 
-		std::string unknownUF, 
-		int inputArity,const TupleDecl& tupDecl){
+		std::string unknownUF, const TupleDecl& 
+		tupDecl, SynthExpressionCase expCase){
    UFCallTerm* ufTerm = findCallTerm(constraint,unknownUF);
    if (ufTerm == NULL){
       throw assert_exception("UFCallTerm must exist in expression");
@@ -465,80 +461,34 @@ constraintToStatement(Exp* constraint,
    Term* ufClone = ufTerm->clone();
    ufClone->setCoefficient(1);
    Exp* solvedUFConst = constraint->solveForFactor(ufClone);
-   std::stringstream ss;
-   if (constraint->isEquality()){
-      //Case 1
-      // If rhs only has one term and the term is an output tuple
-      // var term.
-      if (solvedUFConst->getTermList().size()== 1
-   		   && solvedUFConst->getTerm()->type() == "TupleVarTerm"
-		   && ((TupleVarTerm*)solvedUFConst->getTerm())->
-		      tvloc() >= inputArity){
-      
-         ss << unknownUF << ".insert(";
-         bool firstArg = true;
-         for (int i = 0;i <ufTerm->numArgs(); ++i) {
-             if (not firstArg) { ss << ", "; }
-             if (ufTerm->getParamExp(i)) { 
-		     ss << ufTerm->getParamExp(i)->prettyPrintString(tupDecl); }
-             firstArg = false;
-         }
-         ss << ")";
-      }else{
-         //Case 2
-	 //UF(x) = F(x)
-	 //solved for must not depend on output term,
-	 //Will need the number of tuple declarations here.
-         bool dependsOnOutput  = false;
-	 for(int i = inputArity; i < tupleSize; i++){
-            TupleVarTerm t(1,i);
-	    if (solvedUFConst->dependsOn(t)){
-	       dependsOnOutput = true;
-	       break;
-	    }
-	 }
-	 if (not dependsOnOutput){
-            ss << ufTerm->prettyPrintString(tupDecl,true) << "=" 
-		    << solvedUFConst->prettyPrintString(tupDecl);
-	 }
-      }
    
-   }else {
-      // All cases in this section 
-      // arity(y) > arity(x)
-      int x_arity = 0;
-      int y_arity = 0;
-      for(int i = 0 ; i < inputArity; i++){
-         TupleVarTerm t(1,i);
-         for(int k = 0; k < ufTerm->numArgs(); k++){
-	    if(ufTerm->getParamExp(k)->
-			    dependsOn(t)){
-	       x_arity++;
-	       break; 
-	    }
-	 }
-         if(solvedUFConst->dependsOn(t)){
-	    y_arity++;
-	 }
-      }
-      if (y_arity > x_arity){
-         // Case 3
-         // UF(x) <= F(y) 
-         if (ufTerm->coefficient() < 0){
-            ss << ufTerm->prettyPrintString(tupDecl,true) << "=" 
-		    << "min(" << ufTerm->prettyPrintString(tupDecl,true)
-		    <<"," << solvedUFConst->prettyPrintString(tupDecl)
+   std::stringstream ss;
+   if(expCase == CASE1){
+      ss << unknownUF << ".insert(";
+      bool firstArg = true;
+      for (int i = 0;i <ufTerm->numArgs(); ++i) {
+          if (not firstArg) { ss << ", "; }
+          if (ufTerm->getParamExp(i)) { 
+             ss << ufTerm->getParamExp(i)->prettyPrintString(tupDecl); }
+             firstArg = false;
+       }
+       ss << ")";
+    }else if (expCase == CASE2){
+       ss << ufTerm->prettyPrintString(tupDecl,true) << "=" 
+		    << solvedUFConst->prettyPrintString(tupDecl);
+       
+    }else if (expCase == CASE3){
+	    ss << ufTerm->prettyPrintString(tupDecl,true) << " = " 
+	    << "min(" << solvedUFConst->prettyPrintString(tupDecl)
+	    << ")";
+       
+    }else if (expCase == CASE4){
+	
+        ss << ufTerm->prettyPrintString(tupDecl,true) << " = " 
+		    << "max(" <<solvedUFConst->prettyPrintString(tupDecl)
 		    << ")";
-	 }else if (ufTerm->coefficient() > 0){
-	 
-            ss << ufTerm->prettyPrintString(tupDecl,true) << "=" 
-		    << "max(" << ufTerm->prettyPrintString(tupDecl,true)
-		    <<"," << solvedUFConst->prettyPrintString(tupDecl)
-		    << ")";
-	 }
-      }
-      
-   }
+    }
+
    delete solvedUFConst;
    return ss.str();
 }
@@ -823,6 +773,11 @@ SynthExpressionCase CodeSynthesis::GetUFExpressionSynthCase(Exp* constraint,
    Term* ufClone = ufTerm->clone();
    ufClone->setCoefficient(1);
    Exp* solvedUFConst = constraint->solveForFactor(ufClone);
+   
+   // if UF is self referential 
+   if (findCallTerm(solvedUFConst,unknownUF)!= NULL){
+       return UNDEFINED;
+   }
    std::stringstream ss;
    if (constraint->isEquality()){
       //Case 1
@@ -858,20 +813,24 @@ SynthExpressionCase CodeSynthesis::GetUFExpressionSynthCase(Exp* constraint,
       // arity(y) > arity(x)
       int x_arity = 0;
       int y_arity = 0;
+      bool x_dependsOnTuple = false;
+      bool y_dependsOnTuple = false;
       for(int i = 0 ; i < inputArity; i++){
          TupleVarTerm t(1,i);
          for(int k = 0; k < ufTerm->numArgs(); k++){
 	    if(ufTerm->getParamExp(k)->
 			    dependsOn(t)){
 	       x_arity++;
+	       x_dependsOnTuple = true;
 	       break; 
 	    }
 	 }
          if(solvedUFConst->dependsOn(t)){
 	    y_arity++;
+	    y_dependsOnTuple = true;
 	 }
       }
-      if (y_arity >= x_arity){
+      if (y_arity >= x_arity && x_dependsOnTuple && y_dependsOnTuple){
          // Case 3
          // UF(x) <= F(y) 
          if (ufTerm->coefficient() < 0){
