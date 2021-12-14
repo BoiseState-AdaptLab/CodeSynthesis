@@ -234,7 +234,34 @@ namespace code_synthesis {
       /// Function removes constraints present in symbNames
       /// from sparse constraints sc
       static void RemoveSymbolicConstraints(const std::vector<std::string>& symbNames,
-		     SparseConstraints* sc); 
+		     SparseConstraints* sc);
+      
+      /// This returns the domain of a case for synthesis. 
+      /// Case 1
+      /// UF(x) = y
+      /// Domain = Const(x) - ( Const(UF(x) = y) U Const(<other unknown ufs>)) 
+      /// where Const means constraints on some vector
+      ///
+      /// Case 2
+      ///UF(x) = F(x)
+      /// RHS of UF expression does not involve an output tuple variable
+      /// Case 3
+      /// UF(x) <= F(y)
+      /// where arity(x) < arity(y) and y is not an output tuple variable.
+      /// Case 4
+      /// UF(x) >= F(y)
+      /// where arity(x) < arity(y) and y is not an output tuple variable.
+      /// Assumes that the UF exists in the expression.
+      static Set* GetCaseDomain(std::string ufName,Set* s,
+		      Exp* constraint,SynthExpressionCase expCase);
+      
+      // Helper function to add data spaces to a computation
+      // object.
+      // comp will be modified.
+      // baseType the base type of the value of access.
+      static void addToDataSpace(Computation& comp, 
+		      std::vector<std::pair<std::string,std::string>> access,
+		      std::string baseType); 
   };
 }
 

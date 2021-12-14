@@ -589,7 +589,39 @@ std::string CodeSynthesis::getFormattedTupleString(const std::list<std::string>&
   return ss.str();
 }
 
+iegenlib::Set* CodeSynthesis::GetCaseDomain(std::string ufName,Set* s,
+		Exp * constraint, SynthExpressionCase expCase){
+    
+    Set * res;
+    if (expCase == CASE1){
+        res = s->GetDomain(ufName);
+    }else {
+	// Get the maximum tuple variable 
+	// present in this expression.
+	
+	res = new Set(*s);
+	int maxTup = -1;
+        for(int i = 0; i < s->arity(); i++){
+	    TupleVarTerm t(1,i);
+            if(constraint->dependsOn(t)){
+	       maxTup =  std::max(i,maxTup);
+	    }
+	}
 
+	if (maxTup == -1){
+		throw assert_exception("GetCaseDomain: no domain"
+				" available for expression");
+        }
+	// Project out tuple variables after 
+	// maxTuple.
+        while(res->arity() - 1> maxTup ){
+	    Set * temp = res->projectOut(res->arity() - 1);
+	    delete res;
+	    res = temp;
+	}
+    }
+    return res;
+}
 
 iegenlib::Relation* CodeSynthesis::solveForOutputTuple(iegenlib::Relation* r){
     assert(r->outArity()==1 && "Output arity must be 1"); 
@@ -853,6 +885,20 @@ SynthExpressionCase CodeSynthesis::GetUFExpressionSynthCase(Exp* constraint,
    delete solvedUFConst;
    return caseResult;
 }	
+
+void CodeSynthesis::addToDataSpace(Computation& comp, 
+		      std::vector<std::pair<std::string,std::string>> access,std::string baseType){
+    for(auto a : access){
+	Relation* accessRel = new Relation(a.second);
+	int outArity = accessRel->outArity();
+	delete accessRel;
+        stringstream ss;
+        ss << baseType;
+        for(int i = 0 ; i < outArity; i++) ss << "*";
+        std::string accessType = ss.str();	
+        comp.addDataSpace(a.first,accessType);
+    }
+}
 
 void CodeSynthesis::RemoveSymbolicConstraints(const std::vector<std::string>& symbNames,
 		     SparseConstraints* sc){

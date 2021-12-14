@@ -793,3 +793,67 @@ TEST_F(CodeSynthesisUnitTest, TEST_REMOVE_SYMBOLIC_CONSTRAINTS){
 	       "i >= 0 && j >= 0 && -i + NR - 1 >= 0"
 	       " && -j + NC - 1 >= 0 }",map1->prettyPrintString());
 }
+
+TEST_F(CodeSynthesisUnitTest,TEST_GETCASEDOMAIN){
+     iegenlib::Set* s =  new Set("{ [n,k] : k - P(row(n), col2(n)) = 0"
+		     " && col1(k) - col2(n) = 0 && n >= 0"
+		     " && col1(k) >= 0 && col2(n) >= 0 && row(n) >= 0"
+		     " && k - rowptr(row(n)) >= 0 && NC - 1 >= 0 "
+		     "&& NNZ - 1 >= 0 && NR - 1 >= 0 && P(row(n),"
+		     " col2(n)) - rowptr(row(n)) >= 0 && -n + NNZ"
+		     " - 1 >= 0 && -k + rowptr(row(n) + 1) - 1 >= 0"
+		     " && NC - col1(k) - 1 >= 0 && NC - col2(n) - 1 >= 0"
+		     " && NR - row(n) - 1 >= 0 && -P(row(n) + 1, col2(n))"
+		     " + P(row(n), col2(n)) - 1 >= 0 && -P(row(n), col2(n))"
+		     " + rowptr(row(n) + 1) - 1 >= 0 && -rowptr(row(n)) +"
+		     " rowptr(row(n) + 1) - 1 >= 0 }"); 
+     // creating constraint col1(k) - col2(n) = 0 
+     Exp * col2Const = new Exp();
+     col2Const->setEquality();
+     UFCallTerm *col1 = new UFCallTerm(1,"col1",1);
+     Exp* arg1Exp = new Exp();
+     arg1Exp->addTerm(new TupleVarTerm(1,1));
+     col1->setParamExp(0,arg1Exp);
+     
+     UFCallTerm* col2 = new UFCallTerm(-1,"col2",1);
+     Exp* argCol2Exp = new Exp();
+     argCol2Exp->addTerm(new TupleVarTerm(1,0));
+     col2->setParamExp(0,argCol2Exp);
+     col2Const->addTerm(col1);
+     col2Const->addTerm(col2); 
+     auto res = CodeSynthesis::GetCaseDomain("col2",s,col2Const,CASE2);
+
+     EXPECT_EQ("{ [n, k] : k - P(row(n), col2(n)) = 0 && col1(k)"
+	       " - col2(n) = 0 && n >= 0 && col1(k) >= 0 && col2(n)"
+	       " >= 0 && row(n) >= 0 && k - rowptr(row(n)) >= 0 &&"
+	       " NC - 1 >= 0 && NNZ - 1 >= 0 && NR - 1 >= 0 &&"
+	       " P(row(n), col2(n)) - rowptr(row(n)) >= 0 && -n"
+	       " + NNZ - 1 >= 0 && -k + rowptr(row(n) + 1) - 1 >="
+	       " 0 && NC - col1(k) - 1 >= 0 && NC - col2(n) - 1 >="
+	       " 0 && NR - row(n) - 1 >= 0 && -P(row(n) + 1, col2(n))"
+	       " + P(row(n), col2(n)) - 1 >= 0 && -P(row(n), col2(n))"
+	       " + rowptr(row(n) + 1) - 1 >= 0 && -rowptr(row(n)) +"
+	       " rowptr(row(n) + 1) - 1 >= 0 }",res->prettyPrintString());
+}
+
+
+
+TEST_F(CodeSynthesisUnitTest,TEST_ADD_TO_DATASPACE){
+    std::vector<std::pair<std::string,std::string>> access = 
+    { { "row" , "{[i,j]->[j]}"},{ "col" , "{[i,j]->[i]}"}};
+    Computation comp;
+    CodeSynthesis::addToDataSpace(comp,access,"double");
+    auto dataSpaces = comp.getDataSpaces();
+
+    ASSERT_EQ(2,access.size());
+    auto itR = dataSpaces.find("$row$");
+    auto itC = dataSpaces.find("$col$");
+    
+    ASSERT_TRUE(itR != dataSpaces.end());
+    ASSERT_TRUE(itC != dataSpaces.end());
+     
+    EXPECT_EQ("double*",dataSpaces["$row$"]);
+    EXPECT_EQ("double*",dataSpaces["$col$"]);
+
+
+}

@@ -3,7 +3,6 @@
 #include <iegenlib/computation/Computation.h>
 #include <CodeSynthesis.h>
 #include <iegenlib/set_relation/set_relation.h>
-
 int main() {
     Computation inspector;
     // Add universal constraints
@@ -36,7 +35,6 @@ int main() {
                           " i < NR and j >= 0 and j < NC}");
     iegenlib::Relation* composeRel = map1->Compose(map2);
     iegenlib::Relation* transRel = composeRel->TransitiveClosure(); 
-    std::cout <<"Transitive Closure: "<< transRel->prettyPrintString() << "\n";
     std::list<iegenlib::Exp*> expList =
     code_synthesis::CodeSynthesis::getExprs(*transRel->conjunctionBegin());    
     
@@ -61,19 +59,26 @@ int main() {
     assert(pExp && "Synth Failure: No constraints involving P");
      
     std::vector<std::string> unknowns {"rowptr","col1"};
+    
+    auto expCase = code_synthesis::CodeSynthesis::GetUFExpressionSynthCase(pExp,
+		   "P",composeRel->inArity(),composeRel->arity());
+    
+    // Convert compose relation to set.
+    auto composeSet = composeRel->ToSet();
+ 
+    
     // Get Domain for P
-    iegenlib::Set* pDomain = composeRel->GetDomain("P");
+    iegenlib::Set* pDomain = code_synthesis::CodeSynthesis::
+	   GetCaseDomain("P",composeSet,pExp,expCase);
+    
     // remove constraints involving unknown UFs
     code_synthesis::CodeSynthesis::RemoveSymbolicConstraints(unknowns,pDomain);
-
-    std::cout << "pDomain: " << pDomain->prettyPrintString() << "\n"; 
     
     // Get execution schedule
     iegenlib::Relation* pExecutionSchedule = code_synthesis::
 	    CodeSynthesis::getExecutionSchedule(
 			    pDomain,executionScheduleIndex++);
-    auto expCase = code_synthesis::CodeSynthesis::GetUFExpressionSynthCase(pExp,
-		   "P",composeRel->inArity(),composeRel->arity());
+
     
     // Get reads and writes.
     auto writes = code_synthesis::CodeSynthesis::
@@ -82,7 +87,12 @@ int main() {
     auto reads = code_synthesis::CodeSynthesis::
 	    GetReads("P",pExp,expCase,pDomain->arity()); 
 
+    code_synthesis::CodeSynthesis::addToDataSpace(inspector,
+			reads, "double");
     
+    code_synthesis::CodeSynthesis::addToDataSpace(inspector,
+				writes, "double");
+
     inspector.addStmt(new Stmt(pStmt,pDomain->prettyPrintString(),
 			    pExecutionSchedule->prettyPrintString(),
 			    reads,writes));
@@ -92,17 +102,60 @@ int main() {
     for(std::string unknown: unknowns){
         iegenlib::Set* domain = transRel->GetDomain(unknown);
         unknownDomain.push_back(domain);	
-    }
+    } 
+    // Convert trans relation to a set
+    Set* transSet = transRel->ToSet();
      
     for (auto currentUF : unknowns){
+        // skip UF for P since it has already been 
+	// synthesized at this point.
+	if(currentUF == "P") continue;
+
         std::list<iegenlib::Exp*> expUfs;
 	std::list<std::string> expStmts;
 	for(auto e : expList){
 	   if(code_synthesis::CodeSynthesis::findCallTerm(e,currentUF)!=NULL){
-	      std::string expStmt = code_synthesis::CodeSynthesis::
-	         constraintToStatement(e,
-		   currentUF,composeRel->inArity(),composeRel->getTupleDecl());
-	      std::cerr <<expStmt << "\n";
+	      
+             auto ufCase = code_synthesis::CodeSynthesis::GetUFExpressionSynthCase(e,
+		   currentUF,transRel->inArity(),transRel->arity());
+             if(ufCase !=code_synthesis::UNDEFINED){
+	         std::string expStmt = code_synthesis::CodeSynthesis::
+	             constraintToStatement(e,
+		       currentUF,transRel->inArity(),transRel->getTupleDecl());
+		 Set* ufDomain = code_synthesis::CodeSynthesis::GetCaseDomain(
+				 currentUF,transSet,e,ufCase);
+                 
+                 // remove constraints involving unknown UFs
+                 code_synthesis::CodeSynthesis::
+			 RemoveSymbolicConstraints(unknowns,ufDomain);
+                 
+		 // Get reads and writes.
+                 auto ufWrites = code_synthesis::CodeSynthesis::
+	                 GetWrites(currentUF,e,ufCase,ufDomain->arity()); 
+
+                 
+		 auto ufReads = code_synthesis::CodeSynthesis::
+	                 GetReads(currentUF,e,ufCase,ufDomain->arity()); 
+                 
+		 // add data spaces for reads and writes to 
+		 // IR
+	         code_synthesis::CodeSynthesis::addToDataSpace(inspector,
+				ufReads, "double");
+                  
+	         code_synthesis::CodeSynthesis::addToDataSpace(inspector,
+				ufWrites, "double");
+                 
+		 // Get execution schedule
+                 iegenlib::Relation* ufExecSched = code_synthesis::
+	                 CodeSynthesis::getExecutionSchedule(
+			    ufDomain,executionScheduleIndex++);
+
+		 inspector.addStmt(new Stmt(expStmt,ufDomain->prettyPrintString(),
+					 ufExecSched->prettyPrintString(),
+					 reads,writes));
+                 delete ufDomain;
+		 delete ufExecSched;
+	     }
 	   }
 	}
 	// Synthesize statements 
