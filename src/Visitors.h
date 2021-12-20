@@ -5,7 +5,7 @@
 #include  <list>
 #include <vector>
 #include <algorithm>
-#include "CodeSynthesis.h"
+#include <stack>
 /// TermVisitor class extracts all 
 /// the terms in a Set/Relation
 ///
@@ -30,7 +30,7 @@ class ExpTermVisitor: public Visitor {
     iegenlib::TupleVarTerm* term;
     std::stack<iegenlib::Exp*> expStack;
   public:
-    explicit ExpTermVisitor(TupleVarTerm *term): term(term){}
+    explicit ExpTermVisitor(iegenlib::TupleVarTerm* term): term(term){}
     void preVisitTupleVarTerm(iegenlib::TupleVarTerm *t) override;
     void preVisitExp(iegenlib::Exp* e) override;
     void postVisitExp(iegenlib::Exp* e) override;

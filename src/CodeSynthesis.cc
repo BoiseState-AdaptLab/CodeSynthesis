@@ -11,6 +11,7 @@
 #include <map>
 #include <utils/Utils.h>
 #include <assert.h>
+#include <sstream>
 using namespace code_synthesis;
 using iegenlib::Exp;
 /// TODO: Change to use TermVisitor
@@ -25,68 +26,10 @@ std::list<Term*> CodeSynthesis::getTermList(
   return termVisitor.getTerms();
 }
 
-std::list<Term *> CodeSynthesis::evaluateUnknowns
-      () {
-  std::list<Term*> setTerms = getTermList(originalSpace);
-  std::list<Term*> relationTerms= getTermList(mapToNewSpace);
-  // Terms in relations and not in set are unknowns.
-  auto i = relationTerms.begin();
-  while (i!=relationTerms.end()){
-      auto term = *i;
-
-      if (std::find_if(setTerms.begin(),
-                       setTerms.end(),[&term](const Term *a){
-                  return (*term) == (*a);
-              })!= setTerms.end()){
-          i = relationTerms.erase(i);
-      }else{
-          i++;
-      }
-  }
-  return relationTerms;
-
-}
 
 
-std::string code_synthesis::Stmt::toString() const {
-  std::stringstream ss;
-  ss<<lhs->toString() << " = " << rhs->toString();
-  return ss.str();
-}
 
 
-std::string code_synthesis::Stmt::toPrettyPrintString() const {
-  std::stringstream ss;
-  // If LHS is a UF we will be doing insert
-  // and expecting the allocation makes this
-  // possible. This is also necessary where
-  // the iterators in the UF do not exist
-  // in the constraint and that is pretty
-  // weird. TODO: look into this situation.
-  if (lhs-> getTermList().front()->isUFCall()){
-     UFCallTerm * uf = (UFCallTerm*) lhs->
-             getTermList().front();
-     ss << uf->name() << ".insert(";
-     ss << rhs->prettyPrintString(tupleDecl);
-
-     ss << ");";
-
-  }else{
-      ss<<lhs->prettyPrintString(tupleDecl)
-        << " = " << rhs->prettyPrintString(tupleDecl);
-  }
-
-  return ss.str();
-}
-
-Exp *CodeSynthesis::getMinTrueExpr(Exp *expr) {
-  Exp * copy = new Exp(*expr);
-  if (copy->isEquality())
-      return copy;
-  copy->setEquality();
-  return copy;
-
-}
 
 std::list<Term *> CodeSynthesis::getDependents(
 		Conjunction *conjunction, Term *term) {
@@ -117,159 +60,6 @@ std::list<Exp *> CodeSynthesis::getExprs(Conjunction *conjunction) {
   return  exps;
 }
 
-/// This function gets the domain of an unknown
-/// Term in a relation
-/// \param unknownTerm unkown term currently being investigated
-/// \param unkownTerms unknown terms in the relation
-/// \throw Exception if relation has no constraint
-/// \return
-Set *CodeSynthesis::getDomain(Term *unknownTerm,
-                            std::list<Term *> &unkownTerms) {
-  // Restrict the original space using the map to new space.
-  Relation * relation = mapToNewSpace->Restrict(originalSpace);
-
-  if(relation->getNumConjuncts()==0){
-      throw assert_exception("getDomain: Relation should have constraints");
-  }
-  auto  conj = relation->
-          conjunctionBegin();
-  auto  end = relation->conjunctionEnd();
-  std::list<Conjunction*> setConjunctions;
-
-  while(conj!=end){
-      Conjunction * c = (*conj);
-      std::list<Exp*> constraints = getExprs(c);
-      std::stack<Term*> dependentStack;
-      std::unordered_set<Exp*> domainConstraints;
-      std::set<TupleVarTerm*,TupleLexOrder> tupleConstraintVar;
-      auto it = constraints.begin();
-      while(it !=constraints.end() ){
-          auto exp = *it;
-          // Check if current expression contains the
-          // unknown term. If it does select the depeneden terms
-          if(containsTerm(exp->getTermList(),unknownTerm)){
-              for(auto t : exp->getTermList()){
-
-                  // If term is not part of the unkown and
-                  // term is not some integer literal,
-                  if (!containsTerm(unkownTerms,t) && !t->isConst()){
-                      dependentStack.push(t);
-
-                  }
-              }
-              // remove this constraint from the list
-              // of constraint.
-              it = constraints.erase(it);
-              continue;
-          }
-          it++;
-      }
-
-      // This section uses the dependenceStack to
-      // to get constraints for the domain been
-      // extracted.
-      while (!dependentStack.empty()){
-          auto top = dependentStack.top();
-          dependentStack.pop();
-          auto topString = top->toString(false,false);
-          if(auto tupleTerm = dynamic_cast<TupleVarTerm*>
-          (top)){
-
-              tupleConstraintVar.insert(tupleTerm);
-          }
-          auto it2 = constraints.begin();
-          while(it2 != constraints.end() ){
-              auto exp = *it2;
-              auto st =exp->prettyPrintString(relation->getTupleDecl());
-              // Check if the current expression does not
-              // intersect with any of the unknown term.
-              if (intersectLists(exp->getTermList(),unkownTerms).empty() &&
-                  containsTerm(exp->getTermList(),top)){
-                  for(auto q : exp->getTermList()){
-                      // If term element q is current
-                      // dependence on the top of the stack,
-                      // take don't consider it.
-                      if (compareAbsTerms(q, top)){
-                          continue;
-                      }
-                      if (q->isUFCall()){
-                          UFCallTerm* ufTerm = dynamic_cast<UFCallTerm*>(q);
-
-                          // At this point we can add the terms in
-                          // the expressions in the stack if it UF
-                          // contains dependents
-                          for(int i=0; i < ufTerm->numArgs();i++){
-                              // Check if the argument contains
-                              // the current dependent. If it does
-                              // we pick up other arguments in that
-                              // expression as well as the rest of the
-                              // arguments
-                              for (auto t : ufTerm->getParamExp(i)->getTermList()){
-                                  if (!t->isConst() && !compareAbsTerms
-                                          (t, top)){
-                                      dependentStack.push(t);
-                                  }
-                              }
-                          }
-
-                      }else if (!q->isConst()){
-                          dependentStack.push(q);
-                      }
-                  }
-                  // Add expression to list of constraints
-                  domainConstraints.insert(exp);
-
-                  // Take the constraint out of the
-                  it2 = constraints.erase(it2);
-                  continue;
-              }
-              it2++;
-          }
-
-
-      }
-
-      // Pack up the result of the algorithm as a
-      // new conjunction
-      TupleDecl tupleDecl (tupleConstraintVar.size());
-
-      //TODO: Work on this below.
-      // This is necessary to be able to remap previous
-      // location of tuple variables to new location of
-      // tuple variables in the new set / domain.
-      std::vector<int> remapLocation(relation->getTupleDecl().size());
-
-
-      int tupleID = 0;
-      for (auto var : tupleConstraintVar){
-          remapLocation[var->tvloc()] = tupleID;
-          var->remapLocation(remapLocation);
-          tupleDecl.setTupleElem(tupleID,var->prettyPrintString
-                  (relation->getTupleDecl(),true));
-          tupleID++;
-      }
-      Conjunction * resConj = new Conjunction(tupleDecl);
-      for(auto it : domainConstraints){
-          if ((*it).isEquality()){
-              resConj->addEquality(it);
-          }else{
-              resConj->addInequality(it);
-          }
-
-      }
-      setConjunctions.push_back(resConj);
-
-      conj++;
-  }
-
-  Set* set = new Set(setConjunctions.front()->arity());
-  for(auto c : setConjunctions){
-      set->addConjunction(c);
-  }
-  return set;
-
-
-}
 
 
 /// Check if a term is contained in a list of terms
@@ -355,72 +145,8 @@ CodeSynthesis::~CodeSynthesis() {
 }
 
 Computation* CodeSynthesis::generateInspectorComputation() {
-   // First extract unknowns the information provided.
-   Computation * comp = new Computation();
-   std::list<Term*> unknownTerms =
-         evaluateUnknowns();
-   
-   // Solve for Permutation
-
-   // Extract statement, domain and data spaces for each unknown.
-   int stmtID = 0;
-   int maxSchedule = 0;
-   // TODO: work on generating execution schedule
-   std::map<int,std::list<std::string>> executionSchedules;
-
-   for(auto t : unknownTerms){
-     // Have statement for creating unknownTerm.
-     std::string allocStmt = getAllocationStmt(t);
-     
-     comp->addStmt(
-             new iegenlib::Stmt(allocStmt,"{[]}","{[]->[]}",
-		     {},{}));
-     executionSchedules[stmtID].push_back(std::to_string(stmtID));
-     if (executionSchedules[stmtID].size() > maxSchedule){
-        maxSchedule =executionSchedules[stmtID].size();
-     }
-
-
-     // Synthesize statements for creating unknown term
-     stmtID++;
-     Set * insertStmtDomain = getDomain(t,unknownTerms);
-     std::list<code_synthesis::Stmt*> synthStmts = synthesizeStatements(t);
-     for(auto st: synthStmts){
-         // TODO: at this point build a dependency graph
-         // for which inspector should be created before the other.
-         //
-         comp->addStmt(
-                 new iegenlib::Stmt(st->toPrettyPrintString(),insertStmtDomain->
-                 prettyPrintString(),"{"+
-                 insertStmtDomain->getTupleDecl().toString(true)+"->[]}",
-		 {},{}));
-         executionSchedules[stmtID].push_back(std::to_string(stmtID));
-         for(int i = 0 ; i < insertStmtDomain->getArity(); i++){
-             // Add domain tuple variable, "0" to execution schedule.
-             executionSchedules[stmtID].push_back(insertStmtDomain->
-             getTupleDecl().elemVarString(i));
-             executionSchedules[stmtID].push_back("0");
-         }
-         if (executionSchedules[stmtID].size() > maxSchedule){
-             maxSchedule =executionSchedules[stmtID].size();
-         }
-         stmtID++;
-     }
-   }
-   // Update execution schedule
-   for(auto schedule : executionSchedules){
-     iegenlib::Stmt*  st = comp->getStmt(schedule.first);
-     const auto domain = st->getIterationSpace(); 
-     unsigned int padding = maxSchedule - schedule.second.size();
-     for(int i = 0;i<padding;i++){
-         schedule.second.emplace_back("0");
-     }
-     st->setExecutionSchedule(
-                        "{" +domain->getTupleDecl().toString(true)
-                        +"->"+getFormattedTupleString(schedule.second) + "}");
-   }
-   return comp;
-
+     // Code is currently been written in code_synthesis_main.cpp
+     return NULL;
 }
 /// This returns a string to allocate memory for an unknown
 /// term.
@@ -479,13 +205,15 @@ constraintToStatement(Exp* constraint,
        
     }else if (expCase == CASE3){
 	    ss << ufTerm->prettyPrintString(tupDecl,true) << " = " 
-	    << "min(" << solvedUFConst->prettyPrintString(tupDecl)
+	    << "min(" << ufTerm->prettyPrintString(tupDecl,true)<< "," 
+	    << solvedUFConst->prettyPrintString(tupDecl)
 	    << ")";
        
     }else if (expCase == CASE4){
 	
         ss << ufTerm->prettyPrintString(tupDecl,true) << " = " 
-		    << "max(" <<solvedUFConst->prettyPrintString(tupDecl)
+		    << "max(" << ufTerm->prettyPrintString(tupDecl,true)<< ","
+		    <<solvedUFConst->prettyPrintString(tupDecl)
 		    << ")";
     }
 
@@ -494,33 +222,6 @@ constraintToStatement(Exp* constraint,
 }
 
 
-std::list<code_synthesis::Stmt *> CodeSynthesis::synthesizeStatements(
-		Term *unknownTerm) {
-  std::list<code_synthesis::Stmt*> statements;
-  Relation * restrictedSpace = mapToNewSpace->Restrict(originalSpace);
-  if (restrictedSpace->getNumConjuncts()!=1){
-      throw assert_exception("Codesynthesis: Does not"
-                             " currently support unionised space/relation");
-  }
-  std::list<Exp*> restrictedExpressions =
-          getExprs((*restrictedSpace->conjunctionBegin()));
-
-  for(auto e : restrictedExpressions){
-      if (containsTerm(e->getTermList(),unknownTerm)){
-          auto minTrueExp = getMinTrueExpr(e);
-          auto statementExpression = minTrueExp->
-                  solveForFactor(unknownTerm->clone());
-	  code_synthesis::Stmt * stmt = new Stmt(restrictedSpace->getTupleDecl());
-          auto lhsExpr= new Exp();
-          lhsExpr->addTerm(unknownTerm);
-          stmt->lhs = lhsExpr;
-          stmt->rhs = statementExpression;
-          statements.push_back(stmt);
-      }
-  }
-
-  return statements;
-}
 
 std::string CodeSynthesis::getFormattedTupleString(const std::list<std::string>& list) {
   std::stringstream ss;
@@ -714,7 +415,7 @@ std::vector<std::pair<std::string,std::string>> CodeSynthesis::GetWrites(
             "->[0]}"});
     }else if (expCase ==  CASE2 ||
 		   expCase == CASE3 ||
-		   expCase == CASE4){
+		   expCase == CASE4|| expCase == SELF_REF ){
 	DataAccessVisitor dV(arity);
 	ufTerm->acceptVisitor(&dV);
 	// We know there is only one UF write,
@@ -776,7 +477,7 @@ SynthExpressionCase CodeSynthesis::GetUFExpressionSynthCase(Exp* constraint,
    
    // if UF is self referential 
    if (findCallTerm(solvedUFConst,unknownUF)!= NULL){
-       return UNDEFINED;
+       return SELF_REF;
    }
    std::stringstream ss;
    if (constraint->isEquality()){
@@ -844,6 +545,13 @@ SynthExpressionCase CodeSynthesis::GetUFExpressionSynthCase(Exp* constraint,
    delete solvedUFConst;
    return caseResult;
 }	
+
+std::string CodeSynthesis::getSupportingMacros (){
+   std::stringstream ss;
+   ss << "#define min(a,b) a < b ? a : b\n"
+	   << "#define max(a,b) a > b ? a: b\n";
+   return ss.str();
+}
 
 void CodeSynthesis::addToDataSpace(Computation& comp, 
 		      std::vector<std::pair<std::string,std::string>> access,std::string baseType){
@@ -913,4 +621,43 @@ void CodeSynthesis::RemoveSymbolicConstraints(const std::vector<std::string>& sy
 	   if (!found){ itE++;}
        }
    }
+   
+
 }
+
+// Function returns read accesses for code generated 
+// in a montonic statement.
+std::vector<std::pair<std::string,std::string>> getMonotonicReadAccess
+  (std::string uf,MonotonicType type,UniQuantRule* rule,Exp* ex){
+   return {};
+} 
+      
+
+// Function returns write accesses for code generated 
+// in a montonic statement.
+std::vector<std::pair<std::string,std::string>> 
+      getMonotonicWriteAccess(std::string uf,MonotonicType type ,
+	 UniQuantRule* rule,Exp* ex){
+    return {};
+}
+
+
+
+std::string getMonotonicStmt(std::string uf,MonotonicType type,
+                  Exp* montonicDiffExp){
+    return "";
+}
+
+
+
+Set* GetMonotonicDomain(std::string uf, MonotonicType type,
+      Exp* monotonicDiff){
+    return NULL;
+}
+
+
+
+Exp* getMonotonicDiff(std::string uf,Exp* ex){
+    return NULL;
+}
+

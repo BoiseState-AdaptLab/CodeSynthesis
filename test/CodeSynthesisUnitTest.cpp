@@ -48,159 +48,6 @@ TEST_F(CodeSynthesisUnitTest, TEST_TERM_LIST){
     EXPECT_EQ((*list.begin())->prettyPrintString(dense->getTupleDecl()),"i");
 }
 
-////////////////////////////////////////////
-//                                        //
-//          TEST_UNKNOWN_TERMS            //
-//                                        //
-////////////////////////////////////////////
-/*
-TEST_F(CodeSynthesisUnitTest, TEST_UNKNOWN_TERMS_COO){
-    // row(n)
-    std::string denseIterationSpace = 
-        "{[i,j]: i >= 0 and i < NR and j >= 0 and j < NC and Ad(i,j) > 0}";
-
-    std::string mapFromDenseToCoo  = 
-	"{[i,j] -> [n]: row(n) = i and col(n) = j and  i >= 0 and "
-        " i < NR and j >= 0 and j < NC}";
-    CodeSynthesis codeSynthesis = new CodeSynthesis(
-        mapFromDenseToCoo,denseIterationSpace);
-    auto list =codeSynthesis->evaluateUnknowns(mapFromDenseToCoo, denseIterationSpace);
-    EXPECT_EQ((*list.begin())->
-        prettyPrintString(mapFromDenseToCoo->getTupleDecl()), "row(n)");
-    EXPECT_EQ((*(++list.begin()))->
-        prettyPrintString(mapFromDenseToCoo->getTupleDecl()), "col(n)");
-    EXPECT_EQ(list.size(),2);
-    delete codeSynthesis;
-}
-
-TEST_F(CodeSynthesisUnitTest, TEST_UNKNOWN_TERMS_CSR){
-    const char* denseIterationSpace =
-        "{[i,j]: i >= 0 and i < NR and"
-        " j >= 0 and j < NC and Ad(i,j) > 0}";
-    const char* mapFromDenseToCsr  = 
-	"{[i,j] -> [k]: rowptr(i) <= k and rowptr(i+1)"
-        " > k and col(k) = j and i >= 0 and i < NR and"
-	" j >= 0 and j < NC}";
-    CodeSynthesis codeSynthesis = new CodeSynthesis(
-        mapFromDenseToCsr,denseIterationSpace);
-    auto list =codeSynthesis->evaluateUnknowns();
-    EXPECT_EQ((*list.begin())->
-        prettyPrintString(mapFromDenseToCsr->getTupleDecl()), "col(k)");
-    EXPECT_EQ((*(++list.begin()))->
-        prettyPrintString(mapFromDenseToCsr->getTupleDecl()), "k");
-    EXPECT_EQ((*(++(++list.begin())))->
-        prettyPrintString(mapFromDenseToCsr->getTupleDecl()), "rowptr(i)");
-    EXPECT_EQ((*(++(++(++list.begin()))))->
-        prettyPrintString(mapFromDenseToCsr->getTupleDecl()), "rowptr(i + 1)");
-    EXPECT_EQ(list.size(),4);
-    delete codeSynthesis;
-}
-/*
-TEST_F(CodeSynthesisUnitTest, TEST_UNKNOWN_TERMS_BCSR){
-
-
-
-    auto denseIterationSpace = new Set("{[i,j]: i >= 0 and i < NR and"
-                         " j >= 0 and j < NC and Ad(i,j) > 0}");
-    auto mapFromDenseToBcsr  = new Relation("{[i,j] -> [b, ii, jj]:"
-                                         " (ip, jp) = blocks(b) and ii = i - ip and jj = j - jp}");
-    auto list =CodeSynthesis::evaluateUnknowns(mapFromDenseToBcsr, denseIterationSpace);
-    EXPECT_EQ((*list.begin())->
-        prettyPrintString(mapFromDenseToBcsr->getTupleDecl()), "blocks(b)");
-    EXPECT_EQ((*(++list.begin()))->
-        prettyPrintString(mapFromDenseToBcsr->getTupleDecl()), "( ip, jp )");
-    EXPECT_EQ((*(++(++list.begin())))->
-        prettyPrintString(mapFromDenseToBcsr->getTupleDecl()), "ii");
-    EXPECT_EQ((*(++(++(++list.begin()))))->
-        prettyPrintString(mapFromDenseToBcsr->getTupleDecl()), "ip");
-    EXPECT_EQ((*(++(++(++(++list.begin())))))->
-        prettyPrintString(mapFromDenseToBcsr->getTupleDecl()), "jj");
-    EXPECT_EQ((*(++(++(++(++(++list.begin()))))))->
-        prettyPrintString(mapFromDenseToBcsr->getTupleDecl()), "jp");
-    EXPECT_EQ(list.size(),6);
-
-}
-
-
-TEST_F(CodeSynthesisUnitTest, TEST_UNKNOWN_TERMS_DIA){
-
-    //why does it think that j is unknown? 
-
-    auto denseIterationSpace = new Set("{[i,j]: i >= 0 and i < NR and"
-                         " j >= 0 and j < NC and Ad(i,j) > 0}");
-    auto mapFromDenseToDia  = new Relation("{[i,j] -> [j, d]:"
-                                         " (i - j) = diags(d)}");
-    auto list =CodeSynthesis::evaluateUnknowns(mapFromDenseToDia, denseIterationSpace);
-    EXPECT_EQ((*list.begin())->
-        prettyPrintString(mapFromDenseToDia->getTupleDecl()), "diags(d)");
-    EXPECT_EQ(list.size(),1);
-}
-
-TEST_F(CodeSynthesisUnitTest, TEST_UNKNOWN_TERMS_ELL){
-    //why does it think that i is unknown? 
-
-    auto denseIterationSpace = new Set("{[i,j]: i >= 0 and i < NR and"
-                         " j >= 0 and j < NC and Ad(i,j) > 0}");
-    auto mapFromDenseToEll  = new Relation("{[i,j] -> [i, k]:"
-                                         " j = cols(i, k)}");
-    auto list =CodeSynthesis::evaluateUnknowns(mapFromDenseToEll, denseIterationSpace);
-    EXPECT_EQ((*list.begin())->
-        prettyPrintString(mapFromDenseToEll->getTupleDecl()), "cols(i, k)");
-    EXPECT_EQ(list.size(),1);
-}
-
-TEST_F(CodeSynthesisUnitTest, TEST_UNKNOWN_TERMS_COO_CSR){
-    //why does it think that i and j are unknown? 
-
-    auto cooIterationSpace = new Set("{[n]: n >= 0 and n < NNZ and"
-                         " row(n) = i and col(n) = j and Ad(i,j) != 0}");
-    auto mapFromCooToCsr  = new Relation("{[n] -> [k, i, j]:"
-                                         " rowptr(i) <= k and k < rowptr(i + 1) and "
-                                         "col_csr(k) = j and row(n) = i and col(n) = j}");
-
-    auto list =CodeSynthesis::evaluateUnknowns(mapFromCooToCsr, cooIterationSpace);
-    EXPECT_EQ((*list.begin())->
-        prettyPrintString(mapFromCooToCsr->getTupleDecl()), "col_csr(k)");
-    EXPECT_EQ((*(++list.begin()))->
-        prettyPrintString(mapFromCooToCsr->getTupleDecl()), "k");
-    EXPECT_EQ((*(++(++list.begin())))->
-        prettyPrintString(mapFromCooToCsr->getTupleDecl()), "rowptr(i)");
-    EXPECT_EQ((*(++(++(++list.begin()))))->
-        prettyPrintString(mapFromCooToCsr->getTupleDecl()), "rowptr(i + 1)");
-
-    EXPECT_EQ(list.size(),4);
-}
-*/
-
-TEST_F(CodeSynthesisUnitTest, TEST_MINIMAL_TRUE){
-    // -a + b >= 0
-    Exp * e1 = new Exp();
-    e1->addTerm(new VarTerm("b"));
-    e1->addTerm(new VarTerm(-1,"a") );
-    e1->setInequality();
-
-    //-a + b = 0
-    Exp * minTrueExp = CodeSynthesis::getMinTrueExpr(e1);
-
-    EXPECT_TRUE(minTrueExp->isEquality());
-
-    // Testing with conjunction to have a better view.
-    Conjunction* conj1 = new Conjunction(4);
-    TupleDecl tdecl1(2);
-    tdecl1.setTupleElem(0,"a");
-    tdecl1.setTupleElem(1,"b");
-    conj1->setTupleDecl(tdecl1);
-    conj1->addEquality(minTrueExp);
-
-    // Note, IEGENlib normalizes equations. For example,
-    // -a + b = 0 becomes a - b = 0. How much does this
-    // affect our minimally true statement ? Can we go
-    // ahead with this ?
-    EXPECT_EQ("{ [a, b] : a - b = 0 }", conj1->prettyPrintString());
-
-
-}
-
 TEST_F(CodeSynthesisUnitTest, TEST_CONTAINS_TERM){
     Exp * param1 = new Exp();
     param1->addTerm(new TupleVarTerm(-1,0));
@@ -236,106 +83,6 @@ TEST_F(CodeSynthesisUnitTest, TEST_CONTAINS_TERM){
 }
 
 
-TEST_F (CodeSynthesisUnitTest, TEST_DOMAIN_EXTRACT){
-    auto denseIterationSpace = "{[i,j]: i >= 0 and i < NR and"
-                         " j >= 0 and j < NC and Ad(i,j) > 0}";
-    auto mapFromDenseToCoo  = "{[i,j] -> [n]:"
-                                   " row(n) = i and col(n) = j and  i >= 0 and "
-                                   " i < NR and j >= 0 and j < NC}";
-    CodeSynthesis * codeSynthesis = new CodeSynthesis(mapFromDenseToCoo,
-        denseIterationSpace);
-    auto list =codeSynthesis->evaluateUnknowns();
-
-    Set* rowDomain = codeSynthesis->
-            getDomain((*list.begin()),list);
-    
-    EXPECT_EQ("{ [i, j] : i >= 0 && j >= 0 && Ad(i, j) - 1"
-              " >= 0 && -i + NR - 1 >= 0 && -j + NC - 1 >= 0 }",
-              rowDomain->prettyPrintString());
-
-    // Column Domain
-    Set* colDomain = codeSynthesis->
-                    getDomain((*(++list.begin())),list);
-
-    EXPECT_EQ("{ [i, j] : i >= 0 && j >= 0 && Ad(i, j) - 1"
-              " >= 0 && -i + NR - 1 >= 0 && -j + NC - 1 >= 0 }",
-              colDomain->prettyPrintString());
-
-
-
-
-}
-
-TEST_F (CodeSynthesisUnitTest, DISABLED_TEST_INSPECTOR_GENERATION_DENSE_TO_COO) {
-    std::string denseSpace  = "{[i,j]: i >= 0 and i < NR and"
-                              " j >= 0 and j < NC and Ad(i,j) > 0}";
-    std::string mapFromDenseToCoo = "{[i,j] -> [n]:"
-                          " row(n) = i and col(n) = j and  i >= 0 and "
-                          " i < NR and j >= 0 and j < NC}";
-
-    CodeSynthesis* synth = new CodeSynthesis(mapFromDenseToCoo, denseSpace);
-    Computation *comp = synth->generateInspectorComputation();
-
-    EXPECT_EQ(comp->getStmt(0)->getStmtSourceCode(),"row = newUF(1);");
-    EXPECT_EQ(comp->getStmt(0)->getIterationSpace()->prettyPrintString()
-		    , "{  }");
-    EXPECT_EQ(comp->getStmt(0)->getExecutionSchedule()->prettyPrintString()
-		    , "{ [0, 0, 0, 0, 0] }");
-
-
-    EXPECT_EQ(comp->getStmt(1)->getStmtSourceCode(),"row.insert(i);");
-    EXPECT_EQ(comp->getStmt(1)->getIterationSpace()->prettyPrintString(), 
-		    "{ [i, j] : i >= 0 && j >= 0 && Ad(i, j) - 1 >= 0"
-		    " && -i + NR - 1 >= 0 && -j + NC - 1 >= 0 }");
-    EXPECT_EQ(comp->getStmt(1)->getExecutionSchedule()->prettyPrintString(), 
-		    "{ [i, j] -> [1, i, 0, j, 0] : i - i = 0 && j - j = 0 }");
-
-    EXPECT_EQ(comp->getStmt(2)->getStmtSourceCode(),"col = newUF(1);");
-    EXPECT_EQ(comp->getStmt(2)->getIterationSpace()->prettyPrintString(),
-		    "{ [i, j] : i >= 0 && j >= 0 && Ad(i, j) - 1"
-		    " >= 0 && -i + NR - 1 >= 0 && -j + NC - 1 >= 0 }");
-    EXPECT_EQ(comp->getStmt(3)->getStmtSourceCode(),"col.insert(j);");
-    EXPECT_EQ(comp->getStmt(3)->getIterationSpace()->prettyPrintString(),
-		    "{ [i, j] : i >= 0 && j >= 0 && Ad(i, j) - 1"
-		    " >= 0 && -i + NR - 1 >= 0 && -j + NC - 1 >= 0 }");
-    EXPECT_EQ(comp->getStmt(3)->getExecutionSchedule()->prettyPrintString(), 
-		    "{ [i, j] -> [3, i, 0, j, 0] : i - i = 0 && j - j = 0 }");
-   
-    comp->printInfo();
-    EXPECT_EQ("",comp->codeGen());
-}
-
-TEST_F (CodeSynthesisUnitTest, TEST_INSPECTOR_GENERATION_DENSE_TO_CSR) {
-    auto denseIterationSpace = "{[i,j]: i >= 0 and i < NR and"
-                                       " j >= 0 and j < NC and Ad(i,j) > 0}";
-    auto mapFromDenseToCsr  = 
-        "{[i,j] -> [k]: rowptr(i) <= k and rowptr(i+1)"
-	" > k and col(k) = j and i >= 0 and "
-        " i < NR and j >= 0 and j < NC}";
-
-    CodeSynthesis* synth = new CodeSynthesis(mapFromDenseToCsr , denseIterationSpace);
-}
-
-TEST_F (CodeSynthesisUnitTest, DISABLED_TEST_SOLVE_FOR_OUTPUT){
-    std::string rel = 
-        "{[i,j] -> [k]: A(i,j) > 0 and rowptr(i) <= k"
-	" and k < rowptr(i+ 1) and col(k) =j and 0 <= i"
-	" and i < NR and 0 <= j and j < NC}";
-    std::string res =  
-        "{[i,j] -> [k]: A(i,j) > 0 and rowptr(i) <= k"
-	" and k < rowptr(i+ 1) and k = col_inv(i,j) and 0 <= i"
-	" and i < NR and 0 <= j and j < NC}";
-    solveForOutput(rel,res);
-    
-
-    solveForOutput("{[i,j] -> [n] : 0 <= n and n < NNZ and row(n) = i"
-		   " and col(n) = j and 0 <= i and i < NR and 0 <= j "
-		   " and j < NC} ",
-		   "{[i,j] -> [n] : 0 <= n and n < NNZ and rowcol_inv(i,j) = n"
-		   " and 0 <= i and i < NR and 0 <= j "
-		   " and j < NC }");
-
-}
 
 TEST_F(CodeSynthesisUnitTest, TEST_CONSTRAINT_TO_STATEMENT){
     // UF(x,y) = n
@@ -442,7 +189,7 @@ TEST_F(CodeSynthesisUnitTest, TEST_CONSTRAINT_TO_STATEMENT){
 
     EXPECT_EQ(statement, 
 		    "rowptr(5 ii + hr) = min("
-		    "colinv(5 ii + hr, 5 jj + hc))");
+		    "rowptr(5 ii + hr),colinv(5 ii + hr, 5 jj + hc))");
     delete e1;
 
     // rowptr(5ii + hr) >= colinv(5ii+hr,5jj+hc) + 1
@@ -473,7 +220,8 @@ TEST_F(CodeSynthesisUnitTest, TEST_CONSTRAINT_TO_STATEMENT){
     caseR = CodeSynthesis::GetUFExpressionSynthCase(e1,"rowptr",5,6);
     statement = CodeSynthesis::constraintToStatement(e1,"rowptr",td2,caseR);
     EXPECT_EQ(statement, 
-		    "rowptr(5 ii + hr) = max(colinv(5 ii + hr, 5 jj + hc) + 1)");
+		    "rowptr(5 ii + hr) = max(rowptr(5 ii + hr),"
+		    "colinv(5 ii + hr, 5 jj + hc) + 1)");
     delete e1;
 
 }
@@ -862,4 +610,16 @@ TEST_F(CodeSynthesisUnitTest,TEST_ADD_TO_DATASPACE){
     EXPECT_EQ("double*",dataSpaces["$col$"]);
 
 
+}
+
+
+TEST_F(CodeSynthesisUnitTest,TEST_GET_SUPPPORT_MACRO){
+   EXPECT_EQ("#define min(a,b) a < b ? a : b\n"
+	     "#define max(a,b) a > b ? a: b\n",
+		   code_synthesis::CodeSynthesis::getSupportingMacros());
+}
+
+
+TEST_F(CodeSynthesisUnitTest,TEST_MONOTONIC_DATA_ACCESS){
+   
 }

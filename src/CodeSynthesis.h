@@ -9,17 +9,13 @@
 #include <utility>
 #include <vector>
 #include <computation/Computation.h>
+#include <iegenlib/set_relation/environment.h>
+#include <iegenlib/set_relation/UninterpFunc.h>
 namespace code_synthesis {
   /// Class contains functionality to generate SPF Computation
   /// from a Relation and a Set. The relation is a mapping from
   /// a previous space to a new space.
 
-  struct TupleLexOrder {
-      bool operator()(const TupleVarTerm* a, const TupleVarTerm* b) 
-		const {
-          return (*a) < (*b);
-      }
-  };
 
   /// Synthesizing statements for UFs in expressions results in 4 cases
   /// Case 1
@@ -35,23 +31,18 @@ namespace code_synthesis {
   /// Case 4
   /// UF(x) >= F(y)
   /// where arity(x) < arity(y) and y is not an output tuple variable.
+  /// SELF_REF
+  /// Special case where the UF 
+  /// References itself
   typedef enum {
       CASE1,
       CASE2,
       CASE3,
       CASE4,
+      SELF_REF,
       UNDEFINED
   } SynthExpressionCase;
 
-  struct Stmt {
-      TupleDecl tupleDecl;
-      Stmt(TupleDecl tupleDecl):tupleDecl(tupleDecl){}
-      Exp* rhs;
-      Exp* lhs;
-      std::string toString() const;
-
-      std::string toPrettyPrintString() const;
-  };
 
   class CodeSynthesis {
   private:
@@ -96,11 +87,6 @@ namespace code_synthesis {
       static bool compareAbsTerms(const Term * a, const Term* b);
 
 
-      /// Function synthesizes list of statements for an unknown
-      /// term.
-      /// \param unknownTerm term to be synthesized
-      /// \return
-      std::list<Stmt *> synthesizeStatements(Term *unknownTerm);
 
 
       static std::string constraintToStatement(Exp* constraint,
@@ -110,13 +96,9 @@ namespace code_synthesis {
       static UFCallTerm*
 	      findCallTerm(Exp* exp, std::string ufName);
 
-
-
-      /// This function uses a transformation relation and a set to
-      /// identify unknowns in a transformation. This is an important
-      /// step in code synthesis.
-      /// \return list of unknown terms in transform relation
-      std::list<Term *> evaluateUnknowns();
+      /// Returns supporting macros and 
+      //  data structures for abstractions 
+      static std::string getSupportingMacros();
 
       /// Function flattens a sparse constraint : set, relation
       /// to individual terms
@@ -155,13 +137,6 @@ namespace code_synthesis {
       static int getTupleVarCount(std::list<Term*>& terms);
 
 
-      /// This function gets the domain of an unknown
-      /// Term in a relation
-      /// \param unknownTerm unkown term currently being investigated
-      /// \param unkownTerms unknown terms in the relation
-      /// \throw Exception if relation has no constraint
-      /// \return
-      Set *getDomain(Term *unknownTerm, std::list<Term *> &unkownTerms);
 
       /// This function extracts dependents to term from a
       /// conjunction, a term x is a dependent to term y
@@ -262,7 +237,37 @@ namespace code_synthesis {
       // baseType the base type of the value of access.
       static void addToDataSpace(Computation& comp, 
 		      std::vector<std::pair<std::string,std::string>> access,
-		      std::string baseType); 
+		      std::string baseType);
+
+      // Function returns read accesses for code generated 
+      // in a montonic statement.
+      static std::vector<std::pair<std::string,std::string>> 
+	      getMonotonicReadAccess(std::string uf,MonotonicType type ,
+		 UniQuantRule* rule,Exp* ex); 
+      
+
+      // Function returns write accesses for code generated 
+      // in a montonic statement.
+      static std::vector<std::pair<std::string,std::string>> 
+	      getMonotonicWriteAccess(std::string uf,MonotonicType type ,
+		 UniQuantRule* rule,Exp* ex); 
+      
+      // This function automatically returns an expression that
+      // gives e2 - e1.
+      // Example e1 < e2 <=> func(e1) * func(e2), function returns e2 - e1 
+      static Exp* getMonotonicDiff(std::string uf,Exp* ex);
+      
+      // Returns a statement for monotonic type.
+      static std::string getMonotonicStmt(std::string uf,iegenlib::MonotonicType type,
+                     Exp* montonicDiffExp);
+
+
+
+      // Function returns a set that ensures the domain 
+      // around a monotonic statement does not go out 
+      // of bounds.
+      static Set* GetMonotonicDomain(std::string uf, MonotonicType type,
+		      Exp* monotonicDiff);
   };
 }
 

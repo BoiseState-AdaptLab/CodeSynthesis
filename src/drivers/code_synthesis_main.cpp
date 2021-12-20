@@ -2,6 +2,7 @@
 #include <string>
 #include <iegenlib/computation/Computation.h>
 #include <CodeSynthesis.h>
+#include <iegenlib/set_relation/environment.h>
 #include <iegenlib/set_relation/set_relation.h>
 int main() {
     Computation inspector;
@@ -18,7 +19,7 @@ int main() {
     iegenlib::appendCurrEnv("col1",colDomain,colRange,
 		    false,iegenlib::Monotonic_NONE);
     iegenlib::appendCurrEnv("rowptr",rowptrDomain,rowptrRange,
-		    false,iegenlib::Monotonic_Increasing);
+		    false,iegenlib::Monotonic_Nondecreasing);
     // End Universal constraints
     
     
@@ -37,6 +38,13 @@ int main() {
     iegenlib::Relation* transRel = composeRel->TransitiveClosure(); 
     std::list<iegenlib::Exp*> expList =
     code_synthesis::CodeSynthesis::getExprs(*transRel->conjunctionBegin());    
+    
+    // Vector of pairs holds pairs of ufs and self
+    // referential constraints. These are interesting constraints
+    // for generating monotonicity code later on and getting 
+    // constraint describing sorting for P. Expressions stored
+    // here are expected to be a clone
+    std::vector<std::pair<std::string,iegenlib::Exp*>> selfRefs; 
     
     iegenlib::Exp* pExp = NULL ;
     // Solve for P
@@ -107,7 +115,6 @@ int main() {
     } 
     // Convert trans relation to a set
     Set* transSet = transRel->ToSet();
-     
     for (auto currentUF : unknowns){
         // skip UF for P since it has already been 
 	// synthesized at this point.
@@ -115,10 +122,19 @@ int main() {
 	std::list<std::string> expStmts;
 	for(auto e : expList){
 	   if(code_synthesis::CodeSynthesis::findCallTerm(e,currentUF)!=NULL){
-             
+
+
 	     // Get case a uf in a constraint falls into.	   
-	     auto ufCase = code_synthesis::CodeSynthesis::GetUFExpressionSynthCase(e,
+	     auto ufCase = code_synthesis::CodeSynthesis::
+		     GetUFExpressionSynthCase(e,
 		   currentUF,transRel->inArity(),transRel->arity());
+	     if (ufCase ==code_synthesis::SELF_REF){ 
+	         // Store self referential constraints. Should help
+	         // with generating code for montonicity later on.             
+	        selfRefs.push_back({currentUF,e->clone()});
+	        // skip this loop iteration
+		continue;
+	     }
 	     // IF UF satisifies synthesis case
 	     if(ufCase !=code_synthesis::UNDEFINED){
 	         std::string expStmt = code_synthesis::CodeSynthesis::
@@ -162,9 +178,55 @@ int main() {
 	}
 	// Synthesize statements 
     }
+    // Generate code to ensure universal constraint
+    for(auto uf : unknowns){
+	iegenlib::MonotonicType type = iegenlib::queryMonoTypeEnv(uf);
+	if(type==Monotonic_Increasing){
+	    auto it = std::find_if(selfRefs.begin(),selfRefs.end(),
+			    [&uf](std::pair<std::string,iegenlib::Exp*>& v){
+			        return v.first == uf;
+			    });
+	    if (it == selfRefs.end()){
+	        std::stringstream ss;
+	        ss << "cannot find a self referential constraint for "
+		<< uf << " monotonic attribute in the constraint ";
+	        throw assert_exception(ss.str());	
+	    }
+	    iegenlib::Set* domain = iegenlib::queryDomainCurrEnv(uf);
+            // Get execution schedule
+            iegenlib::Relation* execSched = code_synthesis::
+	                 CodeSynthesis::getExecutionSchedule(
+			    domain,executionScheduleIndex++);
+	    iegenlib::Exp * mConstraint = it->second;
+	    
+	    // Reads and writes data accesses have to calculated 
+	    // specially but for now we use the default getwrites
+	    // and getreads
+
+            auto ufWrites = code_synthesis::CodeSynthesis::
+	                 GetWrites(uf,mConstraint,code_synthesis::
+					 SELF_REF,domain->arity()); 
+
+                 
+            auto ufReads = code_synthesis::CodeSynthesis::
+	                 GetReads(uf,mConstraint,
+					 code_synthesis::
+					 SELF_REF,domain->arity()); 
+
+	    // Need help with what to generate at this point.
+	    // Suggestion 1, find the constraint that results
+	    // to this property and invert it ? then check 
+	    // for the inversion ?
+	    inspector.addStmt(new Stmt("S",domain->prettyPrintString()
+				    ,execSched->prettyPrintString()
+				    ,ufReads,ufWrites));
+	    delete domain;
+	    delete execSched;
+	}
+    }
+    
     // CodeGen (RS2->S1(I)) - Data copy Code
     iegenlib::Set* copyDomain = composeRel->ToSet();
-    std::cerr << "copy space: "<< copyDomain->prettyPrintString();
     std::string copyStmt = "ACSR(n,k) = ACOO(n,k)";
     iegenlib::Relation* execSchedule = code_synthesis::
 	    CodeSynthesis::getExecutionSchedule(
@@ -175,6 +237,7 @@ int main() {
 			    {{"ACSR" , "{[n,k] -> [k]}"}}));
     inspector.padExecutionSchedules();
     inspector.printInfo();
-    std::cerr << "ToDot \n" << inspector.codeGen();
+    std::cout << code_synthesis::CodeSynthesis::getSupportingMacros(); 
+    std::cout << inspector.codeGen();
     return 0;
 }
