@@ -253,8 +253,10 @@ namespace code_synthesis {
 		 UniQuantRule* rule,Exp* ex); 
       
       // This function automatically returns an expression that
-      // gives e2 - e1.
-      // Example e1 < e2 <=> func(e1) * func(e2), function returns e2 - e1 
+      // gives abs(e2 - e1).
+      // Example e1 < e2 <=> func(e1) * func(e2), function returns e2 - e1
+      // Parameter ex is not adopted.
+      // returned expression is owned by caller, caller should deallocate 
       static Exp* getMonotonicDiff(std::string uf,Exp* ex);
       
       // Returns a statement for monotonic type.
@@ -266,8 +268,13 @@ namespace code_synthesis {
       // Function returns a set that ensures the domain 
       // around a monotonic statement does not go out 
       // of bounds.
+      // \param uf current uf been considered
+      // \param type monotonic type
+      // \param monotonicDiff
+      // \param ufDomain not adopted
+      // Set returned is owned by caller and should be deallocated. 
       static Set* GetMonotonicDomain(std::string uf, MonotonicType type,
-		      Exp* monotonicDiff);
+		      Exp* monotonicDiff,Set* ufDomain);
   };
 }
 

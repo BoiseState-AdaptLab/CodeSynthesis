@@ -12,6 +12,7 @@
 #include <utils/Utils.h>
 #include <assert.h>
 #include <sstream>
+#include <list>
 using namespace code_synthesis;
 using iegenlib::Exp;
 /// TODO: Change to use TermVisitor
@@ -650,14 +651,79 @@ std::string getMonotonicStmt(std::string uf,MonotonicType type,
 
 
 
-Set* GetMonotonicDomain(std::string uf, MonotonicType type,
-      Exp* monotonicDiff){
-    return NULL;
+
+Set* CodeSynthesis::GetMonotonicDomain(std::string uf, MonotonicType type,
+      Exp* monotonicDiff,Set* ufDomain){
+   if(ufDomain->arity() !=  1){
+      throw assert_exception("GetMonotonicDomain:"
+		      " Domain must have a single arity");
+   }
+    
+    Set* res = new Set(*ufDomain);
+    TupleVarTerm t(1,0);
+    for(auto it = res->conjunctionBegin();
+		    it != res->conjunctionEnd(); it++ ){
+    
+        std::list<Exp*> upperBounds = (*it)->GetUpperBounds(t);
+        for(Exp* upperBound : upperBounds){
+            //Add a constraints that limits the upper bound
+	    //by the monotonic diff
+	    // i < upperBound - monotonicDiff
+	    // Equiv: -i + upperBound - monotonicDiff >= 0
+	    Exp * e1 = new Exp();
+	    Term* tupClone = t.clone();
+	    tupClone->setCoefficient(-1);
+            e1->addTerm(tupClone);
+	    e1->addExp(upperBound);
+	    Exp* monClone = monotonicDiff->clone();
+	    monClone->multiplyBy(-1);
+	    e1->addExp(monClone);
+	    e1->setInequality();
+	    (*it)->addInequality(e1);
+        }
+	//Simplify constraint
+	(*it)->cleanUp();
+    }
+
+    return res;
 }
 
 
 
-Exp* getMonotonicDiff(std::string uf,Exp* ex){
-    return NULL;
+Exp* CodeSynthesis::getMonotonicDiff(std::string uf,Exp* ex){
+   // TODO: revisit this.
+   UFCallTerm* ufTerm = findCallTerm(ex,uf);
+   if (ufTerm == NULL){
+      throw assert_exception("getMonotonicDiff:"
+		      " UFCallTerm must exist in expression");
+   }
+   // Solve for UF term.
+   Term* ufClone = ufTerm->clone();
+   ufClone->setCoefficient(1);
+   Exp* solvedUFConst = ex->solveForFactor(ufClone);
+   UFCallTerm* ufTerm2 = findCallTerm(solvedUFConst,uf);
+
+   if (ufTerm2 == NULL){
+      throw assert_exception("getMonotonicDiff: Expression"
+		      " is not self referential");
+   }
+   
+   if(ufTerm2->numArgs() !=  1 || ufTerm->numArgs() != 1){
+      throw assert_exception("getMonotonicDiff: UFCallTerm must"
+		      " have a single argument");
+   }
+   
+   Exp* e = new Exp();
+   // TODO: Figure out which what to subtract from what.
+   Exp* e1Clone = ufTerm->getParamExp(0)->clone(); 
+   Exp* e2Clone = ufTerm2->getParamExp(0)->clone();
+   // eDiff = e2 - e1
+ 
+   e1Clone->multiplyBy(-1);
+   e->addExp(e2Clone);
+   e->addExp(e1Clone);
+
+   return e; 
+
 }
 

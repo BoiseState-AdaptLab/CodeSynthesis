@@ -34,7 +34,7 @@ include_directories(${Threads_INCLUDE_DIR})
 #ADD EXTERNAL IEGEN LIB
 #ExternalProject_Add(iegenlib_in
 #        GIT_REPOSITORY "https://github.com/BoiseState-AdaptLab/IEGenLib.git"
-#        GIT_TAG "4aabb0543b64d7e97c93f9ae2aaef5f2dfa29e30"
+#        GIT_TAG "4077117ab5be70dd7eb1642b6e81dcaf1849e205"
 #        SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lib/IEGenLib
 #        CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_CURRENT_SOURCE_DIR}/lib/installed
 #        BUILD_COMMAND ${MAKE})

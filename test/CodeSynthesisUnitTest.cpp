@@ -597,17 +597,17 @@ TEST_F(CodeSynthesisUnitTest,TEST_ADD_TO_DATASPACE){
     { { "row" , "{[i,j]->[j]}"},{ "col" , "{[i,j]->[i]}"}};
     Computation comp;
     CodeSynthesis::addToDataSpace(comp,access,"double");
-    auto dataSpaces = comp.getDataSpaces();
+    auto dataSpaces = comp.getUndelimitedDataSpaces();
 
     ASSERT_EQ(2,access.size());
-    auto itR = dataSpaces.find("$row$");
-    auto itC = dataSpaces.find("$col$");
+    auto itR = dataSpaces.find("row");
+    auto itC = dataSpaces.find("col");
     
     ASSERT_TRUE(itR != dataSpaces.end());
     ASSERT_TRUE(itC != dataSpaces.end());
      
-    EXPECT_EQ("double*",dataSpaces["$row$"]);
-    EXPECT_EQ("double*",dataSpaces["$col$"]);
+    EXPECT_EQ("double*",dataSpaces["row"]);
+    EXPECT_EQ("double*",dataSpaces["col"]);
 
 
 }
@@ -620,6 +620,49 @@ TEST_F(CodeSynthesisUnitTest,TEST_GET_SUPPPORT_MACRO){
 }
 
 
-TEST_F(CodeSynthesisUnitTest,TEST_MONOTONIC_DATA_ACCESS){
-   
+TEST_F(CodeSynthesisUnitTest,TEST_MONOTONIC_DOMAIN){
+    iegenlib::Set * rowptrDomain = new iegenlib::Set("{[i]:0 <= i <= NR}");
+    iegenlib::Set * rowptrRange = new iegenlib::Set("{[x]:0 <= x < NNZ}");
+    
+    
+    // monotonic diff = 1
+    Exp* monDiff = new Exp();
+    monDiff->addTerm(new Term(1));
+    Set* synthDomain =  code_synthesis::CodeSynthesis::GetMonotonicDomain(
+		    "rowptr",iegenlib::Monotonic_Nondecreasing,monDiff,
+		    rowptrDomain);
+
+    EXPECT_EQ("{ [i] : i >= 0 && -i + NR >= 0 && -i + NR - 1 >= 0 }",
+		    synthDomain->prettyPrintString());
+
+    delete synthDomain;
+    delete rowptrDomain;
+    delete rowptrRange;
+    delete monDiff;
+}
+
+
+TEST_F(CodeSynthesisUnitTest, TEST_MONOTONIC_DIFF){
+     // creating constraint rowptr(i) < rowptr(i+1) 
+     // -rowptr(i) + rowptr(i+1) - 1 >=0
+     // [i]:
+     Exp * e1 = new Exp();
+     e1->setInequality();
+     UFCallTerm *rowptr_i = new UFCallTerm(-1,"rowptr",1);
+     Exp* arg1Exp = new Exp();
+     arg1Exp->addTerm(new TupleVarTerm(1,0));
+     rowptr_i->setParamExp(0,arg1Exp);
+     
+     UFCallTerm* rowptr_i_p_1 = new UFCallTerm(1,"rowptr",1);
+     Exp* arg1Exp2 = new Exp();
+     arg1Exp2->addTerm(new TupleVarTerm(1,0));
+     arg1Exp2->addTerm(new Term(1));
+     rowptr_i_p_1->setParamExp(0,arg1Exp2);
+     e1->addTerm(rowptr_i);
+     e1->addTerm(rowptr_i_p_1); 
+
+     Exp* resExp = code_synthesis::CodeSynthesis::getMonotonicDiff("rowptr",
+		     e1);
+
+     EXPECT_EQ("1",resExp->toString());
 }
