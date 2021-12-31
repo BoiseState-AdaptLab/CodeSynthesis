@@ -181,48 +181,44 @@ int main() {
     // Generate code to ensure universal constraint
     for(auto uf : unknowns){
 	iegenlib::MonotonicType type = iegenlib::queryMonoTypeEnv(uf);
-	if(type==Monotonic_Increasing){
-	    auto it = std::find_if(selfRefs.begin(),selfRefs.end(),
-			    [&uf](std::pair<std::string,iegenlib::Exp*>& v){
-			        return v.first == uf;
-			    });
-	    if (it == selfRefs.end()){
-	        std::stringstream ss;
-	        ss << "cannot find a self referential constraint for "
-		<< uf << " monotonic attribute in the constraint ";
-	        throw assert_exception(ss.str());	
-	    }
-	    iegenlib::Set* domain = iegenlib::queryDomainCurrEnv(uf);
-            // Get execution schedule
-            iegenlib::Relation* execSched = code_synthesis::
-	                 CodeSynthesis::getExecutionSchedule(
-			    domain,executionScheduleIndex++);
-	    iegenlib::Exp * mConstraint = it->second;
-	    
-	    // Reads and writes data accesses have to calculated 
-	    // specially but for now we use the default getwrites
-	    // and getreads
+	
+	if(type==Monotonic_NONE)  continue;
+	iegenlib::Set* domain = iegenlib::queryDomainCurrEnv(uf);
+        
+	
+	UniQuantRule* uQ =  iegenlib::
+	    getUQRForFuncDomainRange(uf); 
 
-            auto ufWrites = code_synthesis::CodeSynthesis::
-	                 GetWrites(uf,mConstraint,code_synthesis::
-					 SELF_REF,domain->arity()); 
+	// Domain sorrunding statement for montonic
+	// synthesis
+	iegenlib::Set* stmtDomain = code_synthesis::CodeSynthesis::
+	    GetMonotonicDomain(uf,type,domain);
+
+
+	// Reads and writes data accesses have to calculated 
+	// specially but for now we use the default getwrites
+	// and getreads
+
+        auto ufWrites = code_synthesis::CodeSynthesis::
+	             getMonotonicWriteAccess(uf,type); 
 
                  
-            auto ufReads = code_synthesis::CodeSynthesis::
-	                 GetReads(uf,mConstraint,
-					 code_synthesis::
-					 SELF_REF,domain->arity()); 
+        auto ufReads = code_synthesis::CodeSynthesis::
+		   getMonotonicReadAccess(uf,type);
 
-	    // Need help with what to generate at this point.
-	    // Suggestion 1, find the constraint that results
-	    // to this property and invert it ? then check 
-	    // for the inversion ?
-	    inspector.addStmt(new Stmt("S",domain->prettyPrintString()
+         	
+        std::string monStmt = code_synthesis::CodeSynthesis::
+	           getMonotonicStmt(uf,type);	
+        // Get execution schedule
+        iegenlib::Relation* execSched = code_synthesis::
+	             CodeSynthesis::getExecutionSchedule(
+	   stmtDomain,executionScheduleIndex++);
+	    
+	inspector.addStmt(new Stmt(monStmt,stmtDomain->prettyPrintString()
 				    ,execSched->prettyPrintString()
 				    ,ufReads,ufWrites));
-	    delete domain;
-	    delete execSched;
-	}
+        delete stmtDomain;
+    	delete execSched;
     }
     
     // CodeGen (RS2->S1(I)) - Data copy Code

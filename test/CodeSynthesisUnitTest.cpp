@@ -624,45 +624,46 @@ TEST_F(CodeSynthesisUnitTest,TEST_MONOTONIC_DOMAIN){
     iegenlib::Set * rowptrDomain = new iegenlib::Set("{[i]:0 <= i <= NR}");
     iegenlib::Set * rowptrRange = new iegenlib::Set("{[x]:0 <= x < NNZ}");
     
-    
-    // monotonic diff = 1
-    Exp* monDiff = new Exp();
-    monDiff->addTerm(new Term(1));
     Set* synthDomain =  code_synthesis::CodeSynthesis::GetMonotonicDomain(
-		    "rowptr",iegenlib::Monotonic_Nondecreasing,monDiff,
-		    rowptrDomain);
-
-    EXPECT_EQ("{ [i] : i >= 0 && -i + NR >= 0 && -i + NR - 1 >= 0 }",
+		    "rowptr",iegenlib::Monotonic_Nondecreasing,
+    		    rowptrDomain);
+    
+    EXPECT_EQ("{ [e1, e2] : e1 >= 0 && e2 >= 0 &&"
+	      " -e1 + NR >= 0 && -e2 + NR >= 0 &&"
+	      " -e1 + e2 - 1 >= 0 }",
 		    synthDomain->prettyPrintString());
 
     delete synthDomain;
     delete rowptrDomain;
     delete rowptrRange;
-    delete monDiff;
+}
+
+TEST_F(CodeSynthesisUnitTest,TEST_MONOTONIC_STMT){
+    
+    std::string synthStmt =  code_synthesis::CodeSynthesis::getMonotonicStmt(
+		    "rowptr",iegenlib::Monotonic_Nondecreasing);
+    
+    EXPECT_EQ("if ( not (rowptr(e1) <= rowptr(e2)))"
+		    "{rowptr(e2) = rowptr(e1);}",
+		    synthStmt);
 }
 
 
-TEST_F(CodeSynthesisUnitTest, TEST_MONOTONIC_DIFF){
-     // creating constraint rowptr(i) < rowptr(i+1) 
-     // -rowptr(i) + rowptr(i+1) - 1 >=0
-     // [i]:
-     Exp * e1 = new Exp();
-     e1->setInequality();
-     UFCallTerm *rowptr_i = new UFCallTerm(-1,"rowptr",1);
-     Exp* arg1Exp = new Exp();
-     arg1Exp->addTerm(new TupleVarTerm(1,0));
-     rowptr_i->setParamExp(0,arg1Exp);
-     
-     UFCallTerm* rowptr_i_p_1 = new UFCallTerm(1,"rowptr",1);
-     Exp* arg1Exp2 = new Exp();
-     arg1Exp2->addTerm(new TupleVarTerm(1,0));
-     arg1Exp2->addTerm(new Term(1));
-     rowptr_i_p_1->setParamExp(0,arg1Exp2);
-     e1->addTerm(rowptr_i);
-     e1->addTerm(rowptr_i_p_1); 
-
-     Exp* resExp = code_synthesis::CodeSynthesis::getMonotonicDiff("rowptr",
-		     e1);
-
-     EXPECT_EQ("1",resExp->toString());
+TEST_F(CodeSynthesisUnitTest,TEST_MONOTONIC_DATA_ACCESSES){
+    
+    auto reads =  code_synthesis::CodeSynthesis::getMonotonicReadAccess(
+		    "rowptr",iegenlib::Monotonic_Nondecreasing);
+    ASSERT_EQ(2, reads.size());
+    EXPECT_EQ("rowptr", reads[0].first); 
+    EXPECT_EQ("{[e1,e2] -> [e2]}", reads[0].second); 
+    
+    
+    EXPECT_EQ("rowptr", reads[1].first); 
+    EXPECT_EQ("{[e1,e2] -> [e1]}", reads[1].second); 
+    
+    auto writes =  code_synthesis::CodeSynthesis::getMonotonicWriteAccess(
+		    "rowptr",iegenlib::Monotonic_Nondecreasing);
+    ASSERT_EQ(1, writes.size());
+    EXPECT_EQ("rowptr", writes[0].first); 
+    EXPECT_EQ("{[e1,e2] -> [e2]}", writes[0].second); 
 }

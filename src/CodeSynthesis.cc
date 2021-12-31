@@ -628,64 +628,113 @@ void CodeSynthesis::RemoveSymbolicConstraints(const std::vector<std::string>& sy
 
 // Function returns read accesses for code generated 
 // in a montonic statement.
-std::vector<std::pair<std::string,std::string>> getMonotonicReadAccess
-  (std::string uf,MonotonicType type,UniQuantRule* rule,Exp* ex){
-   return {};
+std::vector<std::pair<std::string,std::string>> CodeSynthesis::
+getMonotonicReadAccess(std::string uf,MonotonicType type){
+    if (type == Monotonic_NONE){
+        throw assert_exception("getMonotonicStmt: none monotonic type"
+			" is not supported.");
+    }
+    // Reads from uf(e1) and uf(e2) 
+    std::vector<std::pair<std::string,std::string>>res;
+    res.push_back({uf,"{[e1,e2] -> [e2]}"});
+    res.push_back({uf,"{[e1,e2] -> [e1]}"});
+    return res;
 } 
       
 
 // Function returns write accesses for code generated 
 // in a montonic statement.
 std::vector<std::pair<std::string,std::string>> 
-      getMonotonicWriteAccess(std::string uf,MonotonicType type ,
-	 UniQuantRule* rule,Exp* ex){
-    return {};
+     CodeSynthesis::getMonotonicWriteAccess(std::string uf,
+		     MonotonicType type){
+    if (type == Monotonic_NONE){
+        throw assert_exception("getMonotonicStmt: none monotonic type"
+			" is not supported.");
+    }
+    // Only writes to uf(e2) in all cases 
+    std::vector<std::pair<std::string,std::string>>res;
+    res.push_back({uf,"{[e1,e2] -> [e2]}"});
+    return res;
 }
 
 
 
-std::string getMonotonicStmt(std::string uf,MonotonicType type,
-                  Exp* montonicDiffExp){
-    return "";
+std::string CodeSynthesis::getMonotonicStmt(std::string uf,MonotonicType type){
+    if (type == Monotonic_NONE){
+        throw assert_exception("getMonotonicStmt: none monotonic type"
+			" is not supported.");
+    }
+    std::stringstream ss;
+    ss <<  "if (";
+    if (type == Monotonic_Increasing){
+	// if ( not (uf (e1) < uf(e2)) ){
+        ss << " not (" << uf << "(e1) < "<< uf << "(e2))){";
+        //   UF(e2) = UF(e1) + 1
+        ss << uf << "(e2) = " << uf << "(e1) + 1;";	
+    }else  
+    if (type == Monotonic_Nondecreasing){
+	// if ( not (uf (e1) <= uf(e2)) ){
+        ss << " not (" << uf << "(e1) <= "<< uf << "(e2))){";
+        //   UF(e2) = UF(e1)
+        ss << uf << "(e2) = " << uf << "(e1);";	
+    }else 
+    if (type == Monotonic_Decreasing){
+  	// if ( not (uf (e1) > uf(e2)) ){
+        ss << " not (" << uf << "(e1) > "<< uf << "(e2))){";
+        //   UF(e2) = UF(e1) - 1
+        ss << uf << "(e2) = " << uf << "(e1) - 1;";	
+     }else 
+     if (type ==Monotonic_Nonincreasing){
+  	// if ( not (uf (e1) >= uf(e2)) ){
+        ss << " not (" << uf << "(e1) >= "<< uf << "(e2))){";
+        //   UF(e2) = UF(e1)
+        ss << uf << "(e2) = " << uf << "(e1) - 1;";	
+     }
+     ss << "}";
+    return ss.str();
 }
 
 
 
 
 Set* CodeSynthesis::GetMonotonicDomain(std::string uf, MonotonicType type,
-      Exp* monotonicDiff,Set* ufDomain){
-   if(ufDomain->arity() !=  1){
-      throw assert_exception("GetMonotonicDomain:"
-		      " Domain must have a single arity");
-   }
-    
-    Set* res = new Set(*ufDomain);
-    TupleVarTerm t(1,0);
-    for(auto it = res->conjunctionBegin();
-		    it != res->conjunctionEnd(); it++ ){
-    
-        std::list<Exp*> upperBounds = (*it)->GetUpperBounds(t);
-        for(Exp* upperBound : upperBounds){
-            //Add a constraints that limits the upper bound
-	    //by the monotonic diff
-	    // i < upperBound - monotonicDiff
-	    // Equiv: -i + upperBound - monotonicDiff >= 0
-	    Exp * e1 = new Exp();
-	    Term* tupClone = t.clone();
-	    tupClone->setCoefficient(-1);
-            e1->addTerm(tupClone);
-	    e1->addExp(upperBound);
-	    Exp* monClone = monotonicDiff->clone();
-	    monClone->multiplyBy(-1);
-	    e1->addExp(monClone);
-	    e1->setInequality();
-	    (*it)->addInequality(e1);
-        }
-	//Simplify constraint
-	(*it)->cleanUp();
+       Set* ufDomain){
+    if (ufDomain->arity()!=1){
+        throw assert_exception("GetMonotonicDomain: Uf domain"
+			" must have an arity of 1");
+    }
+    if (type == Monotonic_NONE){
+        throw assert_exception("GetMonotonicDomain: none monotonic type"
+			" is not supported.");
+    }
+    std::stringstream ss; 
+    TupleVarTerm tVar(0);
+
+    std::list<Exp*> upperBounds = ufDomain->GetUpperBounds(tVar);
+    std::list<Exp*> lowerBounds = ufDomain->GetLowerBounds(tVar);
+
+    ss << "{[e1,e2]: e1 < e2 ";
+    for(Exp* e : upperBounds){
+        ss << " && e1 <= " << e->toString();
+	ss << " && e2 <= " << e->toString(); 
+        // DELETE e Since we own e. I do not think this is a good idea
+	// I suggest we refactor such that we don't own the 
+	// expression. TODO
+	delete e; 
     }
 
-    return res;
+
+    for(Exp* e : lowerBounds){
+        ss << " && e1 >= " << e->toString();
+	ss << " && e2 >= " << e->toString(); 
+    
+        // DELETE e Since we own e. I do not think this is a good idea
+	// I suggest we refactor such that we don't own the 
+	// expression. TODO
+	delete e; 
+    }
+    ss << " }";
+    return new Set(ss.str());
 }
 
 

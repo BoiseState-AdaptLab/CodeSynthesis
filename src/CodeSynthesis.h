@@ -242,15 +242,14 @@ namespace code_synthesis {
       // Function returns read accesses for code generated 
       // in a montonic statement.
       static std::vector<std::pair<std::string,std::string>> 
-	      getMonotonicReadAccess(std::string uf,MonotonicType type ,
-		 UniQuantRule* rule,Exp* ex); 
+	      getMonotonicReadAccess(std::string uf,MonotonicType type); 
       
 
       // Function returns write accesses for code generated 
       // in a montonic statement.
       static std::vector<std::pair<std::string,std::string>> 
-	      getMonotonicWriteAccess(std::string uf,MonotonicType type ,
-		 UniQuantRule* rule,Exp* ex); 
+	      getMonotonicWriteAccess(std::string uf,MonotonicType type 
+		 ); 
       
       // This function automatically returns an expression that
       // gives abs(e2 - e1).
@@ -260,21 +259,19 @@ namespace code_synthesis {
       static Exp* getMonotonicDiff(std::string uf,Exp* ex);
       
       // Returns a statement for monotonic type.
-      static std::string getMonotonicStmt(std::string uf,iegenlib::MonotonicType type,
-                     Exp* montonicDiffExp);
+      // \param uf current uninterpreted function under consideration
+      // \param type monotonic type of uf
+      static std::string getMonotonicStmt(std::string uf,iegenlib::MonotonicType type);
 
 
-
-      // Function returns a set that ensures the domain 
-      // around a monotonic statement does not go out 
-      // of bounds.
+      // Function returns the domain of a monotic type
       // \param uf current uf been considered
       // \param type monotonic type
-      // \param monotonicDiff
-      // \param ufDomain not adopted
+      // \param uQ not adopted
       // Set returned is owned by caller and should be deallocated. 
       static Set* GetMonotonicDomain(std::string uf, MonotonicType type,
-		      Exp* monotonicDiff,Set* ufDomain);
+		      Set* ufDomain);
+
   };
 }
 
