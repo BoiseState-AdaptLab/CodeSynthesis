@@ -170,28 +170,33 @@ if (NR >= 1 && NC >= 1) {
     if (row1_0(t1,t2) >= 0 && NC >= col1_1(t1,t2)+1 && NR >= row1_0(t1,t2)+1 && col1_1(t1,t2) >= 0) {
       t3=row1_0(t1,t2);
       t4=col1_1(t1,t2);
-      if (P_3(t1,t2,t3,t4) >= P_2(t1,t2,t3,t4)+1) {
+      // This constraint that says
+      // P(row1(n) + 1, col1(n)) > P(row1(n), col1(n))
+      // helps in determining the sorting constraint but it 
+      // is by itself an invalid constraint. Taking them off will make 
+      // the code work.
+      //if (P_3(t1,t2,t3,t4) >= P_2(t1,t2,t3,t4)+1) {
         s1(1,t2,t3,t4,0,0,0,0,0);
-      }
+      //}
     }
   }
   for(t2 = 0; t2 <= NNZ-1; t2++) {
     if (row1_0(t1,t2) >= 0 && NC >= col1_1(t1,t2)+1 && NR >= row1_0(t1,t2)+1 && col1_1(t1,t2) >= 0) {
       t3=row1_0(t1,t2);
       t4=col1_1(t1,t2);
-      if (P_3(t1,t2,t3,t4) >= P_2(t1,t2,t3,t4)+1) {
+      //if (P_3(t1,t2,t3,t4) >= P_2(t1,t2,t3,t4)+1) {
         s2(2,t2,t3,t4,0,0,0,0,0);
-      }
+     // }
     }
   }
   for(t2 = 0; t2 <= NNZ-1; t2++) {
     if (row1_0(t1,t2) >= 0 && NC >= col1_1(t1,t2)+1 && NR >= row1_0(t1,t2)+1 && col1_1(t1,t2) >= 0) {
       t3=row1_0(t1,t2);
       t4=col1_1(t1,t2);
-      if (P_3(t1,t2,t3,t4) >= P_5(t1,t2,t3,t4)+1) {
+      //if (P_3(t1,t2,t3,t4) >= P_5(t1,t2,t3,t4)+1) {
         t6=P_4(t1,t2,t3,t4);
         s3(3,t2,t3,t4,0,t6,0,0,0);
-      }
+      //}
     }
   }
 }
