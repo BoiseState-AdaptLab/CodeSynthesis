@@ -79,18 +79,27 @@ public:
 #define s_2(n)   rowptr(row1(n) + 1) = max(rowptr(row1(n) + 1),P(row1(n), col1(n)) + 1) 
 #define s2(__x0, a1, tv2, __x2, __x3, __x4, __x5, __x6, _x7)   s_2(a1);
 #define s_3(n, k)   col2(k)=col1(n) 
-#define s3(__x0, a1, tv2, __x2, a3, __x4, __x5, __x6, _x7)   s_3(a1, a3);
+
+// There is a bug here... We had to fix mmanually by replacing a3 by __x4 in s_3 
+#define s3(__x0, a1, tv2, __x2, a3, __x4, __x5, __x6, _x7)   s_3(a1, __x4);
 #define s_4(e1, e2)   if ( not (rowptr(e1) <= rowptr(e2))){rowptr(e2) = rowptr(e1);} 
 #define s4(__x0, a1, __x2, a3, __x4, __x5, __x6)   s_4(a1, a3);
 // Manual Modification here
 #define s_5(n, k)   ACSR[k] = ACOO[n] 
-#define s5(__x0, a1, tv2, __x2, a3, __x4, __x5, __x6, _x7)   s_5(a1, a3);
+// There is a bug here... We had to fix mmanually by replacing a3 by __x4 in s_5.
+// Figure out how to avoid generating this buggy code
+// It might have something to do with what happens after nested ufs are replaced by 
+// tuple variable assignments.
+#define s5(__x0, a1, tv2, __x2, a3, __x4, __x5, __x6, _x7)   s_5(a1, __x4);
 
 // Deleted undef macros, causing errors
 // Data access change here
 #define P(t0,t1) P->get({t0,t1})
 // Possible bug here  something is going on with tv2 been 
-// swapped for tv3
+// swapped for tv3i, temporary fix has been made to fix bug
+// This bug has to do with nested ufs in a multi variate
+// uninterpreted function. TODO: Test cases in iegenlib 
+// must cover this corner case and pass correctly!
 #define P_2(__tv0, __tv1, __tv2, __tv3) P(__tv2 + 1, __tv3)
 #define P_3(__tv0, __tv1, __tv2, __tv3) P(__tv2, __tv3)
 // Same swap happening here as well
@@ -196,7 +205,7 @@ if (NR >= 1 && NC >= 1) {
       //if (P_3(t1,t2,t3,t4) >= P_5(t1,t2,t3,t4)+1) {
         t6=P_4(t1,t2,t3,t4);
         s3(3,t2,t3,t4,0,t6,0,0,0);
-      //}
+	//}
     }
   }
 }
@@ -227,9 +236,9 @@ int col2_res[] = {0,1,0,1,1,2,3};
 int rowptr_res[] = { 0,2,4,4,7};
 double ACSR_res[] = {1,4,6,7,1,3,5};
 // Expected result
-assert(compare_array(col2_res,col2,NNZ) && "Invalid Col2 conversion");
 assert(compare_array(rowptr_res,rowptr,NR+1) && "Invalid rowptr conversion");
 assert(compare_array_d(ACSR_res,ACSR,NNZ) && "Invalid Value array");
+assert(compare_array(col2_res,col2,NNZ) && "Invalid Col2 conversion");
 
 std::cout << "Successfully performed Synthesis\n";
 

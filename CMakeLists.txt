@@ -70,6 +70,9 @@ add_executable(CodeSynthesis_Driver ${CodeSynthesis_SOURCES} src/drivers/code_sy
 add_dependencies(CodeSynthesis_Driver iegenlib_in)
 target_link_libraries(CodeSynthesis_Driver gtest iegenlib isl codegen omega )
 
+
+
+
 #Set Target properties
 set_target_properties(CodeSynthesis_Driver
         PROPERTIES
@@ -94,3 +97,5 @@ set_target_properties(CodeSynthesis_t
         LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/test"
         )
+
+add_subdirectory(scripts)
