@@ -49,26 +49,29 @@ int main() {
     iegenlib::Exp* pExp = NULL ;
     // Solve for P
     for(auto e : expList){
-        if (e->isEquality() && code_synthesis::
+        if (code_synthesis::
 			CodeSynthesis::findCallTerm(e,"P")!=NULL){
-	    pExp = e;
-	    break;
-	}
+            auto caseP = code_synthesis::CodeSynthesis::
+		    GetUFExpressionSynthCase(e,"P",
+				    transRel->inArity(),transRel->arity());
+	    if (caseP == code_synthesis::CASE1) { 
+	        pExp = e;
+	    }
+	    else if (caseP == code_synthesis::SELF_REF) {
+	        selfRefs.push_back({"P",e});
+	    }
+	} 
 
-	// TODO: Look for constraints that describes sorting.
-	// for help in initializing P DS.
-        	
+         	
     }
     
     assert(pExp && "Synth Failure: No constraints involving P");
      
     std::vector<std::string> unknowns {"rowptr","col2"};
     
-    auto expCase = code_synthesis::CodeSynthesis::GetUFExpressionSynthCase(pExp,
-		   "P",composeRel->inArity(),composeRel->arity());
     std::string pStmt = code_synthesis::CodeSynthesis::
 	         constraintToStatement(pExp,
-		   "P",composeRel->getTupleDecl(),expCase);
+		   "P",composeRel->getTupleDecl(),code_synthesis::CASE1);
     
     
     // Convert compose relation to set.
@@ -77,7 +80,7 @@ int main() {
     
     // Get Domain for P
     iegenlib::Set* pDomain = code_synthesis::CodeSynthesis::
-	   GetCaseDomain("P",composeSet,pExp,expCase);
+	   GetCaseDomain("P",composeSet,pExp,code_synthesis::CASE1);
     
     // remove constraints involving unknown UFs
     code_synthesis::CodeSynthesis::RemoveSymbolicConstraints(unknowns,pDomain);
@@ -90,10 +93,10 @@ int main() {
     
     // Get reads and writes.
     auto writes = code_synthesis::CodeSynthesis::
-	    GetWrites("P",pExp,expCase,pDomain->arity()); 
+	    GetWrites("P",pExp,code_synthesis::CASE1,pDomain->arity()); 
 
     auto reads = code_synthesis::CodeSynthesis::
-	    GetReads("P",pExp,expCase,pDomain->arity()); 
+	    GetReads("P",pExp,code_synthesis::CASE1,pDomain->arity()); 
     
     
     code_synthesis::CodeSynthesis::addToDataSpace(inspector,
