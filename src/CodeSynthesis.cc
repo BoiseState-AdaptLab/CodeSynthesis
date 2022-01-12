@@ -158,8 +158,7 @@ Computation* CodeSynthesis::generateInspectorComputation() {
      iegenlib::Exp* pExp = NULL ;
      // Solve for P
      for(auto e : expList){
-         if (
- 			findCallTerm(e,PERMUTE_NAME)!=NULL){
+         if (findCallTerm(e,PERMUTE_NAME)!=NULL){
              auto caseP = 
  		    GetUFExpressionSynthCase(e,PERMUTE_NAME,
  				    transRel->inArity(),transRel->arity());
@@ -173,7 +172,8 @@ Computation* CodeSynthesis::generateInspectorComputation() {
 	} 
      }
     
-     assert(pExp && "Synth Failure: No constraints involving " PERMUTE_NAME);
+     assert(pExp && "Synth Failure: No constraints involving "
+		     PERMUTE_NAME);
      
     std::vector<std::string> unknowns;
 
@@ -192,10 +192,8 @@ Computation* CodeSynthesis::generateInspectorComputation() {
     // from the transRel. This information is only important for 
     // memory allocation.
     for(auto selfRef : selfRefs){
-        auto itSelf = std::find_if(conj->inequalities().begin(),conj->inequalities().end(),
-			[&selfRef](Exp* e){ return *e == *(selfRef.second);});
-	if (itSelf != conj->inequalities().end()){
-	    conj->equalities().erase(itSelf);
+        if (selfRef.first == PERMUTE_NAME){
+	    RemoveConstraint(transRel,selfRef.second);
 	}
     }
     
@@ -248,6 +246,8 @@ Computation* CodeSynthesis::generateInspectorComputation() {
     } 
     // Convert trans relation to a set
     Set* transSet = transRel->ToSet();
+    
+
     for (auto currentUF : unknowns){
         // skip UF for P since it has already been 
 	// synthesized at this point.
@@ -276,9 +276,20 @@ Computation* CodeSynthesis::generateInspectorComputation() {
 		 Set* ufDomain = GetCaseDomain(
 				 currentUF,transSet,e,ufCase);
                  
+                // Remove all self referential references to PERMUTE_NAME 
+                // from the ufDomain. This information is only important for 
+                // memory allocation. It looks like this code was already 
+		// called earlier, however projectOut introduces self referential 
+		// on Permutation everytime so we have to repeat the constraint 
+		// removal everytime a GetCaseDomain is called.
+                for(auto selfRef : selfRefs){
+                    if (selfRef.first == PERMUTE_NAME){
+	                RemoveConstraint(ufDomain,selfRef.second);
+	            }
+                }
                  // remove constraints involving unknown UFs
                  
-			 RemoveSymbolicConstraints(unknowns,ufDomain);
+	        RemoveSymbolicConstraints(unknowns,ufDomain);
                  
 		 // Get reads and writes.
                  auto ufWrites = 
@@ -328,9 +339,7 @@ Computation* CodeSynthesis::generateInspectorComputation() {
 	    GetMonotonicDomain(uf,type,domain);
 
 
-	// Reads and writes data accesses have to calculated 
-	// specially but for now we use the default getwrites
-	// and getreads
+	// Get reads and writes accesses 
 
         auto ufWrites = 
 	             getMonotonicWriteAccess(uf,type); 
@@ -542,6 +551,31 @@ CodeSynthesis::CodeSynthesis(SparseFormat* source,
     }
 }
 
+
+void CodeSynthesis::RemoveConstraint(SparseConstraints* sc, Exp *e ){
+        Conjunction* conj  = *sc->conjunctionBegin();
+        if( e->isEquality()){
+	
+	auto it = std::find_if(conj->equalities().begin(),
+			conj->equalities().end(),
+			[e](Exp* e1){
+			     return e1->toString() == (e)->toString();}
+			);
+	if (it != conj->equalities().end()){
+	    conj->equalities().erase(it);
+	}
+	}else if (e->isInequality()){
+	
+	auto it = std::find_if(conj->inequalities().begin(),
+			conj->inequalities().end(),
+			[e](Exp* e1){
+			     return e1->toString() == (e)->toString();}
+			);
+	if (it != conj->inequalities().end()){
+	    conj->inequalities().erase(it);
+	}
+	}
+}
 
 void CodeSynthesis::AddPermutationConstraint(Relation* rel){
     Exp* e  = new Exp();
@@ -1146,8 +1180,26 @@ std::vector<std::pair<std::string,std::string>>
 std::string CodeSynthesis::generateFullCode(){
     Computation* comp = generateInspectorComputation();
     std::stringstream ss;
-
     ss << getSupportingMacros();
+    std::string permuteInit = "Permutation<int> * "+std::string(PERMUTE_NAME) +
+	    " = new Permutation<int>();\n";
+    // Allocate memory for Permute
+    for(auto selfRef : selfRefs){
+        if (selfRef.first == PERMUTE_NAME){
+	    //For now just go ahead to add sort constraint
+	    // In the future pare the selfref to decode the 
+	    // exact sorting constraint
+            permuteInit = "Permutation<int> * P = new Permutation <int>([]\
+(std::vector<int>& a,std::vector<int>& b){\n\
+		    for(int i = 0; i < a.size(); i++){\n\
+		       if (a[i]  < b[i] ) return true;\n\
+		       else if (a[i] > b[i]) return false;\n\
+		    }\n\
+		    return false;\n\
+		    });\n";
+	}
+    }
+    ss << permuteInit;
     // Add Datamacros for Source and Destination
     // #define <sourceDataName>(i) <sourceDataName>[i]
     // #define <destDataName>(i) <destDataName>[

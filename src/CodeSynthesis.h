@@ -349,6 +349,9 @@ namespace code_synthesis {
       static  std::vector<std::pair<std::string,std::string>> 
 	      getCopyReadAccess(Relation* sourceMapR, std::string sourceDataName, 
 			      Set* domain);
+      // Function removes an expression from a constraint
+      static void RemoveConstraint(SparseConstraints* sp, Exp* e);
+
   };
 }
 
