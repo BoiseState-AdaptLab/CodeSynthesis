@@ -19,7 +19,8 @@ We currently have preloaded format descriptions for COO and CSR,
 more formats will be added
 
 ```shell script
-CodeSynthesis_Driver -src <formatname>,<dataName> -dest <formatName>,<dataName>
+cd build
+./bin/CodeSynthesis_Driver -src <formatname>,<dataName> -dest <formatName>,<dataName>
 ```
 
 Driver generates synth.h and synth.c files which can be compiled / added to a pre-existing project.
