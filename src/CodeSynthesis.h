@@ -12,6 +12,7 @@
 #include <iegenlib/set_relation/environment.h>
 #include <iegenlib/set_relation/UninterpFunc.h>
 namespace code_synthesis {
+  #define PERMUTE_NAME "P"
   /// Class contains functionality to generate SPF Computation
   /// from a Relation and a Set. The relation is a mapping from
   /// a previous space to a new space.
@@ -42,20 +43,79 @@ namespace code_synthesis {
       SELF_REF,
       UNDEFINED
   } SynthExpressionCase;
+  
+  struct UFQuant;
 
+  struct SparseFormat{
+     std::string mapToDense;
+     std::string dataName;
+     std::string dataConstraint;
+     std::vector<UFQuant> ufQuants;
+
+     std::vector<std::string> knowns;
+  }; 
+
+  //Helper data structure specifying a universal 
+  //quantifier
+  struct UFQuant{
+     std::string domain;
+     std::string range;
+     std::string name;
+     bool isBijective;
+     MonotonicType type;
+     UFQuant(std::string domain, std::string range, std::string name,
+		     bool isBijective,MonotonicType type):
+	     domain(domain), range(range), name(name), isBijective(isBijective),
+	     type(type) {};
+  };
 
   class CodeSynthesis {
   private:
-      Relation* mapToNewSpace;
-      Set* originalSpace;
+      
+      Relation* sourceMapR;
+      Relation* destMapR;
+      
+      // Source and destination 
+      std::string sourceDataName;
+      std::string destDataName;
+      std::string sourceDataConstraint;
+      std::string  destDataConstraint;
+      
+      // Compose realtion
+      Relation* composeRel;
+      // Transitive closure applied on 
+      // composeRel.
+      Relation* transRel;
+
+      // These are ufs or symbolic constants
+      // that are already known and need not 
+      // to be categorized as an unknown for 
+      // code generation. A good example is 
+      // NR,NC, NNZ 
+      std::vector<std::string> knowns;
+      
 
 
+     // Vector of pairs holds pairs of ufs and self
+     // referential constraints. These are interesting constraints
+     // for generating monotonicity code later on and getting 
+     // constraint describing sorting for P. Expressions stored
+     // here are expected to be a clone
+     std::vector<std::pair<std::string,iegenlib::Exp*>> selfRefs; 
   public: 
-      CodeSynthesis(std::string mapToNewSpace, std::string originalSpace):
-          mapToNewSpace(new Relation(std::move(mapToNewSpace))),
-          originalSpace(new Set(std::move(originalSpace))){};
-
+      CodeSynthesis(std::string sourceMap, std::string destMap,
+		      std::vector<UFQuant> ufQuants,
+		      std::vector<std::string> knowns,
+		      std::string sourceDataName,
+		      std::string destDataName,
+		      std::string sourceDataConstraint,
+		      std::string  destDataConstraint);
+      
+      CodeSynthesis(SparseFormat* source, SparseFormat* dest);
+      
       ~CodeSynthesis();
+      
+      std::string generateFullCode();
 
       /// Generates inspector computation.
       /// \return Computation object, representing the synthesis.
@@ -272,6 +332,31 @@ namespace code_synthesis {
       static Set* GetMonotonicDomain(std::string uf, MonotonicType type,
 		      Set* ufDomain);
 
+      // Function adds permutation constraint to a relation
+      // Example
+      //     rel = {[i,j] -> [k]}
+      //     P(i,j) =  k
+      //     rel = {[i,j] -> [k]: P(i,j) = k}
+      static void AddPermutationConstraint(Relation* rel);
+      
+
+      //Function gets header string for successful compilation 
+      // of generated code. It includes data structure abstractions
+      // for permutation.
+      static std::string GetSupportHeader();
+
+      // Function returns statement for data copy
+      static std::string GetCopyStmt(std::string sourceDataName, std::string destDataName,
+		      Relation* destMapR, Relation* sourceMap);
+
+      static  std::vector<std::pair<std::string,std::string>> 
+	      getCopyWriteAccess(Relation* destMapR, std::string destDataName, 
+			      Set* domain);
+
+
+      static  std::vector<std::pair<std::string,std::string>> 
+	      getCopyReadAccess(Relation* sourceMapR, std::string sourceDataName, 
+			      Set* domain);
   };
 }
 

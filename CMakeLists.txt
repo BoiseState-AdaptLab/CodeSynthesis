@@ -29,12 +29,11 @@ find_package(Threads)
 include_directories(${Threads_INCLUDE_DIR})
 
 
-#TODO: UPDATE IEGENLIB DEPENDENCY TO WORK ON ANNA LIKE SYSTEM
 
 #ADD EXTERNAL IEGEN LIB
 ExternalProject_Add(iegenlib_in
         GIT_REPOSITORY "https://github.com/BoiseState-AdaptLab/IEGenLib.git"
-        GIT_TAG "4077117ab5be70dd7eb1642b6e81dcaf1849e205"
+        GIT_TAG "e32ce6c69b5f320784da750f7ad41d6a2209a53a"
         SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lib/IEGenLib
         CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_CURRENT_SOURCE_DIR}/lib/installed
         BUILD_COMMAND ${MAKE})

@@ -107,7 +107,7 @@ TEST_F(CodeSynthesisUnitTest, TEST_CONSTRAINT_TO_STATEMENT){
 	    CodeSynthesis::GetUFExpressionSynthCase(e1,"UF",2,3);
     std::string statement = CodeSynthesis::
 	    constraintToStatement(e1,"UF",td,caseR);
-    EXPECT_EQ(statement,"UF.insert(x, y)");
+    EXPECT_EQ(statement,"UF->insert({x, y})");
 
     //{[ii,kk,jj,hr,hc] -> [k]}
     //rowptr(5 * ii + hr) = k
@@ -129,7 +129,7 @@ TEST_F(CodeSynthesisUnitTest, TEST_CONSTRAINT_TO_STATEMENT){
     e1->setEquality();
     caseR = CodeSynthesis::GetUFExpressionSynthCase(e1,"rowptr",5,6);
     statement = CodeSynthesis::constraintToStatement(e1,"rowptr",td2,caseR);
-    EXPECT_EQ(statement,"rowptr.insert(5 ii + hr)");
+    EXPECT_EQ(statement,"rowptr->insert({5 ii + hr})");
     
 
 
@@ -666,4 +666,16 @@ TEST_F(CodeSynthesisUnitTest,TEST_MONOTONIC_DATA_ACCESSES){
     ASSERT_EQ(1, writes.size());
     EXPECT_EQ("rowptr", writes[0].first); 
     EXPECT_EQ("{[e1,e2] -> [e2]}", writes[0].second); 
+}
+
+TEST_F(CodeSynthesisUnitTest, TEST_ADD_PERMUTATION_CONSTRAINT){
+    iegenlib::Relation* map1 = 
+	    new iegenlib::Relation("{[i,j]->[k]: i >= 0 and i < NR and"
+                              " j >= 0 and j < NC and rowptr(i) <= k < rowptr(i+1)"
+			      " and j = col1(k)}");
+    code_synthesis::CodeSynthesis::AddPermutationConstraint(map1);
+    EXPECT_EQ("{ [i, j] -> [k] : j - col1(k) = 0 && k - P(i, j) = 0 &&"
+	 " i >= 0 && j >= 0 && k - rowptr(i) >= 0 && -i + NR - 1 >= 0 &&"
+	 " -j + NC - 1 >= 0 && -k + rowptr(i + 1) - 1 >= 0 }",map1->prettyPrintString());
+    
 }
