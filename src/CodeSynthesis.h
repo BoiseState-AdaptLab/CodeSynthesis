@@ -94,6 +94,9 @@ namespace code_synthesis {
       // NR,NC, NNZ 
       std::vector<std::string> knowns;
       
+      /// Generates inspector computation.
+      /// \return Computation object, representing the synthesis.
+      Computation*  generateInspectorComputation ();
 
 
      // Vector of pairs holds pairs of ufs and self
@@ -103,23 +106,12 @@ namespace code_synthesis {
      // here are expected to be a clone
      std::vector<std::pair<std::string,iegenlib::Exp*>> selfRefs; 
   public: 
-      CodeSynthesis(std::string sourceMap, std::string destMap,
-		      std::vector<UFQuant> ufQuants,
-		      std::vector<std::string> knowns,
-		      std::string sourceDataName,
-		      std::string destDataName,
-		      std::string sourceDataConstraint,
-		      std::string  destDataConstraint);
-      
       CodeSynthesis(SparseFormat* source, SparseFormat* dest);
       
       ~CodeSynthesis();
       
       std::string generateFullCode();
 
-      /// Generates inspector computation.
-      /// \return Computation object, representing the synthesis.
-      Computation*  generateInspectorComputation ();
 
       /// This gets the list of all expressions in a conjunction.
       /// Each expression in this list is newly allocated and

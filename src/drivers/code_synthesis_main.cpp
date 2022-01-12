@@ -77,16 +77,16 @@ int main(int argc, char**argv) {
     }
     assert(sourceFormat && destFormat && "Unsopported Source or Destination Format");
     CodeSynthesis* synth = new CodeSynthesis(sourceFormat, destFormat);
-    Computation* inspector = synth->generateInspectorComputation();
+    std::string code = synth->generateFullCode();
     std::ofstream fileOut;
     fileOut.open("synth.h");
     fileOut << synth->GetSupportHeader();
     fileOut.close();
-    
+    std::cout << "generated synth.h...\n"; 
     fileOut.open("synth.c");
     fileOut << "#include <synth.h> \n";
-    fileOut << synth->getSupportingMacros();
-    fileOut << inspector->codeGen(); 
+    fileOut << code;
     fileOut.close();
+    std::cout << "generated synth.c ..\n";
     return 0;
 }

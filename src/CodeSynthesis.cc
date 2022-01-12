@@ -193,7 +193,7 @@ Computation* CodeSynthesis::generateInspectorComputation() {
     // memory allocation.
     for(auto selfRef : selfRefs){
         auto itSelf = std::find_if(conj->inequalities().begin(),conj->inequalities().end(),
-			[&selfRef](Exp* e){ return *e == *selfRef.second;});
+			[&selfRef](Exp* e){ return *e == *(selfRef.second);});
 	if (itSelf != conj->inequalities().end()){
 	    conj->equalities().erase(itSelf);
 	}
@@ -499,6 +499,10 @@ CodeSynthesis::CodeSynthesis(SparseFormat* source,
 		SparseFormat* dest){
     destMapR = new Relation(dest->mapToDense);
     sourceMapR = new Relation(source->mapToDense);
+    if(sourceMapR->outArity()!= destMapR->outArity()){
+        throw assert_exception("CodeSynthesis:: Format Descriptor map must"
+			" have the same output arity");
+    }
     auto invDestMap = destMapR->Inverse();  
     // Add the Permutation constraint.
     AddPermutationConstraint(invDestMap);
@@ -1136,6 +1140,76 @@ std::vector<std::pair<std::string,std::string>>
     res.push_back({sourceDataName,"{"+domain->getTupleDecl().
 		    toString(true)+" -> "+ss.str()+"}"});
     return res;
+}
+
+
+std::string CodeSynthesis::generateFullCode(){
+    Computation* comp = generateInspectorComputation();
+    std::stringstream ss;
+
+    ss << getSupportingMacros();
+    // Add Datamacros for Source and Destination
+    // #define <sourceDataName>(i) <sourceDataName>[i]
+    // #define <destDataName>(i) <destDataName>[
+    bool isFirst = true;
+    std::string srcD1 = sourceDataName+ "(";
+    std::string srcD2 = sourceDataName+ "[";
+    for(int i =0; i < sourceMapR->inArity(); i++){ 
+       if(isFirst){ 
+          srcD1+= sourceMapR->getTupleDecl().elemVarString(i);
+          srcD2+= sourceMapR->getTupleDecl().elemVarString(i);
+          isFirst = false;
+       }else{
+          srcD1 += ","  + sourceMapR->getTupleDecl().elemVarString(i);
+          srcD2 += ","  + sourceMapR->getTupleDecl().elemVarString(i);
+       }
+    }
+    srcD1 += ")";
+    srcD2 += "]";
+    ss << "#define " << srcD1 << " "<< srcD2 << "\n";
+    isFirst = true;
+    std::string destD1 = destDataName+ "(";
+    std::string destD2 = destDataName+ "[";
+    for(int i =0; i < destMapR->inArity(); i++){ 
+       if(isFirst){ 
+          destD1+= destMapR->getTupleDecl().elemVarString(i);
+          destD2+= destMapR->getTupleDecl().elemVarString(i);
+          isFirst = false;
+       }else{
+          destD1 += ","  + destMapR->getTupleDecl().elemVarString(i);
+          destD2 += ","  + destMapR->getTupleDecl().elemVarString(i);
+       }
+    }
+    destD1 += ")";
+    destD2 += "]";
+    ss << "#define " << destD1 << " "<< destD2 << "\n";
+    std::string code = comp->codeGen();
+    // Replace P[][] access to P->get({});
+    // #define P(i,j) P[i][j] becomes:
+    // #define P(i,j) p->get({i,j})
+    std::string p1 = PERMUTE_NAME "(";
+    std::string p2 = PERMUTE_NAME;
+    std::string p3 = PERMUTE_NAME "->get({";
+    isFirst = true;
+    for (int i =0 ; i < destMapR->outArity(); i++){
+        if(isFirst){
+	    p1+="t" + std::to_string(i);
+	    p3+="t" + std::to_string(i);
+	    isFirst = false;
+        }else{
+	    p1+=",t"+ std::to_string(i);
+	    p3+=",t"+ std::to_string(i);
+	}
+        p2+="[t" + std::to_string(i)+ "]";
+    }
+    p1 += ")";
+    p3 += "})";
+    std::string toReplace  = "#define "+ p1 + " "+ p2;
+    std::string replacement = "#define "+ p1 + " "+ p3;
+    Utils::replaceAllString(code, toReplace,replacement);
+    ss <<code;
+    delete comp;
+    return ss.str();    
 }
 
 std::string CodeSynthesis::GetSupportHeader(){
