@@ -28,12 +28,14 @@ int main(int argc, char**argv) {
                      UFQuant( "{[x]:0 <= x < NNZ}","{[i]: 0 <= i <= NR}",
 		    "row1",false, Monotonic_NONE)};
     coo->dataConstraint = "A[n]!=0";
+    coo->dataAccess = "{[n] -> [n]}";
     supportedFormats["COO"] = coo;
     
     SparseFormat * csr = new SparseFormat();
-    csr->mapToDense = "{[k]->[i,j]: i >= 0 and i < NR and"
+    csr->mapToDense = "{[i,k]->[i,j]: i >= 0 and i < NR and"
                               " j >= 0 and j < NC and rowptr(i) <= k < rowptr(i+1)"
 			      " and j = col2(k)}";
+    csr->dataAccess = "{[i,k] -> [k]}";
     csr->knowns = { "NR","NC","NNZ"};
     csr->dataConstraint = "A[k]!=0";
     csr->ufQuants = { UFQuant( "{[i]: 0 <= i <= NR}","{[x]:0 <= x < NNZ}",

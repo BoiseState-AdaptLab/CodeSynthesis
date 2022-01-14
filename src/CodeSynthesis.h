@@ -50,6 +50,7 @@ namespace code_synthesis {
      std::string mapToDense;
      std::string dataName;
      std::string dataConstraint;
+     std::string dataAccess;
      std::vector<UFQuant> ufQuants;
 
      std::vector<std::string> knowns;
@@ -71,7 +72,8 @@ namespace code_synthesis {
 
   class CodeSynthesis {
   private:
-      
+     
+      std::vector<std::string> permutes; 
       Relation* sourceMapR;
       Relation* destMapR;
       
@@ -81,6 +83,11 @@ namespace code_synthesis {
       std::string sourceDataConstraint;
       std::string  destDataConstraint;
       
+
+      Relation* sourceDataAccessMap;
+      Relation* destDataAccessMap;
+
+
       // Compose realtion
       Relation* composeRel;
       // Transitive closure applied on 
@@ -329,7 +336,12 @@ namespace code_synthesis {
       //     rel = {[i,j] -> [k]}
       //     P(i,j) =  k
       //     rel = {[i,j] -> [k]: P(i,j) = k}
-      static void AddPermutationConstraint(Relation* rel);
+      // For multiple Tuple output variable, permutation becomes
+      //     rel = {[i,j] ->[i,k]}
+      //     P0(i,j) = i ^ P1(i,j) = k
+      // Returns a list of permutation names: P0,P1,....,Pn
+      static std::vector<std::string> AddPermutationConstraint
+	      (Relation* rel);
       
 
       //Function gets header string for successful compilation 
@@ -351,6 +363,15 @@ namespace code_synthesis {
 			      Set* domain);
       // Function removes an expression from a constraint
       static void RemoveConstraint(SparseConstraints* sp, Exp* e);
+
+      // Currently unimplemented. This function will determine if 
+      // a tuple variable is bounded or have constraints
+      // involving unknown ufs or symbolic constants. this 
+      // functionality is usefull in determining what version
+      // of permutation we will be synthesizing 
+      static bool IsTupleBoundedByUnknown(TupleVarTerm& t, 
+		      SparseConstraints* sp, 
+		      std::vector<std::string>& unknowns);
 
   };
 }

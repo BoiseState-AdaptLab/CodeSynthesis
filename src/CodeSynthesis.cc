@@ -153,99 +153,101 @@ Computation* CodeSynthesis::generateInspectorComputation() {
      Conjunction * conj = *transRel->conjunctionBegin();
      std::list<iegenlib::Exp*> expList = getExprs(conj);    
     
-    
-     int executionScheduleIndex  = 0;
-     iegenlib::Exp* pExp = NULL ;
-     // Solve for P
-     for(auto e : expList){
-         if (findCallTerm(e,PERMUTE_NAME)!=NULL){
-             auto caseP = 
- 		    GetUFExpressionSynthCase(e,PERMUTE_NAME,
- 				    transRel->inArity(),transRel->arity());
- 	     if (caseP == CASE1) { 
-	         pExp = e;
-	     }
-	     else if (caseP == SELF_REF) {
-	         selfRefs.push_back({PERMUTE_NAME,e});
-		 
-	    }
-	} 
-     }
-    
-     assert(pExp && "Synth Failure: No constraints involving "
-		     PERMUTE_NAME);
-     
-    std::vector<std::string> unknowns;
-
-    iegenlib::StringIterator* iter = destMapR->getSymbolIterator();
-    while (iter->hasNext()) {
-        std::string symb = iter->next();
-	// Exclude symbols that have already been specified to be 
-	// known.
-	if (std::find(knowns.begin(),knowns.end(),symb) == knowns.end()){
-            unknowns.push_back( symb );
-        }
-    }
-    
-
-    // Remove all self referential references to PERMUTE_NAME 
-    // from the transRel. This information is only important for 
-    // memory allocation.
-    for(auto selfRef : selfRefs){
-        if (selfRef.first == PERMUTE_NAME){
-	    RemoveConstraint(transRel,selfRef.second);
-	}
-    }
-    
-    std::string pStmt = 
-	         constraintToStatement(pExp,
-		   PERMUTE_NAME,composeRel->getTupleDecl(),
-		   CASE1);
-    
-    
-    // Convert compose relation to set.
-    auto composeSet = composeRel->ToSet();
+     // Convert compose relation to set.
+     auto composeSet = composeRel->ToSet();
+     // Convert trans relation to a set
+     Set* transSet = transRel->ToSet();
  
     
-    // Get Domain for P
-    iegenlib::Set* pDomain = 
-	   GetCaseDomain(PERMUTE_NAME,composeSet,pExp,CASE1);
+     std::vector<std::string> unknowns;
     
-    // remove constraints involving unknown UFs
-    RemoveSymbolicConstraints(unknowns,pDomain);
+     iegenlib::StringIterator* iter = destMapR->getSymbolIterator();
+     while (iter->hasNext()) {
+         std::string symb = iter->next();
+    	// Exclude symbols that have already been specified to be 
+    	// known.
+    	if (std::find(knowns.begin(),knowns.end(),symb) == knowns.end()){
+            unknowns.push_back( symb );
+        }
+     }
+     int executionScheduleIndex  = 0;
+     for (auto permute : permutes){
+         iegenlib::Exp* pExp = NULL ;
+         // Solve for multiple Ps
     
-    // Get execution schedule
-    iegenlib::Relation* pExecutionSchedule = 
-	    getExecutionSchedule(
-			    pDomain,executionScheduleIndex++);
-
+         for(auto e : expList){
+             if (findCallTerm(e,permute)!=NULL){
+                 auto caseP = 
+     		    GetUFExpressionSynthCase(e,permute,
+     				    transRel->inArity(),transRel->arity());
+     	     if (caseP == CASE1) { 
+    	         pExp = e;
+    	     }
+    	     else if (caseP == SELF_REF) {
+    	         selfRefs.push_back({permute,e});
+    	    }
+    	} 
+         }
+        
+         assert(pExp && "Synth Failure: No constraints involving Permute");
+         
     
-    // Get reads and writes.
-    auto writes = 
-	    GetWrites(PERMUTE_NAME,pExp,CASE1,pDomain->arity()); 
-
-    auto reads = 
-	    GetReads(PERMUTE_NAME,pExp,CASE1,pDomain->arity()); 
+        // Remove all self referential references to permute 
+        // from the transRel. This information is only important for 
+        // memory allocation.
+        for(auto selfRef : selfRefs){
+            if (selfRef.first == permute){
+    	    RemoveConstraint(transRel,selfRef.second);
+    	}
+        }
+        
+        std::string pStmt = 
+    	         constraintToStatement(pExp,
+    		   permute,composeRel->getTupleDecl(),
+    		   CASE1);
+        
+        
+        
+        // Get Domain for P
+        iegenlib::Set* pDomain = 
+    	   GetCaseDomain(permute,composeSet,pExp,CASE1);
+        
+        // remove constraints involving unknown UFs
+        RemoveSymbolicConstraints(unknowns,pDomain);
+        
+        // Get execution schedule
+        iegenlib::Relation* pExecutionSchedule = 
+    	    getExecutionSchedule(
+    			    pDomain,executionScheduleIndex++);
     
+        
+        // Get reads and writes.
+        auto writes = 
+    	    GetWrites(permute,pExp,CASE1,pDomain->arity()); 
     
-    addToDataSpace(*inspector,reads, "double");
-    // Writes to P is considered a single data space
-    // but read from P is a 2d data space 
-    //addToDataSpace((*inspector),
-    //				writes, "double");
-
-    inspector->addStmt(new Stmt(pStmt,pDomain->prettyPrintString(),
-			    pExecutionSchedule->prettyPrintString(),
-			    reads,writes));
+        auto reads = 
+    	    GetReads(permute,pExp,CASE1,pDomain->arity()); 
+        
+        
+        addToDataSpace(*inspector,reads, "double");
+        // Writes to P is considered a single data space
+        // but read from P is a 2d data space 
+        //addToDataSpace((*inspector),
+        //				writes, "double");
+    
+        inspector->addStmt(new Stmt(pStmt,pDomain->prettyPrintString(),
+    			    pExecutionSchedule->prettyPrintString(),
+    			    reads,writes));
+         
+         
+     }
      
-    std::vector<iegenlib::Set*> unknownDomain;
+     std::vector<iegenlib::Set*> unknownDomain;
     
-    for(std::string unknown: unknowns){
-        iegenlib::Set* domain = transRel->GetDomain(unknown);
-        unknownDomain.push_back(domain);	
-    } 
-    // Convert trans relation to a set
-    Set* transSet = transRel->ToSet();
+     for(std::string unknown: unknowns){
+         iegenlib::Set* domain = transRel->GetDomain(unknown);
+         unknownDomain.push_back(domain);	
+     } 
     
 
     for (auto currentUF : unknowns){
@@ -282,8 +284,13 @@ Computation* CodeSynthesis::generateInspectorComputation() {
 		// called earlier, however projectOut introduces self referential 
 		// on Permutation everytime so we have to repeat the constraint 
 		// removal everytime a GetCaseDomain is called.
-                for(auto selfRef : selfRefs){
-                    if (selfRef.first == PERMUTE_NAME){
+                
+		for(auto selfRef : selfRefs){
+		    // If self referential is on one of 
+		    // the generated permutes, remove constraint
+		    auto it = std::find(permutes.begin(), permutes.end(),
+				    selfRef.first);
+                    if (it != permutes.end()){
 	                RemoveConstraint(ufDomain,selfRef.second);
 	            }
                 }
@@ -514,7 +521,8 @@ CodeSynthesis::CodeSynthesis(SparseFormat* source,
     }
     auto invDestMap = destMapR->Inverse();  
     // Add the Permutation constraint.
-    AddPermutationConstraint(invDestMap);
+    permutes = AddPermutationConstraint(invDestMap);
+    
     composeRel = invDestMap->Compose(sourceMapR);
     transRel = composeRel->TransitiveClosure();
     
@@ -523,7 +531,10 @@ CodeSynthesis::CodeSynthesis(SparseFormat* source,
 
     sourceDataConstraint = source->dataConstraint;
     destDataConstraint = source->dataConstraint;
-
+    
+    sourceDataAccessMap = new Relation(source->dataAccess);
+    destDataAccessMap = new Relation(dest->dataAccess);    
+    
 
 
     // Setup UFquantifiers
@@ -577,28 +588,30 @@ void CodeSynthesis::RemoveConstraint(SparseConstraints* sc, Exp *e ){
 	}
 }
 
-void CodeSynthesis::AddPermutationConstraint(Relation* rel){
-    Exp* e  = new Exp();
-    UFCallTerm* pUF = new UFCallTerm(1,PERMUTE_NAME,rel->inArity());
-    for(int i =0 ; i < rel->inArity(); i++){
-        TupleVarTerm* t = new TupleVarTerm(i);
-	Exp* argi = new Exp();
-	argi->addTerm(t);
-	pUF->setParamExp(i,argi);
-    }
-
-    e->addTerm(pUF);
-    // Possible bug for permutation might occur when 
-    // the relation is not a 1d output data mapping
-    for(int i =0; i < rel->outArity(); i++){
+std::vector<std::string> CodeSynthesis::
+    AddPermutationConstraint(Relation* rel){
+    std::vector<std::string> permutes;
+    for(int i = 0; i < rel->outArity(); i++){
+        Exp* e  = new Exp();
+	std::string name = PERMUTE_NAME + std::to_string(i);
+        UFCallTerm* pUF = new UFCallTerm(1,name,rel->inArity());
+        for(int i =0 ; i < rel->inArity(); i++){
+            TupleVarTerm* t = new TupleVarTerm(i);
+	    Exp* argi = new Exp();
+	    argi->addTerm(t);
+	    pUF->setParamExp(i,argi);
+        }
+        e->addTerm(pUF);
         TupleVarTerm* t = new TupleVarTerm(-1,rel->inArity()+ i);
 	e->addTerm(t);
-    }
-    e->setEquality();
-    for(auto it = rel->conjunctionBegin(); it!=rel->conjunctionEnd();
+        e->setEquality();
+        for(auto it = rel->conjunctionBegin(); it!=rel->conjunctionEnd();
 		    ++it){
-        (*it)->addEquality(e);
+            (*it)->addEquality(e);
+        }
+	permutes.push_back(name);
     }
+    return permutes;
 }
 
 iegenlib::Relation* CodeSynthesis::solveForOutputTuple(iegenlib::Relation* r){
@@ -1181,15 +1194,18 @@ std::string CodeSynthesis::generateFullCode(){
     Computation* comp = generateInspectorComputation();
     std::stringstream ss;
     ss << getSupportingMacros();
-    std::string permuteInit = "Permutation<int> * "+std::string(PERMUTE_NAME) +
-	    " = new Permutation<int>();\n";
-    // Allocate memory for Permute
-    for(auto selfRef : selfRefs){
-        if (selfRef.first == PERMUTE_NAME){
-	    //For now just go ahead to add sort constraint
-	    // In the future pare the selfref to decode the 
-	    // exact sorting constraint
-            permuteInit = "Permutation<int> * P = new Permutation <int>([]\
+    std::string permuteInit;
+    for(auto permute : permutes ){
+    
+        std::string permuteInit = "Permutation<int> * "+permute +
+	        " = new Permutation<int>();\n";
+        // Allocate memory for Permute
+        for(auto selfRef : selfRefs){
+            if (selfRef.first == permute){
+	        //For now just go ahead to add sort constraint
+	        // In the future pare the selfref to decode the 
+	        // exact sorting constraint
+                permuteInit = "Permutation<int> * "+permute+" = new Permutation <int>([]\
 (std::vector<int>& a,std::vector<int>& b){\n\
 		    for(int i = 0; i < a.size(); i++){\n\
 		       if (a[i]  < b[i] ) return true;\n\
@@ -1197,7 +1213,8 @@ std::string CodeSynthesis::generateFullCode(){
 		    }\n\
 		    return false;\n\
 		    });\n";
-	}
+	    }
+        }
     }
     ss << permuteInit;
     // Add Datamacros for Source and Destination
@@ -1205,60 +1222,68 @@ std::string CodeSynthesis::generateFullCode(){
     // #define <destDataName>(i) <destDataName>[
     bool isFirst = true;
     std::string srcD1 = sourceDataName+ "(";
-    std::string srcD2 = sourceDataName+ "[";
     for(int i =0; i < sourceMapR->inArity(); i++){ 
        if(isFirst){ 
           srcD1+= sourceMapR->getTupleDecl().elemVarString(i);
-          srcD2+= sourceMapR->getTupleDecl().elemVarString(i);
           isFirst = false;
        }else{
           srcD1 += ","  + sourceMapR->getTupleDecl().elemVarString(i);
-          srcD2 += ","  + sourceMapR->getTupleDecl().elemVarString(i);
        }
     }
     srcD1 += ")";
-    srcD2 += "]";
+    
+    std::string srcD2 = sourceDataName;
+    for(int i=0; i < sourceDataAccessMap->outArity(); i++){
+       srcD2 += "[" + sourceDataAccessMap->getTupleDecl().
+	       elemVarString(i+sourceDataAccessMap->inArity()) + "]";
+    }
+
     ss << "#define " << srcD1 << " "<< srcD2 << "\n";
     isFirst = true;
     std::string destD1 = destDataName+ "(";
-    std::string destD2 = destDataName+ "[";
     for(int i =0; i < destMapR->inArity(); i++){ 
        if(isFirst){ 
           destD1+= destMapR->getTupleDecl().elemVarString(i);
-          destD2+= destMapR->getTupleDecl().elemVarString(i);
           isFirst = false;
        }else{
           destD1 += ","  + destMapR->getTupleDecl().elemVarString(i);
-          destD2 += ","  + destMapR->getTupleDecl().elemVarString(i);
        }
     }
     destD1 += ")";
-    destD2 += "]";
+    
+    std::string destD2 = destDataName;
+    for(int i=0; i < destDataAccessMap->outArity(); i++){
+       destD2 += "[" + destDataAccessMap->getTupleDecl().
+	       elemVarString(i+destDataAccessMap->inArity()) + "]";
+    }
     ss << "#define " << destD1 << " "<< destD2 << "\n";
     std::string code = comp->codeGen();
-    // Replace P[][] access to P->get({});
-    // #define P(i,j) P[i][j] becomes:
-    // #define P(i,j) p->get({i,j})
-    std::string p1 = PERMUTE_NAME "(";
-    std::string p2 = PERMUTE_NAME;
-    std::string p3 = PERMUTE_NAME "->get({";
-    isFirst = true;
-    for (int i =0 ; i < destMapR->outArity(); i++){
-        if(isFirst){
-	    p1+="t" + std::to_string(i);
-	    p3+="t" + std::to_string(i);
-	    isFirst = false;
-        }else{
-	    p1+=",t"+ std::to_string(i);
-	    p3+=",t"+ std::to_string(i);
-	}
-        p2+="[t" + std::to_string(i)+ "]";
+    
+    for(auto permute : permutes){
+        // Replace P[][] access to P->get({});
+        // #define P(i,j) P[i][j] becomes:
+        // #define P(i,j) p->get({i,j})
+        std::string p1 = permute+ "(";
+        std::string p2 = permute;
+        std::string p3 = permute+ "->get({";
+        isFirst = true;
+        for (int i =0 ; i < destMapR->outArity(); i++){
+            if(isFirst){
+	        p1+="t" + std::to_string(i);
+	        p3+="t" + std::to_string(i);
+	        isFirst = false;
+            }else{
+	        p1+=",t"+ std::to_string(i);
+	        p3+=",t"+ std::to_string(i);
+	    }
+            p2+="[t" + std::to_string(i)+ "]";
+        }
+        p1 += ")";
+        p3 += "})";
+        std::string toReplace  = "#define "+ p1 + " "+ p2;
+        std::string replacement = "#define "+ p1 + " "+ p3;
+        Utils::replaceAllString(code, toReplace,replacement);
     }
-    p1 += ")";
-    p3 += "})";
-    std::string toReplace  = "#define "+ p1 + " "+ p2;
-    std::string replacement = "#define "+ p1 + " "+ p3;
-    Utils::replaceAllString(code, toReplace,replacement);
     ss <<code;
     delete comp;
     return ss.str();    
@@ -1325,4 +1350,9 @@ std::string CodeSynthesis::GetSupportHeader(){
     ss<<"\n"; 
     ss << "#endif SYNTH_HEADER\n";
    return ss.str(); 
+}
+bool CodeSynthesis::IsTupleBoundedByUnknown(TupleVarTerm& t, 
+		      SparseConstraints* sp, 
+		      std::vector<std::string>& unknowns){
+    return false;
 }

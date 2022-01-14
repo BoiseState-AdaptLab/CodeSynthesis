@@ -673,9 +673,27 @@ TEST_F(CodeSynthesisUnitTest, TEST_ADD_PERMUTATION_CONSTRAINT){
 	    new iegenlib::Relation("{[i,j]->[k]: i >= 0 and i < NR and"
                               " j >= 0 and j < NC and rowptr(i) <= k < rowptr(i+1)"
 			      " and j = col1(k)}");
-    code_synthesis::CodeSynthesis::AddPermutationConstraint(map1);
-    EXPECT_EQ("{ [i, j] -> [k] : j - col1(k) = 0 && k - P(i, j) = 0 &&"
-	 " i >= 0 && j >= 0 && k - rowptr(i) >= 0 && -i + NR - 1 >= 0 &&"
-	 " -j + NC - 1 >= 0 && -k + rowptr(i + 1) - 1 >= 0 }",map1->prettyPrintString());
+    auto permutes = 
+	    code_synthesis::CodeSynthesis::AddPermutationConstraint(map1);
+    ASSERT_EQ(1, permutes.size());
+    EXPECT_EQ("{ [i, j] -> [k] : j - col1(k) = 0 && k - P0(i, j) = 0 &&"
+		    " i >= 0 && j >= 0 && k - rowptr(i) >= 0 &&"
+		    " -i + NR - 1 >= 0 && -j + NC - 1 >= 0 &&"
+		    " -k + rowptr(i + 1) - 1 >= 0 }",
+		    map1->prettyPrintString());
     
+     delete map1;
+
+     map1 = new iegenlib::Relation("{[i,j]->[i,k]: i >= 0 and i < NR and"
+                   " j >= 0 and j < NC and rowptr(i) <= k < rowptr(i+1)"
+		" and j = col1(k)}");
+    permutes = 
+	    code_synthesis::CodeSynthesis::AddPermutationConstraint(map1);
+    ASSERT_EQ(2, permutes.size());
+    EXPECT_EQ("{ [i, j] -> [i, k] : i - i = 0 && j - col1(k) = 0 &&"
+	" i - P0(i, j) = 0 && k - P1(i, j) = 0 && i >= 0 && j >= 0 &&"
+	" k - rowptr(i) >= 0 && -i + NR - 1 >= 0 && -j + NC - 1 >= 0 &&"
+	" -k + rowptr(i + 1) - 1 >= 0 }",map1->prettyPrintString());
+     
+
 }
