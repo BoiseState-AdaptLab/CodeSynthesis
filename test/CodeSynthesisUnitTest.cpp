@@ -695,5 +695,5 @@ TEST_F(CodeSynthesisUnitTest, TEST_ADD_PERMUTATION_CONSTRAINT){
 	" k - rowptr(i) >= 0 && -i + NR - 1 >= 0 && -j + NC - 1 >= 0 &&"
 	" -k + rowptr(i + 1) - 1 >= 0 }",map1->prettyPrintString());
      
-
+     
 }

@@ -152,7 +152,6 @@ Computation* CodeSynthesis::generateInspectorComputation() {
      Computation* inspector = new Computation();
      Conjunction * conj = *transRel->conjunctionBegin();
      std::list<iegenlib::Exp*> expList = getExprs(conj);    
-    
      // Convert compose relation to set.
      auto composeSet = composeRel->ToSet();
      // Convert trans relation to a set
@@ -180,14 +179,14 @@ Computation* CodeSynthesis::generateInspectorComputation() {
                  auto caseP = 
      		    GetUFExpressionSynthCase(e,permute,
      				    transRel->inArity(),transRel->arity());
-     	     if (caseP == CASE1) { 
-    	         pExp = e;
-    	     }
-    	     else if (caseP == SELF_REF) {
-    	         selfRefs.push_back({permute,e});
-    	    }
-    	} 
-         }
+     	         if (caseP == CASE1) { 
+    	             pExp = e;
+    	         }
+    	         else if (caseP == SELF_REF) {
+    	             selfRefs.push_back({permute,e});
+    	         }
+    	     } 
+         } 
         
          assert(pExp && "Synth Failure: No constraints involving Permute");
          
@@ -197,8 +196,8 @@ Computation* CodeSynthesis::generateInspectorComputation() {
         // memory allocation.
         for(auto selfRef : selfRefs){
             if (selfRef.first == permute){
-    	    RemoveConstraint(transRel,selfRef.second);
-    	}
+    	        RemoveConstraint(transRel,selfRef.second);
+    	    }
         }
         
         std::string pStmt = 
@@ -215,6 +214,9 @@ Computation* CodeSynthesis::generateInspectorComputation() {
         // remove constraints involving unknown UFs
         RemoveSymbolicConstraints(unknowns,pDomain);
         
+	// Remove constraints involving permutes
+        RemoveSymbolicConstraints(permutes,pDomain);
+        	
         // Get execution schedule
         iegenlib::Relation* pExecutionSchedule = 
     	    getExecutionSchedule(
@@ -590,6 +592,9 @@ void CodeSynthesis::RemoveConstraint(SparseConstraints* sc, Exp *e ){
 
 std::vector<std::string> CodeSynthesis::
     AddPermutationConstraint(Relation* rel){
+    // TODO: we can't add permutes whose 
+    // right hand side equals to some function 
+    // in the input tuple.
     std::vector<std::string> permutes;
     for(int i = 0; i < rel->outArity(); i++){
         Exp* e  = new Exp();
@@ -1197,7 +1202,7 @@ std::string CodeSynthesis::generateFullCode(){
     std::string permuteInit;
     for(auto permute : permutes ){
     
-        std::string permuteInit = "Permutation<int> * "+permute +
+	std::string permInit = "Permutation<int> * "+permute +
 	        " = new Permutation<int>();\n";
         // Allocate memory for Permute
         for(auto selfRef : selfRefs){
@@ -1205,7 +1210,7 @@ std::string CodeSynthesis::generateFullCode(){
 	        //For now just go ahead to add sort constraint
 	        // In the future pare the selfref to decode the 
 	        // exact sorting constraint
-                permuteInit = "Permutation<int> * "+permute+" = new Permutation <int>([]\
+                permInit = "Permutation<int> * "+permute+" = new Permutation <int>([]\
 (std::vector<int>& a,std::vector<int>& b){\n\
 		    for(int i = 0; i < a.size(); i++){\n\
 		       if (a[i]  < b[i] ) return true;\n\
@@ -1215,6 +1220,7 @@ std::string CodeSynthesis::generateFullCode(){
 		    });\n";
 	    }
         }
+	permuteInit += permInit;
     }
     ss << permuteInit;
     // Add Datamacros for Source and Destination
