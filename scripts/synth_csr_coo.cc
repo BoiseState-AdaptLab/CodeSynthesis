@@ -19,9 +19,8 @@ int t1,t2,t3,t4,t5,t6,t7,t8,t9,t10;
 #define s1(__x0, a1, __x2, a3, tv4, __x5, a5, __x7, __x8, __x9)   s_1(a1, a3, a5);
 #define s_2(i, k, n)   row1(n)=i 
 #define s2(__x0, a1, __x2, a3, tv4, __x5, a5, __x7, __x8, __x9)   s_2(a1, a3, a5);
-#define s_3(i, k, n)   ACSR(i,k) = ACOO(n ) 
+#define s_3(i, k, n)   ACOO(n) = ACSR(i,k )  
 #define s3(__x0, a1, __x2, a3, tv4, __x5, a5, __x7, __x8, __x9)   s_3(a1, a3, a5);
-
 #undef col1_5
 #undef col2_0
 #undef row1_4

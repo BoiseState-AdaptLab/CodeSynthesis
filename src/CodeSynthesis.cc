@@ -1125,25 +1125,25 @@ Exp* CodeSynthesis::getMonotonicDiff(std::string uf,Exp* ex){
 std::string CodeSynthesis::GetCopyStmt(std::string sourceDataName, std::string destDataName,
 	      Relation* destMap, Relation* sourceMap){
    std::stringstream ss;
-   ss << sourceDataName << "(";
-   bool isFirst =true;
-   for(int i =0; i < sourceMap->inArity(); i++){ 
-      if(isFirst){ 
-         ss << sourceMap->getTupleDecl().elemVarString(i);
-         isFirst = false;
-      }else{
-         ss << "," <<  sourceMap->getTupleDecl().elemVarString(i);
-      }
-   }
-   ss << ") = ";
-   isFirst = true;
    ss << destDataName << "(";
+   bool isFirst =true;
    for(int i =0; i < destMap->inArity(); i++){ 
       if(isFirst){ 
          ss << destMap->getTupleDecl().elemVarString(i);
          isFirst = false;
       }else{
          ss << "," <<  destMap->getTupleDecl().elemVarString(i);
+      }
+   }
+   ss << ") = ";
+   isFirst = true;
+   ss << sourceDataName << "(";
+   for(int i =0; i < sourceMap->inArity(); i++){ 
+      if(isFirst){ 
+         ss << sourceMap->getTupleDecl().elemVarString(i);
+         isFirst = false;
+      }else{
+         ss << "," <<  sourceMap->getTupleDecl().elemVarString(i);
       }
    }
    ss << " )";
