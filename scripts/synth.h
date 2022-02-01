@@ -15,12 +15,15 @@ template <typename T>
 class Permutation{
 private:
     std::vector<std::vector<T>> d;
+    int tupleSplit = 0;
     Comparator<T> sortConstraint;
 public:
-    Permutation(Comparator<T> sortConstraint): sortConstraint(sortConstraint){}
+    Permutation(Comparator<T> sortConstraint): tupleSplit(tupleSplit),
+	sortConstraint(sortConstraint){}
     Permutation(){
        this->sortConstraint = NULL;
     }
+    Permutation(int tupleSplit): tupleSplit(tupleSplit) {}
     void insert(std::vector<T> tup){
         d.push_back(tup);
 	if (sortConstraint != NULL){
@@ -28,7 +31,17 @@ public:
 	}
     }
     int get(std::vector<T> tup){
-        auto it = std::find(d.begin(),d.end(),tup);
+        typename std::vector<std::vector<T>>::iterator it;
+    	if (tupleSplit == 0){
+	    it = std::find(d.begin(),d.end(),tup);
+	}else{
+	    it = std::find_if(d.begin(),d.end(),[this,&tup](std::vector<T> &a){
+			        for(int i=0; i < tupleSplit; i++){
+				    if(a[i] != tup[i]) return false;
+				}
+				return true;
+			    });
+	}
 	if (it == d.end()) {
 	    std::stringstream ss;
 	    ss << "Permutation::get: Tuple {";
@@ -40,7 +53,8 @@ public:
 	    std::cerr << ss.str();
 	    assert(0 && ss.str().c_str());
 	}
-	return it - d.begin();
+	if (tupleSplit == 0) return it - d.begin();
+	else return (*it)[tupleSplit];
     }
     std::string toString(){
 	std::stringstream ss;
@@ -55,4 +69,4 @@ public:
     }
 };
 
-#endif SYNTH_HEADER
+#endif

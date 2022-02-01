@@ -31,12 +31,12 @@ include_directories(${Threads_INCLUDE_DIR})
 
 
 #ADD EXTERNAL IEGEN LIB
-ExternalProject_Add(iegenlib_in
-        GIT_REPOSITORY "https://github.com/BoiseState-AdaptLab/IEGenLib.git"
-        GIT_TAG "6d9f15a34fadc907269c9445177875398334fd40"
-        SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lib/IEGenLib
-        CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_CURRENT_SOURCE_DIR}/lib/installed
-        BUILD_COMMAND ${MAKE})
+#ExternalProject_Add(iegenlib_in
+#        GIT_REPOSITORY "https://github.com/BoiseState-AdaptLab/IEGenLib.git"
+#        GIT_TAG "ae22717d7b9163346f6627893782788003cd82ac"
+#        SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lib/IEGenLib
+#        CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_CURRENT_SOURCE_DIR}/lib/installed
+#        BUILD_COMMAND ${MAKE})
 
 
 
@@ -66,7 +66,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/lib/IEGenLib/lib/isl/include)
 
 # BUILD CodeSynthesis_Driver
 add_executable(CodeSynthesis_Driver ${CodeSynthesis_SOURCES} src/drivers/code_synthesis_main.cpp)
-add_dependencies(CodeSynthesis_Driver iegenlib_in)
+#add_dependencies(CodeSynthesis_Driver iegenlib_in)
 target_link_libraries(CodeSynthesis_Driver gtest iegenlib isl codegen omega )
 
 
@@ -83,7 +83,7 @@ set_target_properties(CodeSynthesis_Driver
 add_executable(CodeSynthesis_t 
 	${CodeSynthesis_SOURCES} 
 	${CodSynthesis_t_SOURCES} )
-add_dependencies(CodeSynthesis_t iegenlib_in)
+#add_dependencies(CodeSynthesis_t iegenlib_in)
 #Tell included gtest headers to NOT use tuple support.
 add_definitions(-DGTEST_HAS_TR1_TUPLE=0)
 add_test(NAME unit_tests COMMAND CodeSynthesis_t)

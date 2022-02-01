@@ -154,9 +154,12 @@ Computation* CodeSynthesis::generateInspectorComputation() {
      std::list<iegenlib::Exp*> expList = getExprs(conj);    
      // Convert compose relation to set.
      auto composeSet = composeRel->ToSet();
+     std::cout << "Before Closure: "<< composeRel->prettyPrintString() << "\n"; 
+
      // Convert trans relation to a set
      Set* transSet = transRel->ToSet();
  
+     std::cout << "After Closure: "<< transRel->prettyPrintString() << "\n"; 
     
      std::vector<std::string> unknowns;
     
@@ -861,7 +864,7 @@ SynthExpressionCase CodeSynthesis::GetUFExpressionSynthCase(Exp* constraint,
       int y_arity = 0;
       bool x_dependsOnTuple = false;
       bool y_dependsOnTuple = false;
-      for(int i = 0 ; i < inputArity; i++){
+      for(int i = 0 ; i < tupleSize; i++){
          TupleVarTerm t(1,i);
          for(int k = 0; k < ufTerm->numArgs(); k++){
 	    if(ufTerm->getParamExp(k)->
@@ -876,7 +879,8 @@ SynthExpressionCase CodeSynthesis::GetUFExpressionSynthCase(Exp* constraint,
 	    y_dependsOnTuple = true;
 	 }
       }
-      if (y_arity >= x_arity && x_dependsOnTuple && y_dependsOnTuple){
+      // Relax y_arity >= x_arity constraints
+      if (x_dependsOnTuple && y_dependsOnTuple){
          // Case 3
          // UF(x) <= F(y) 
          if (ufTerm->coefficient() < 0){
