@@ -31,6 +31,28 @@ int main(int argc, char**argv) {
     coo->dataAccess = "{[n] -> [n]}";
     supportedFormats["COO"] = coo;
     
+    SparseFormat * bcsr = new SparseFormat();
+    bcsr->mapToDense = "{[hr,hc,ii,jj,kk,p]->[i,j] : 0<= ii < NR_BR &&"
+	    " browptr(ii) <= kk < browptr(ii+ 1) && jj= bcol(kk) && 0 <= hr"
+	    " < BR && 0 <= hc < BC && i = ii * 99 + hr &&"
+	    " j= jj * 999 + hc && p= kk * 9999 + hr * 999"
+	    " + hc }";
+    bcsr->dataAccess = "{[hr,hc,ii,jj,kk,p] -> [p]}";
+    
+    bcsr->knowns = { "BR","BC","NR", "NC", "NC_BC","NR_BR","BRBC"};
+    bcsr->ufQuants = { UFQuant( "{[ii]: 0 <= ii <= NR_BR}",
+		    "{[ii]:0 <= ii < NR_BR}",
+		    "browptr",false, Monotonic_Nondecreasing),
+                    UFQuant( "{[jj]:0 <= jj < NC_BC}",
+		    "{[jj]: 0 <= jj <= NC_BC}",
+		    "bcol",false, Monotonic_NONE)};
+    bcsr->dataConstraint = "A(i,j) != 0 || ii,jj, x | A(i,j) = 0 && "
+	    "BR ∗ x <= i < BR ∗ ( x + 1) && BC ∗ x <= j < BC ∗ (x+ 1) && " 
+	    "BR∗x <= ii < BR∗ ( x + 1) & BC ∗ x <= jj< BC ∗ (x+ 1) && "
+	    "A(ii,jj) != 0";
+    supportedFormats["BCSR"] = bcsr;
+
+
     SparseFormat * csr = new SparseFormat();
     csr->mapToDense = "{[i,k]->[i,j]: i >= 0 and i < NR and"
                               " j >= 0 and j < NC and rowptr(i) <= k < rowptr(i+1)"
@@ -77,7 +99,8 @@ int main(int argc, char**argv) {
 	}
 	currIndex++;
     }
-    assert(sourceFormat && destFormat && "Unsopported Source or Destination Format");
+    assert(sourceFormat && destFormat 
+		    && "Unsopported Source or Destination Format");
     CodeSynthesis* synth = new CodeSynthesis(sourceFormat, destFormat);
     std::string code = synth->generateFullCode();
     std::ofstream fileOut;
@@ -90,5 +113,6 @@ int main(int argc, char**argv) {
     fileOut << code;
     fileOut.close();
     std::cout << "generated synth.c ..\n";
+    
     return 0;
 }

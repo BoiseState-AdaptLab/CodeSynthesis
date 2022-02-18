@@ -180,6 +180,8 @@ void generate_random_matrix(matrix &randMatrix){
 int main ( int ac, char** argv){
    srand(SEED);
    
+   clock_t start, end;
+   double cpu_time_used = 0;
    linearization_test();
    std::cerr << "Linearization passed! \n";
    // Tensor from paper
@@ -201,8 +203,12 @@ int main ( int ac, char** argv){
 
    Alto alto_paper;
    std::cerr << "Building alto\n";
+   start = clock(); 
    build_alto(&alto_paper,&tens_paper);
-   std::cerr << "Finished building alto \n";
+   end = clock();
+   cpu_time_used =((double) (end - start)) / CLOCKS_PER_SEC;
+   std::cerr << "Finished building alto\r total time:"<< 
+	   cpu_time_used <<" \n";
    
    test_build_alto_paper(&alto_paper);
    std::cerr << "Build Alto Test passed\n";
