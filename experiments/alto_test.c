@@ -21,6 +21,17 @@
 #define ITER 10
 
 void morton_sort(coo_d* coo);
+void free_alto (Alto *alto){
+   delete [] alto->pos;
+   delete [] alto->vals;
+}
+
+void free_coo (coo_d *coo){
+   delete [] coo->rows;
+   delete [] coo->cols;
+   delete [] coo->zs;
+   delete [] coo->vals;
+}
 
 unsigned long long linearize(int i, int j , int k){
     return  pdep((long long unsigned int) i ,(long long unsigned int) MASK1) |
@@ -47,6 +58,13 @@ void test_build_alto_paper (Alto* alto){
     assert (25 == alto->pos[3]);
     assert (42 == alto->pos[4]);
     assert (51 == alto->pos[5]);
+
+    assert(6 == alto->vals[0]);
+    assert (20 == alto->vals[1]);
+    assert (5 == alto->vals[2]);
+    assert (3 == alto->vals[3]);
+    assert (2 == alto->vals[4]);
+    assert (9 == alto->vals[5]);
 }
 
 void build_alto(Alto* alto, coo_d* coo){
@@ -145,6 +163,8 @@ void alto_mttkrp_parallel_2(Alto &alto, matrix &A, matrix &B, matrix &C, int L){
 	 } 
       }    
    }
+
+   delete temp;
 }
 
 void generate_random_matrix(matrix &randMatrix){
@@ -168,15 +188,17 @@ int main ( int ac, char** argv){
    tens_paper.nr = 4;
    tens_paper.nc = 8;
    tens_paper.nz = 2;
-   int  rows []=  {0,1,1,2,3,3};
-   int  cols []=  {3,0,6,2,1,4};
-   int  zs []  =  {0,0,1,1,1,0};
-   float  vals []= {5,6,9,3,20,2}; 
+
+   int*  rows=  new int [6] {0,1,1,2,3,3};
+   int*  cols= new int [6]  {3,0,6,2,1,4};
+   int*  zs  =  new int [6] {0,0,1,1,1,0};
+   float*  vals = new float [6] {5,6,9,3,20,2}; 
  
-   tens_paper.rows = &rows[0];
-   tens_paper.cols = &cols[0];
-   tens_paper.zs =   &zs[0];
-   
+   tens_paper.rows = rows;
+   tens_paper.cols = cols;
+   tens_paper.zs =   zs;
+   tens_paper.vals = vals;
+
    Alto alto_paper;
    std::cerr << "Building alto\n";
    build_alto(&alto_paper,&tens_paper);
@@ -184,7 +206,10 @@ int main ( int ac, char** argv){
    
    test_build_alto_paper(&alto_paper);
    std::cerr << "Build Alto Test passed\n";
-      
+   
+   free_alto(&alto_paper);
+   free_coo(&tens_paper);  
+
    /* // This code is for nell-2, uncomment this code 
     * // to when using nell2 tensor and also uncomment 
     * // the mask information.
