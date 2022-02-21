@@ -24,10 +24,11 @@ struct csc_d{
 struct Alto{
    unsigned long long * pos;
    float * vals;
+   int nmode;
+   unsigned long long* dims;
+   unsigned long long alto_mask;
+   unsigned long long * mode_masks;
    int nnz;
-   int nr;
-   int nc;
-   int nz;
 };
 
 struct csr_d{
