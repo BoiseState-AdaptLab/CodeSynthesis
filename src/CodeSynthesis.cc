@@ -154,12 +154,10 @@ Computation* CodeSynthesis::generateInspectorComputation() {
      std::list<iegenlib::Exp*> expList = getExprs(conj);    
      // Convert compose relation to set.
      auto composeSet = composeRel->ToSet();
-     std::cout << "Before Closure: "<< composeRel->prettyPrintString() << "\n"; 
 
      // Convert trans relation to a set
      Set* transSet = transRel->ToSet();
  
-     std::cout << "After Closure: "<< transRel->prettyPrintString() << "\n"; 
     
      std::vector<std::string> unknowns;
     
@@ -529,6 +527,8 @@ CodeSynthesis::CodeSynthesis(SparseFormat* source,
     permutes = AddPermutationConstraint(invDestMap);
     
     composeRel = invDestMap->Compose(sourceMapR);
+    std::cerr << "Compose Rel: "<< composeRel->prettyPrintString() << "\n";
+
     transRel = composeRel->TransitiveClosure();
     
     sourceDataName = source->dataName;
@@ -1201,6 +1201,7 @@ std::vector<std::pair<std::string,std::string>>
 
 std::string CodeSynthesis::generateFullCode(){
     Computation* comp = generateInspectorComputation();
+    comp->printInfo();
     std::stringstream ss;
     ss << getSupportingMacros();
     std::string permuteInit;
@@ -1301,64 +1302,78 @@ std::string CodeSynthesis::generateFullCode(){
 
 std::string CodeSynthesis::GetSupportHeader(){
    std::stringstream ss;
-   ss << "#ifndef SYNTH_HEADER\n"; 
-   ss << "#define SYNTH_HEADER\n"; 
-   ss<<"#include <functional>\n"; 
-    ss<<"#include <algorithm>\n"; 
-    ss<<"#include <vector>\n"; 
-    ss<<"#include <assert.h>\n"; 
-    ss<<"#include <iostream>\n"; 
-    ss<<"#include <string>\n"; 
-    ss<<"#include <sstream>\n"; 
-    ss<<"// Define P Data structure\n"; 
-    ss<<"template <typename T>\n"; 
-    ss<<"using Comparator = std::function<bool (std::vector<T>&,std::vector<T>&)>;\n"; 
-    ss<<"\n"; 
-    ss<<"template <typename T>\n"; 
-    ss<<"class Permutation{\n"; 
-    ss<<"private:\n"; 
-    ss<<"    std::vector<std::vector<T>> d;\n"; 
-    ss<<"    Comparator<T> sortConstraint;\n"; 
-    ss<<"public:\n"; 
-    ss<<"    Permutation(Comparator<T> sortConstraint): sortConstraint(sortConstraint){}\n"; 
-    ss<<"    Permutation(){\n"; 
-    ss<<"       this->sortConstraint = NULL;\n"; 
-    ss<<"    }\n"; 
-    ss<<"    void insert(std::vector<T> tup){\n"; 
-    ss<<"        d.push_back(tup);\n"; 
-    ss<<"	if (sortConstraint != NULL){\n"; 
-    ss<<"	    std::sort(d.begin(),d.end(),sortConstraint);\n"; 
-    ss<<"	}\n"; 
-    ss<<"    }\n"; 
-    ss<<"    int get(std::vector<T> tup){\n"; 
-    ss<<"        auto it = std::find(d.begin(),d.end(),tup);\n"; 
-    ss<<"	if (it == d.end()) {\n"; 
-    ss<<"	    std::stringstream ss;\n"; 
-    ss<<"	    ss << \"Permutation::get: Tuple {\";\n"; 
-    ss<<"\n"; 
-    ss<<"	    for(int j = 0; j  < tup.size(); j++){\n"; 
-    ss<<"	        ss << tup[j] << \",\";\n"; 
-    ss<<"	    }\n"; 
-    ss<<"	    ss << \"} not found\";\n"; 
-    ss<<"	    std::cerr << ss.str();\n"; 
-    ss<<"	    assert(0 && ss.str().c_str());\n"; 
-    ss<<"	}\n"; 
-    ss<<"	return it - d.begin();\n"; 
-    ss<<"    }\n"; 
-    ss<<"    std::string toString(){\n"; 
-    ss<<"	std::stringstream ss;\n"; 
-    ss<<"	for(int i = 0; i < d.size(); i++){\n"; 
-    ss<<"	    ss<< \"[\" << i << \"] => {\";\n"; 
-    ss<<"	    for(int j = 0; j  < d[i].size(); j++){\n"; 
-    ss<<"	        ss << d[i][j] << \",\";\n"; 
-    ss<<"	    }\n"; 
-    ss<<"	    ss << \"}\";\n"; 
-    ss<<"	}\n"; 
-    ss<<"	return ss.str();\n"; 
-    ss<<"    }\n"; 
-    ss<<"};\n"; 
-    ss<<"\n"; 
-    ss << "#endif SYNTH_HEADER\n";
+   ss << "#ifndef SYNTH_HEADER\n";
+   ss << "#define SYNTH_HEADER\n";
+   ss << "#include <functional>\n";
+   ss << "#include <algorithm>\n";
+   ss << "#include <vector>\n";
+   ss << "#include <assert.h>\n";
+   ss << "#include <iostream>\n";
+   ss << "#include <string>\n";
+   ss << "#include <sstream>\n";
+   ss << "// Define P Data structure\n";
+   ss << "template <typename T>\n";
+   ss << "using Comparator = std::function<bool (std::vector<T>&,std::vector<T>&)>;\n";
+   ss << "\n";
+   ss << "template <typename T>\n";
+   ss << "class Permutation{\n";
+   ss << "private:\n";
+   ss << "    std::vector<std::vector<T>> d;\n";
+   ss << "    int tupleSplit = 0;\n";
+   ss << "    Comparator<T> sortConstraint;\n";
+   ss << "public:\n";
+   ss << "    Permutation(Comparator<T> sortConstraint): tupleSplit(tupleSplit),\n";
+   ss << "	sortConstraint(sortConstraint){}\n";
+   ss << "    Permutation(){\n";
+   ss << "       this->sortConstraint = NULL;\n";
+   ss << "    }\n";
+   ss << "    Permutation(int tupleSplit): tupleSplit(tupleSplit) {}\n";
+   ss << "    void insert(std::vector<T> tup){\n";
+   ss << "        d.push_back(tup);\n";
+   ss << "	if (sortConstraint != NULL){\n";
+   ss << "	    std::sort(d.begin(),d.end(),sortConstraint);\n";
+   ss << "	}\n";
+   ss << "    }\n";
+   ss << "    int get(std::vector<T> tup){\n";
+   ss << "        typename std::vector<std::vector<T>>::iterator it;\n";
+   ss << "    	if (tupleSplit == 0){\n";
+   ss << "	    it = std::find(d.begin(),d.end(),tup);\n";
+   ss << "	}else{\n";
+   ss << "	    it = std::find_if(d.begin(),d.end(),[this,&tup](std::vector<T> &a){\n";
+   ss << "			        for(int i=0; i < tupleSplit; i++){\n";
+   ss << "				    if(a[i] != tup[i]) return false;\n";
+   ss << "				}\n";
+   ss << "				return true;\n";
+   ss << "			    });\n";
+   ss << "	}\n";
+   ss << "	if (it == d.end()) {\n";
+   ss << "	    std::stringstream ss;\n";
+   ss << "	    ss << \"Permutation::get: Tuple {\";\n";
+   ss << "\n";
+   ss << "	    for(int j = 0; j  < tup.size(); j++){\n";
+   ss << "	        ss << tup[j] << ",";\n";
+   ss << "	    }\n";
+   ss << "	    ss << \"} not found\";\n";
+   ss << "	    std::cerr << ss.str();\n";
+   ss << "	    assert(0 && ss.str().c_str());\n";
+   ss << "	}\n";
+   ss << "	if (tupleSplit == 0) return it - d.begin();\n";
+   ss << "	else return (*it)[tupleSplit];\n";
+   ss << "    }\n";
+   ss << "    std::string toString(){\n";
+   ss << "	std::stringstream ss;\n";
+   ss << "	for(int i = 0; i < d.size(); i++){\n";
+   ss << "	    ss<< \"[\" << i << \"] => {\";\n";
+   ss << "	    for(int j = 0; j  < d[i].size(); j++){\n";
+   ss << "	        ss << d[i][j] << \",\";\n";
+   ss << "	    }\n";
+   ss << "	    ss << \"}\";\n";
+   ss << "	}\n";
+   ss << "	return ss.str();\n";
+   ss << "    }\n";
+   ss << "};\n";
+   ss << "\n";
+   ss << "#endif\n";
    return ss.str(); 
 }
 bool CodeSynthesis::IsTupleBoundedByUnknown(TupleVarTerm& t, 
