@@ -4,6 +4,10 @@
 #include <time.h>
 #include <iostream>
 #include <assert.h>
+#include <algorithm>
+
+
+#define MAX_NUM_MODES 15
 // This mask is from the paper 4 x 8 x 2
 #define MASK1 0b001010
 #define MASK2 0b110100
@@ -158,13 +162,13 @@ unsigned long long linearize(int i, int j , int k, unsigned long long* mode_mask
 
 }
 
-void linearization_test(){
-    assert (2 == linearize(1,0,0));
-    assert (15 == linearize(3,1,1));
-    assert (20 == linearize(0,3,0));
-    assert (25 == linearize(2,2,1));
-    assert (42 == linearize(3,4,0));
-    assert (51 == linearize(1,6,1));
+void linearization_test(unsigned long long * mode_masks){
+    assert (2 == linearize(1,0,0,mode_masks));
+    assert (15 == linearize(3,1,1,mode_masks));
+    assert (20 == linearize(0,3,0,mode_masks));
+    assert (25 == linearize(2,2,1,mode_masks));
+    assert (42 == linearize(3,4,0,mode_masks));
+    assert (51 == linearize(1,6,1,mode_masks));
      
 }
 
@@ -191,13 +195,17 @@ void build_alto(Alto* alto, coo_d* coo){
     alto->nnz = coo->nnz;
     alto->nmode = 3;
     alto->mode_masks = new unsigned long long[3] ();
+    alto->dims = new unsigned long long[3] ();
     alto->dims[0] = coo->nr;
     alto->dims[1] = coo->nc;
     alto->dims[2] = coo->nz;
+   std::cerr << "Create Masks\n";
+   setup_packed_alto(alto, LSB_FIRST, SHORT_FIRST);  
     for(int n = 0 ; n < alto->nnz ;n++ ){
         unsigned long long pos = 0;
 	//encode i coordinate
-	pos= linearize(coo->rows[n],coo->cols[n],coo->zs[n]);
+	pos= linearize(coo->rows[n],coo->cols[n],
+			coo->zs[n],alto->mode_masks);
 	// Perform insertion sort
 	int i = n - 1;
 	while (i >= 0 && pos < alto->pos[i]){
@@ -216,7 +224,7 @@ void alto_mttkrp_trns(Alto &alto, matrix &A, matrix &B, matrix &C){
           int i = pext((long long unsigned int)alto.pos[n],(long long unsigned int)alto.mode_masks[0]);
           int j = pext((long long unsigned int)alto.pos[n],(long long unsigned int)alto.mode_masks[1]);
           int k = pext((long long unsigned int)alto.pos[n],(long long unsigned int)alto.mode_masks[2]);
-          A.vals[r * R + i] += alto.vals[n] * B.vals[r*R + j] * C.vals[r*R+k];
+          A.vals[r * A.row + i] += alto.vals[n] * B.vals[r*B.row + j] * C.vals[r*C.row + k];
       }
    }
 }
@@ -227,7 +235,7 @@ void alto_mttkrp(Alto &alto, matrix &A, matrix &B, matrix &C){
           int i = pext((long long unsigned int)alto.pos[n],(long long unsigned int)alto.mode_masks[0]);
           int j = pext((long long unsigned int)alto.pos[n],(long long unsigned int)alto.mode_masks[1]);
           int k = pext((long long unsigned int)alto.pos[n],(long long unsigned int)alto.mode_masks[2]);
-          A.vals[i * A.row + r] += alto.vals[n] * B.vals[j*B.row + r] * C.vals[k * C.row + r];
+          A.vals[i * A.col + r] += alto.vals[n] * B.vals[j*B.col + r] * C.vals[k * C.col + r];
       }
    }
 }
@@ -239,7 +247,7 @@ void alto_mttkrp_parallel_1(Alto &alto, matrix &A, matrix &B, matrix &C){
           int i = pext((long long unsigned int)alto.pos[n],(long long unsigned int)alto.mode_masks[0]);
           int j = pext((long long unsigned int)alto.pos[n],(long long unsigned int)alto.mode_masks[1]);
           int k = pext((long long unsigned int)alto.pos[n],(long long unsigned int)alto.mode_masks[2]);
-          A.vals[r * R + i] += alto.vals[n] * B.vals[r*R + j] * C.vals[r*R+k];
+          A.vals[r * A.row + i] += alto.vals[n] * B.vals[r*B.row + j] * C.vals[r*C.row + k];
       }
    }
 }
@@ -267,7 +275,7 @@ void alto_mttkrp_parallel_2(Alto &alto, matrix &A, matrix &B, matrix &C, int L){
       }
    }
    #pragma omp parallel for
-   for(int b = 0; b < alto.nr; b++){
+   for(int b = 0; b < alto.dims[0]; b++){
       for(int l = 0; l < L; l++){
          
          int rL= l * part ;
@@ -288,11 +296,31 @@ void alto_mttkrp_parallel_2(Alto &alto, matrix &A, matrix &B, matrix &C, int L){
    delete temp;
 }
 
+coo_d* generate_random_tensor(int I, int J, int K, unsigned long long nnz){
+   coo_d* coo = new coo_d();
+   coo->nr = I;
+   coo->nc = J;
+   coo->nz = K;
+   coo->rows = new int [nnz] (); 
+   coo->cols = new int [nnz] (); 
+   coo->zs = new int [nnz] (); 
+   coo->vals = new float [nnz] (); 
+   
+   for(int n = 0; n < nnz ; n++){
+      coo->rows[n] = rand()%I; 
+      coo->cols[n] = rand()%J; 
+      coo->zs[n] = rand()%K;
+      coo->vals[n] = rand()%nnz; 
+   }
+   return coo;
+}
+
+
 matrix* generate_random_matrix(int rowNum, int colNum){
    matrix* randMatrix = new matrix();
    randMatrix->row = rowNum;
    randMatrix->col = colNum;
-   randMatrix->vals = new float[rowNum * colNum];
+   randMatrix->vals = new float[(rowNum+1) * (colNum+1) ];
 
    for(int i = 0; i <randMatrix->row * randMatrix->col; i++){
        randMatrix->vals[i] = rand();
@@ -305,8 +333,6 @@ int main ( int ac, char** argv){
    
    clock_t start, end;
    double cpu_time_used = 0;
-   linearization_test();
-   std::cerr << "Linearization passed! \n";
    // Tensor from paper
    coo_d* tens_paper = new coo_d();
    tens_paper->nnz = 6;
@@ -334,13 +360,15 @@ int main ( int ac, char** argv){
    std::cerr << "Finished building alto\r total time:"<< 
 	   cpu_time_used <<" \n";
    
-   std::cerr << "Create Masks\n";
-   setup_packed_alto(alto, LSB_FIRST, SHORT_FIRST);  
 
    // check if masks is correct
-   assert (MASK1,alto.mode_masks[0]);
-   assert (MASK2,alto.mode_masks[1]);
-   assert (MASK3,alto.mode_masks[2]);
+   assert (MASK1==alto_paper->mode_masks[0]);
+   assert (MASK2==alto_paper->mode_masks[1]);
+   assert (MASK3==alto_paper->mode_masks[2]);
+   std::cerr << "Automatic masks test passed! \n";
+
+   linearization_test(alto_paper->mode_masks);
+   std::cerr << "Linearization passed! \n";
 
 
    test_build_alto_paper(alto_paper);
@@ -348,33 +376,43 @@ int main ( int ac, char** argv){
    
    free_alto(alto_paper);
    free_coo(tens_paper);  
-
-   /* // This code is for nell-2, uncomment this code 
-    * // to when using nell2 tensor and also uncomment 
-    * // the mask information.
-   std::string file_name(argv[1]);
-   // Nell2
-   coo_d* nell_coo = new coo_d();
-   std::cout << "Reading from file: "<< file_name << " \n";
-   read_sparse_coo(file_name,*nell_coo);  
-   std::cout << "Finished reading from file\n";
+   
+   if (ac < 2)
+	   return 0;
+   coo_d* coo = NULL;
+   std::string file_name (argv[1]);
+   if (file_name == "rand"){
+      int I = atoi(argv[2]);
+      int J = atoi(argv[3]);
+      int K = atoi(argv[4]);
+      int NNZ = atoi(argv[5]);
+      
+   std::cerr << "Generating Tensor: "<< file_name << " \n";  
+   coo = generate_random_tensor(I,J,K,NNZ);
+   std::cerr << "Finished Generating Tensor\n";  
+   }else{
+   std::cerr << "Running Mode-1 MTTKRP: " << file_name << "\n"; 
+   coo = new coo_d();
+   std::cerr << "Reading from file: "<< file_name << " \n";  
+   read_sparse_coo(file_name,*coo);
+   std::cerr << "Finished reading from file\n";  
+   
+   }
+   
    Alto* alto = new Alto();
 
-   std::cout << "Building alto \n";
-   build_alto(alto,nell_coo);
-   std::cout << "Finished alto \n";
-   
-   std::cout << "Generating Factor Matrices \n";
-   matrix* B = generate_random_matrix(nell_coo->nc,R);
-   matrix* A = generate_random_matrix(nell_coo->nr,R);
-   matrix* C = generate_random_matrix(nell_coo->nz,R);
-   std::cout << "Done Generating Factor Matrices \n";
+   std::cerr << "Building alto \n";
+   build_alto(alto,coo);
+   std::cerr << "Finished alto \n";
+   std::cerr << "Generating Factor Matrices \n";
+   matrix* B = generate_random_matrix(coo->nc,R);
+   matrix* A = generate_random_matrix(coo->nr,R);
+   matrix* C = generate_random_matrix(coo->nz,R);
+   std::cerr << "Done Generating Factor Matrices \n";
    
    
   
-   clock_t start, end;
-   double cpu_time_used = 0;
-   std::cout << "Running Mode-1 MTTKRP: \n"; 
+   std::cerr << "Running Mode-1 MTTKRP: \n"; 
    for (int i  = 0; i < ITER ; i++){
       start = clock();
       // Mode1 MTTKRP
@@ -383,19 +421,19 @@ int main ( int ac, char** argv){
       cpu_time_used+=((double) (end - start)) / CLOCKS_PER_SEC;
    }
    double average_time = cpu_time_used / ITER;
-   std::cout << "Average Time for Mode-1 MTTKRP: "<< 
+   std::cerr << "Average Time for Mode-1 MTTKRP: "<< 
 	   average_time <<"\n";
    free_matrix(A); 
    free_matrix(B); 
    free_matrix(C); 
-   std::cout << "Generating Factor Matrices \n";
-   B = generate_random_matrix(nell_coo->nc,R);
-   A = generate_random_matrix(nell_coo->nr,R);
-   C = generate_random_matrix(nell_coo->nz,R);
-   std::cout << "Done Generating Factor Matrices \n";
+   std::cerr << "Generating Factor Matrices \n";
+   B = generate_random_matrix(coo->nc,R);
+   A = generate_random_matrix(coo->nr,R);
+   C = generate_random_matrix(coo->nz,R);
+   std::cerr << "Done Generating Factor Matrices \n";
 
    cpu_time_used = 0;
-   std::cout << "Running Mode-1 MTTRK-reordered and transpose: \n";
+   std::cerr << "Running Mode-1 MTTRK-reordered and transpose: \n";
    for (int i  = 0; i < ITER ; i++){
       start = clock();
       // Mode1 MTTKRP
@@ -404,14 +442,12 @@ int main ( int ac, char** argv){
       cpu_time_used+=((double) (end - start)) / CLOCKS_PER_SEC;
    }
    average_time = cpu_time_used / ITER;
-   std::cout << "Average Time for Mode-1 MTTKRP, re-ordered & transposed: "<< 
+   std::cerr << "Average Time for Mode-1 MTTKRP, re-ordered & transposed: "<< 
 	   average_time <<"\n";
 	   
    free_matrix(A); 
    free_matrix(B); 
    free_matrix(C);
    free_alto(alto);
-   free_coo(nell_coo);
-  */
-
+   free_coo(coo);
 }
