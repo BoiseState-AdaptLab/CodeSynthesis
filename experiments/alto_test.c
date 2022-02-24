@@ -5,7 +5,9 @@
 #include <iostream>
 #include <assert.h>
 #include <algorithm>
+#include <omp.h>
 
+#define ALTO_DEBUG 1
 
 #define MAX_NUM_MODES 15
 // This mask is from the paper 4 x 8 x 2
@@ -199,8 +201,8 @@ void build_alto(Alto* alto, coo_d* coo){
     alto->dims[0] = coo->nr;
     alto->dims[1] = coo->nc;
     alto->dims[2] = coo->nz;
-   std::cerr << "Create Masks\n";
-   setup_packed_alto(alto, LSB_FIRST, SHORT_FIRST);  
+    std::cerr << "Create Masks\n";
+    setup_packed_alto(alto, LSB_FIRST, SHORT_FIRST);  
     for(int n = 0 ; n < alto->nnz ;n++ ){
         unsigned long long pos = 0;
 	//encode i coordinate
@@ -240,8 +242,22 @@ void alto_mttkrp(Alto &alto, matrix &A, matrix &B, matrix &C){
    }
 }
 
+void alto_mttkrp_para(Alto &alto, matrix &A, matrix &B, matrix &C){
+  #pragma omp paralel for 
+  for( int n =0; n < alto.nnz; n++){
+      for(int r = 0 ; r < R; r++){
+          int i = pext((long long unsigned int)alto.pos[n],(long long unsigned int)alto.mode_masks[0]);
+          int j = pext((long long unsigned int)alto.pos[n],(long long unsigned int)alto.mode_masks[1]);
+          int k = pext((long long unsigned int)alto.pos[n],(long long unsigned int)alto.mode_masks[2]);
+          
+           #pragma omp critical
+          A.vals[i * A.col + r] += alto.vals[n] * B.vals[j*B.col + r] * C.vals[k * C.col + r];
+      }
+   }
+}
+
 void alto_mttkrp_parallel_1(Alto &alto, matrix &A, matrix &B, matrix &C){
-   #pragma omp parallel for collapse(2)
+   #pragma omp parallel for 
    for(int r = 0 ; r < R; r++){
       for( int n =0; n < alto.nnz; n++){
           int i = pext((long long unsigned int)alto.pos[n],(long long unsigned int)alto.mode_masks[0]);
@@ -387,10 +403,14 @@ int main ( int ac, char** argv){
       int K = atoi(argv[4]);
       int NNZ = atoi(argv[5]);
       
+   int num_threads = atoi(argv[6]);
+   omp_set_num_threads(num_threads);
    std::cerr << "Generating Tensor: "<< file_name << " \n";  
    coo = generate_random_tensor(I,J,K,NNZ);
    std::cerr << "Finished Generating Tensor\n";  
    }else{
+   int num_threads = atoi(argv[2]);
+   omp_set_num_threads(num_threads);
    std::cerr << "Running Mode-1 MTTKRP: " << file_name << "\n"; 
    coo = new coo_d();
    std::cerr << "Reading from file: "<< file_name << " \n";  
@@ -416,7 +436,7 @@ int main ( int ac, char** argv){
    for (int i  = 0; i < ITER ; i++){
       start = clock();
       // Mode1 MTTKRP
-      alto_mttkrp(*alto,*A,*B,*C);
+      alto_mttkrp_para(*alto,*A,*B,*C);
       end = clock();
       cpu_time_used+=((double) (end - start)) / CLOCKS_PER_SEC;
    }
@@ -437,7 +457,7 @@ int main ( int ac, char** argv){
    for (int i  = 0; i < ITER ; i++){
       start = clock();
       // Mode1 MTTKRP
-      alto_mttkrp_trns(*alto,*A,*B,*C);
+      alto_mttkrp_parallel_1(*alto,*A,*B,*C);
       end = clock();
       cpu_time_used+=((double) (end - start)) / CLOCKS_PER_SEC;
    }
