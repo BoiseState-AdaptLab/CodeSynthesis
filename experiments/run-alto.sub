@@ -3,11 +3,22 @@
 #Submit this script with: sbatch thefilename
 #BATCH --job-name=NELL-2 MTTKRP Trans 
 #SBATCH --output=alto.log
-#SBATCH --ntasks=2
 #SBATCH --partition=defq
 #SBATCH --time=10:40:00
+#SBATCH --exclusive
+#SBATCH --partition=adaptlab
+#SBATCH --cpus-per-task=16
 
 # LOAD MODULES, INSERT CODE, AND RUN YOUR PROGRAMS HERE
-./alto nell-2.tns > alto_run_test
+export OMP_NUM_THREADS=12
+#./helltest
+
+#./alto rand_tensor_2.txt 1 &> alto_run_test_1
+#./alto rand_tensor_2.txt 2 &> alto_run_test_2
+#./alto rand_tensor_2.txt 4 &> alto_run_test_4
+#./alto rand_tensor_2.txt 6 &> alto_run_test_6
+#./alto rand_tensor_2.txt 8  &> alto_run_test_8
+#./alto rand_tensor_2.txt 10 &> alto_run_test_10
+./alto rand_tensor_2.txt 12 &> alto_run_test_12
 
 

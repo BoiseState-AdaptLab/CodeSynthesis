@@ -25,9 +25,9 @@ typedef float FType;
 #define MASK2 0b0001001001001001001001001001001001001001001
 #define MASK3 0b1100100100100100100100100100100100100100100
 */
-#define R 200
+#define R 8
 #define SEED 431890943221
-#define ITER 10
+#define ITER 2
 
 
 struct MPair {
@@ -233,22 +233,22 @@ void alto_mttkrp_trns(Alto &alto, matrix &A, matrix &B, matrix &C){
 
 void alto_mttkrp(Alto &alto, matrix &A, matrix &B, matrix &C){
    for( int n =0; n < alto.nnz; n++){
-      for(int r = 0 ; r < R; r++){
           int i = pext((long long unsigned int)alto.pos[n],(long long unsigned int)alto.mode_masks[0]);
           int j = pext((long long unsigned int)alto.pos[n],(long long unsigned int)alto.mode_masks[1]);
           int k = pext((long long unsigned int)alto.pos[n],(long long unsigned int)alto.mode_masks[2]);
+      for(int r = 0 ; r < R; r++){
           A.vals[i * A.col + r] += alto.vals[n] * B.vals[j*B.col + r] * C.vals[k * C.col + r];
       }
    }
 }
 
 void alto_mttkrp_para(Alto &alto, matrix &A, matrix &B, matrix &C){
-  #pragma omp paralel for 
+  #pragma omp parallel for 
   for( int n =0; n < alto.nnz; n++){
+      int i = pext((long long unsigned int)alto.pos[n],(long long unsigned int)alto.mode_masks[0]);
+      int j = pext((long long unsigned int)alto.pos[n],(long long unsigned int)alto.mode_masks[1]);
+      int k = pext((long long unsigned int)alto.pos[n],(long long unsigned int)alto.mode_masks[2]);
       for(int r = 0 ; r < R; r++){
-          int i = pext((long long unsigned int)alto.pos[n],(long long unsigned int)alto.mode_masks[0]);
-          int j = pext((long long unsigned int)alto.pos[n],(long long unsigned int)alto.mode_masks[1]);
-          int k = pext((long long unsigned int)alto.pos[n],(long long unsigned int)alto.mode_masks[2]);
           
            #pragma omp critical
           A.vals[i * A.col + r] += alto.vals[n] * B.vals[j*B.col + r] * C.vals[k * C.col + r];
@@ -321,7 +321,7 @@ coo_d* generate_random_tensor(int I, int J, int K, unsigned long long nnz){
    coo->cols = new int [nnz] (); 
    coo->zs = new int [nnz] (); 
    coo->vals = new float [nnz] (); 
-   
+   #pragma omp parallel for 
    for(int n = 0; n < nnz ; n++){
       coo->rows[n] = rand()%I; 
       coo->cols[n] = rand()%J; 
@@ -430,7 +430,8 @@ int main ( int ac, char** argv){
    matrix* C = generate_random_matrix(coo->nz,R);
    std::cerr << "Done Generating Factor Matrices \n";
    
-   
+   int numThreads = omp_get_num_threads();
+   std::cerr << "Num Threads: " << numThreads << " \n"; 
   
    std::cerr << "Running Mode-1 MTTKRP: \n"; 
    for (int i  = 0; i < ITER ; i++){
