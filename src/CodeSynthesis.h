@@ -226,7 +226,14 @@ namespace code_synthesis {
       ///   {[n,k] -> [1,n,0,k,0]}
       /// This functionality helps with code synthesis.
       static iegenlib::Relation* getExecutionSchedule(iegenlib::Set*, int pos); 
-
+     
+      // This function substitutes direct equalities on output tuple
+      // if the rhs of the equality is a function of the input tuple.
+      // Example:
+      //     R {[n] -> [i,k]: row(n) = i ^ P(i,k) = u }
+      //     it generates
+      //     R {[n] -> [i,k]: row(n) = i ^ P(row(n_
+      static iegenlib::Relation* substituteDirectEqualities(iegenlib::Relation* rel);
 
       /// Function gets expressions involving term.
       static std::vector<iegenlib::Exp*> getExpInvolvingTerm(
@@ -241,8 +248,15 @@ namespace code_synthesis {
       static std::vector<std::pair<std::string,std::string>> GetReads(
 		      std::string uf,iegenlib::Exp* constraint,
 		     SynthExpressionCase expCase,int arity);   
-
-
+     
+      // Function checks if an expression depends on output 
+      // tuple returns true if it does.
+      // \param arity   arity of the constraint
+      // \param inArity input arity of the constraint
+      // \param e       expression
+      // Params are not adopted
+      static bool dependsOnOutputTuple(int arity, int inArity,
+		      iegenlib::Exp*e);
       /// Function returns a list of write accesses.
       static std::vector<std::pair<std::string,std::string>> GetWrites(
 		     std::string uf, iegenlib::Exp* constraint,

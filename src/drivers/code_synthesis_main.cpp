@@ -55,7 +55,7 @@ int main(int argc, char**argv) {
 
     SparseFormat * csr = new SparseFormat();
     csr->mapToDense = "{[i,k]->[i,j]: i >= 0 and i < NR and"
-                              " j >= 0 and j < NC and rowptr(i) <= k < rowptr(i+1)"
+                       " j >= 0 and j < NC and rowptr(i) <= k < rowptr(i+1)"
 			      " and j = col2(k)}";
     csr->dataAccess = "{[i,k] -> [k]}";
     csr->knowns = { "NR","NC","NNZ"};

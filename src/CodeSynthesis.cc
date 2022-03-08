@@ -1376,6 +1376,64 @@ std::string CodeSynthesis::GetSupportHeader(){
    ss << "#endif\n";
    return ss.str(); 
 }
+
+
+
+// Function checks if an expression depends on output 
+// tuple returns true if it does.
+// \param arity   arity of the constraint
+// \param inArity input arity of the constraint
+// \param e       expression
+// Params are not adopted
+bool CodeSynthesis::dependsOnOutputTuple(int arity, int inArity,
+		      iegenlib::Exp*e){
+
+    for(int i = inArity; i < arity; i++){
+           TupleVarTerm tup(i);
+           if (e->dependsOn(tup)){
+	       return true;
+	   }
+    } 
+    return false;
+}
+
+// This function substitutes direct equalities on output tuple
+// if the rhs of the equality is a function of the input tuple.
+// Example:
+//     R {[n] -> [i,k]: row(n) = i ^ P(i,k) = u }
+//     it generates
+//     R {[n] -> [i,k]: row(n) = i ^ P(row(n))
+Relation* CodeSynthesis::substituteDirectEqualities(Relation* rel){
+   Relation* res = new Relation(*rel);
+
+   SubMap subMap;
+   for(auto conj = res->conjunctionBegin();
+		conj!= res->conjunctionEnd(); conj++){
+        auto itE = (*conj)->equalities().begin();
+        while(itE != (*conj)->equalities().end()){
+	   auto eq = (*itE);
+	   if(!eq) continue;
+           for(int i =res->inArity(); i < res->arity(); i++){
+               TupleVarTerm tup(i);
+               if (eq->dependsOn(tup)){
+		   Term* t = tup.clone();
+	           Exp* e = eq->solveForFactor(t);
+		   if (e && !dependsOnOutputTuple(res->arity(),
+					   res->inArity(),
+					   e)){
+		      subMap.insertPair(tup.clone(),e);
+		   }
+	       }
+	   }
+	 itE++; 
+       }
+   }
+   res->substituteInConstraints(subMap);
+   Relation* r = res->Intersect(rel);
+   delete res;
+   return r;   
+}
+
 bool CodeSynthesis::IsTupleBoundedByUnknown(TupleVarTerm& t, 
 		      SparseConstraints* sp, 
 		      std::vector<std::string>& unknowns){

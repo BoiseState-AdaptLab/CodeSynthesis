@@ -697,3 +697,24 @@ TEST_F(CodeSynthesisUnitTest, TEST_ADD_PERMUTATION_CONSTRAINT){
      
      
 }
+
+
+TEST_F(CodeSynthesisUnitTest, TEST_SUBSTITUTE_DIRECT_EQUALITIES){
+    iegenlib::Relation* map1 = 
+	    new iegenlib::Relation("{[n]->[i,k]: i = row1(n) and i >= 0"
+			    " and i < NR and j >= 0 and j < NC and"
+			    " rowptr(i) <= k < rowptr(i+1) and j = col1(k)}");
+    auto res1 = code_synthesis::CodeSynthesis::substituteDirectEqualities(map1);
+    
+    EXPECT_EQ("{ [n] -> [i, k] : i - row1(n) = 0 && j - col1(k) = 0"
+	  " && i >= 0 && j >= 0 && row1(n) >= 0 && k - rowptr(i) >= 0"
+	  " && k - rowptr(row1(n)) >= 0 && -i + NR - 1 >= 0 && -k +"
+	  " rowptr(i + 1) - 1 >= 0 && -k + rowptr(row1(n) + 1) - 1"
+	  " >= 0 && NC - j - 1 >= 0 && NR - row1(n) - 1 >= 0 }",
+		    res1->prettyPrintString());
+    
+     delete map1;
+     delete res1;
+}
+
+
