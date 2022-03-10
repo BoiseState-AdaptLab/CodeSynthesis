@@ -94,6 +94,11 @@ namespace code_synthesis {
       // composeRel.
       Relation* transRel;
 
+      
+      // Expanded equalities
+      // applied on transRel
+      Relation* transRelExpanded;
+
       // These are ufs or symbolic constants
       // that are already known and need not 
       // to be categorized as an unknown for 

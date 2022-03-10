@@ -145,12 +145,12 @@ CodeSynthesis::~CodeSynthesis() {
     delete destMapR;
     delete composeRel;
     delete transRel;
+    delete transRelExpanded;
 }
 
 Computation* CodeSynthesis::generateInspectorComputation() {
-     // Code is currently been written in code_synthesis_main.cpp
      Computation* inspector = new Computation();
-     Conjunction * conj = *transRel->conjunctionBegin();
+     Conjunction * conj = *transRelExpanded->conjunctionBegin();
      std::list<iegenlib::Exp*> expList = getExprs(conj);    
      // Convert compose relation to set.
      auto composeSet = composeRel->ToSet();
@@ -537,9 +537,9 @@ CodeSynthesis::CodeSynthesis(SparseFormat* source,
     composeRel = invDestMap->Compose(sourceMapR);
     
 
-    auto transRelTemp = composeRel->TransitiveClosure();
+    transRel = composeRel->TransitiveClosure();
 
-    transRel = substituteDirectEqualities(transRelTemp);
+    transRelExpanded = substituteDirectEqualities(transRel);
     
 
     sourceDataName = source->dataName;
@@ -1413,7 +1413,7 @@ bool CodeSynthesis::dependsOnOutputTuple(int arity, int inArity,
 // Example:
 //     R {[n] -> [i,k]: row(n) = i ^ P(i,k) = u }
 //     it generates
-//     R {[n] -> [i,k]: row(n) = i ^ P(row(n))
+//     R {[n] -> [i,k]: row(n) = i ^ P(row(n),k) = u
 Relation* CodeSynthesis::substituteDirectEqualities(Relation* rel){
    Relation* res = new Relation(*rel);
    SubMap subMap;
