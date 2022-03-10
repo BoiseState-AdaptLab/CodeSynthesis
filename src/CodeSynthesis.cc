@@ -525,12 +525,23 @@ CodeSynthesis::CodeSynthesis(SparseFormat* source,
     auto invDestMap = destMapR->Inverse();  
     // Add the Permutation constraint.
     permutes = AddPermutationConstraint(invDestMap);
+    /*
+    auto composeRelTemp = invDestMap->Compose(sourceMapR);
+    
+    // Expand equalites for more relationships
+    composeRel =substituteDirectEqualities(composeRelTemp);
+    
+    delete composeRelTemp;
+    */
     
     composeRel = invDestMap->Compose(sourceMapR);
-    std::cerr << "Compose Rel: "<< composeRel->prettyPrintString() << "\n";
-
-    transRel = composeRel->TransitiveClosure();
     
+
+    auto transRelTemp = composeRel->TransitiveClosure();
+
+    transRel = substituteDirectEqualities(transRelTemp);
+    
+
     sourceDataName = source->dataName;
     destDataName = dest->dataName;
 
@@ -1405,7 +1416,6 @@ bool CodeSynthesis::dependsOnOutputTuple(int arity, int inArity,
 //     R {[n] -> [i,k]: row(n) = i ^ P(row(n))
 Relation* CodeSynthesis::substituteDirectEqualities(Relation* rel){
    Relation* res = new Relation(*rel);
-
    SubMap subMap;
    for(auto conj = res->conjunctionBegin();
 		conj!= res->conjunctionEnd(); conj++){
