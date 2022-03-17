@@ -63,11 +63,19 @@ namespace code_synthesis {
      std::string range;
      std::string name;
      bool isBijective;
+     std::string lhsProperty;
+     std::string rhsProperty;
      MonotonicType type;
      UFQuant(std::string domain, std::string range, std::string name,
 		     bool isBijective,MonotonicType type):
 	     domain(domain), range(range), name(name), isBijective(isBijective),
 	     type(type) {};
+     
+     UFQuant(std::string domain, std::string range, std::string name,
+		     bool isBijective,MonotonicType type,std::string lhsProperty,
+		     std::string rhsProperty):
+	     domain(domain), range(range), name(name), isBijective(isBijective),
+	     type(type),lhsProperty(lhsProperty),rhsProperty(rhsProperty) {};
   };
 
   class CodeSynthesis {
@@ -83,6 +91,11 @@ namespace code_synthesis {
       std::string sourceDataConstraint;
       std::string  destDataConstraint;
       
+      // Contains only ufquantifiers
+      // from destination format.
+      // These are the quantifiers that 
+      // has to be satisfied.
+      std::vector<UFQuant> ufQuants; 
 
       Relation* sourceDataAccessMap;
       Relation* destDataAccessMap;
@@ -392,6 +405,18 @@ namespace code_synthesis {
 		      SparseConstraints* sp, 
 		      std::vector<std::string>& unknowns);
 
+      
+      // Returns a comparator for a permute. Based on self referential 
+      // heuristics and user defined functions.
+      // \param Permute    permute string been considered.
+      // \param composeRel composed relation
+      // \param ufQuants   all uf quantifiers
+      static std::string GetPermuteComparator(std::string& permute,
+		      iegenlib::Relation* composeRel,
+		      std::vector<UFQuant>& ufQuants);
+
+  
+  
   };
 }
 

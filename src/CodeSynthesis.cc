@@ -150,6 +150,9 @@ CodeSynthesis::~CodeSynthesis() {
 
 Computation* CodeSynthesis::generateInspectorComputation() {
      Computation* inspector = new Computation();
+     // transRelExpanded contains more constraints
+     // that are certainly true and expands on all equalities
+     // good candidate for generating statements.
      Conjunction * conj = *transRelExpanded->conjunctionBegin();
      std::list<iegenlib::Exp*> expList = getExprs(conj);    
      // Convert compose relation to set.
@@ -172,24 +175,18 @@ Computation* CodeSynthesis::generateInspectorComputation() {
      }
      int executionScheduleIndex  = 0;
      for (auto permute : permutes){
-         iegenlib::Exp* pExp = NULL ;
-         // Solve for multiple Ps
     
          for(auto e : expList){
              if (findCallTerm(e,permute)!=NULL){
                  auto caseP = 
      		    GetUFExpressionSynthCase(e,permute,
      				    transRel->inArity(),transRel->arity());
-     	         if (caseP == CASE1) { 
-    	             pExp = e;
-    	         }
-    	         else if (caseP == SELF_REF) {
+    	         if (caseP == SELF_REF) {
     	             selfRefs.push_back({permute,e});
     	         }
     	     } 
          } 
         
-         assert(pExp && "Synth Failure: No constraints involving Permute");
          
     
         // Remove all self referential references to permute 
@@ -200,49 +197,55 @@ Computation* CodeSynthesis::generateInspectorComputation() {
     	        RemoveConstraint(transRel,selfRef.second);
     	    }
         }
+       
         
-        std::string pStmt = 
-    	         constraintToStatement(pExp,
+        for(auto pExp : expList){
+            if (findCallTerm(pExp,permute)!=NULL){
+                auto caseP = GetUFExpressionSynthCase(pExp,permute,
+     	        			    transRel->inArity(),transRel->arity());
+                if (caseP == UNDEFINED || caseP == CASE3 || 
+		    caseP == CASE4 || caseP == SELF_REF)
+			continue;
+		std::string pStmt = 
+    	              constraintToStatement(pExp,
     		   permute,composeRel->getTupleDecl(),
-    		   CASE1);
+    		   caseP);
+                // Get Domain for P
+                iegenlib::Set* pDomain = 
+    	            GetCaseDomain(permute,composeSet,pExp,caseP);
         
+                // remove constraints involving unknown UFs
+                RemoveSymbolicConstraints(unknowns,pDomain);
         
-        
-        // Get Domain for P
-        iegenlib::Set* pDomain = 
-    	   GetCaseDomain(permute,composeSet,pExp,CASE1);
-        
-        // remove constraints involving unknown UFs
-        RemoveSymbolicConstraints(unknowns,pDomain);
-        
-	// Remove constraints involving permutes
-        RemoveSymbolicConstraints(permutes,pDomain);
+	        // Remove constraints involving permutes
+                RemoveSymbolicConstraints(permutes,pDomain);
         	
-        // Get execution schedule
-        iegenlib::Relation* pExecutionSchedule = 
-    	    getExecutionSchedule(
+                 // Get execution schedule
+                iegenlib::Relation* pExecutionSchedule = 
+    	                getExecutionSchedule(
     			    pDomain,executionScheduleIndex++);
     
         
-        // Get reads and writes.
-        auto writes = 
-    	    GetWrites(permute,pExp,CASE1,pDomain->arity()); 
+                // Get reads and writes.
+                auto writes = 
+    	              GetWrites(permute,pExp,caseP,pDomain->arity()); 
     
-        auto reads = 
-    	    GetReads(permute,pExp,CASE1,pDomain->arity()); 
+                auto reads = 
+    	              GetReads(permute,pExp,caseP,pDomain->arity()); 
         
         
-        addToDataSpace(*inspector,reads, "double");
-        // Writes to P is considered a single data space
-        // but read from P is a 2d data space 
-        //addToDataSpace((*inspector),
-        //				writes, "double");
+                addToDataSpace(*inspector,reads, "double");
+                // Writes to P is considered a single data space
+                // but read from P is a 2d data space 
+                //addToDataSpace((*inspector),
+                //				writes, "double");
     
-        inspector->addStmt(new Stmt(pStmt,pDomain->prettyPrintString(),
+                inspector->addStmt(new Stmt(pStmt,pDomain->prettyPrintString(),
     			    pExecutionSchedule->prettyPrintString(),
     			    reads,writes));
          
-         
+	    }
+	}
      }
      
      std::vector<iegenlib::Set*> unknownDomain;
@@ -525,14 +528,6 @@ CodeSynthesis::CodeSynthesis(SparseFormat* source,
     auto invDestMap = destMapR->Inverse();  
     // Add the Permutation constraint.
     permutes = AddPermutationConstraint(invDestMap);
-    /*
-    auto composeRelTemp = invDestMap->Compose(sourceMapR);
-    
-    // Expand equalites for more relationships
-    composeRel =substituteDirectEqualities(composeRelTemp);
-    
-    delete composeRelTemp;
-    */
     
     composeRel = invDestMap->Compose(sourceMapR);
     
@@ -567,6 +562,7 @@ CodeSynthesis::CodeSynthesis(SparseFormat* source,
        Set* ufRange = new Set(uf.range);
        iegenlib::appendCurrEnv(uf.name,ufDomain,ufRange,false,
 		       uf.type);
+       ufQuants.push_back(uf);
     }
     
     for(auto known : dest->knowns){
@@ -834,6 +830,9 @@ SynthExpressionCase CodeSynthesis::GetUFExpressionSynthCase(Exp* constraint,
    ufClone->setCoefficient(1);
    Exp* solvedUFConst = constraint->solveForFactor(ufClone);
    
+   if (solvedUFConst == NULL)
+	 return UNDEFINED;
+
    // if UF is self referential 
    if (findCallTerm(solvedUFConst,unknownUF)!= NULL){
        return SELF_REF;
@@ -875,7 +874,7 @@ SynthExpressionCase CodeSynthesis::GetUFExpressionSynthCase(Exp* constraint,
       int y_arity = 0;
       bool x_dependsOnTuple = false;
       bool y_dependsOnTuple = false;
-      for(int i = 0 ; i < tupleSize; i++){
+      for(int i = 0 ; i < inputArity; i++){
          TupleVarTerm t(1,i);
          for(int k = 0; k < ufTerm->numArgs(); k++){
 	    if(ufTerm->getParamExp(k)->
@@ -891,7 +890,7 @@ SynthExpressionCase CodeSynthesis::GetUFExpressionSynthCase(Exp* constraint,
 	 }
       }
       // Relax y_arity >= x_arity constraints
-      if (x_dependsOnTuple && y_dependsOnTuple){
+      if (y_arity >= x_arity && x_dependsOnTuple && y_dependsOnTuple){
          // Case 3
          // UF(x) <= F(y) 
          if (ufTerm->coefficient() < 0){
@@ -1220,13 +1219,14 @@ std::string CodeSynthesis::generateFullCode(){
     
 	std::string permInit = "Permutation<int> * "+permute +
 	        " = new Permutation<int>();\n";
-        // Allocate memory for Permute
-        for(auto selfRef : selfRefs){
-            if (selfRef.first == permute){
-	        //For now just go ahead to add sort constraint
-	        // In the future pare the selfref to decode the 
-	        // exact sorting constraint
-                permInit = "Permutation<int> * "+permute+" = new Permutation <int>([]\
+	auto it = std::find_if(selfRefs.begin(),
+			selfRefs.end(),
+			[&permute](std::pair<std::string,iegenlib::Exp*>& val){
+				return val.first == permute;
+			});
+	if (it != selfRefs.end()){
+            permInit = "Permutation<int> * "+permute+
+		    " = new Permutation <int>([]\
 (std::vector<int>& a,std::vector<int>& b){\n\
 		    for(int i = 0; i < a.size(); i++){\n\
 		       if (a[i]  < b[i] ) return true;\n\
@@ -1234,8 +1234,12 @@ std::string CodeSynthesis::generateFullCode(){
 		    }\n\
 		    return false;\n\
 		    });\n";
-	    }
-        }
+	   
+	}else {
+	    std::string comp = GetPermuteComparator(permute,composeRel,ufQuants);
+            permInit = "Permutation<int> * "+permute+
+		    " = new Permutation <int>("+comp+");\n";
+	}
 	permuteInit += permInit;
     }
     ss << permuteInit;
@@ -1449,3 +1453,131 @@ bool CodeSynthesis::IsTupleBoundedByUnknown(TupleVarTerm& t,
 		      std::vector<std::string>& unknowns){
     return false;
 }
+
+// class ExpComparatorVisitor generates expression 
+// for comparator.
+// F(row(e1)) > H (row(e2))
+//
+// P->insert(col(n),row(n));
+//
+// row(n) is at position x[1] in P
+// col(n) is at position x[0] in P
+//
+// x is determined by e1CompName or e2 comp name
+//
+class ExpComparatorVisitor: public Visitor {
+   private:
+      UFCallTerm* permuteTerm=NULL;
+      std::string e1CompName;
+      std::string e2CompName;
+      std::list<Exp*> equalityExps; 
+      std::stringstream ss;
+   public:
+    explicit ExpComparatorVisitor(UFCallTerm* permuteTerm,
+		    std::string e1CompName, std::string e2CompName,
+		     std::list<Exp*> eqExps):
+	    permuteTerm(permuteTerm),e1CompName(e1CompName),
+	    e2CompName(e2CompName),
+	    equalityExps(eqExps) {}
+
+    void postVisitTupleVarTerm(iegenlib::TupleVarTerm * t) override;
+    void postVisitUFCallTerm(iegenlib::UFCallTerm* t) override;
+    
+
+};
+
+std::string CodeSynthesis::GetPermuteComparator(std::string& permute,Relation* composeRel,std::vector<UFQuant>& ufQuants){
+    std::stringstream ss;
+    ss << "[](std::vector<int>& a,std::vector<int>& b){\n";
+    // Discover the range of the permute in 
+    // the relation. If equivalent to one of the UFs
+    // enforce constraints from that UF 
+    Conjunction* c = *composeRel->conjunctionBegin();
+    for(auto e : c->equalities()){
+        UFCallTerm *permTerm = NULL;
+	if (permTerm = findCallTerm(e,permute)){
+	  
+	  auto ufCase = 
+		     GetUFExpressionSynthCase(e,
+		   permute,composeRel->inArity(),
+		   composeRel->arity());
+          // Check what this permTerm is equal to 
+	  // and get the upper and lower bounds
+	  Term* tClone = permTerm->clone();
+	  tClone->setCoefficient(1);
+	  Exp* solvedFor = e->solveForFactor(tClone);
+	  Term* tupTerm = solvedFor->getTerm();
+	  // Skip this if it does not only have one term
+	  if (tupTerm == NULL) continue;
+
+	  if (tupTerm->type() != "TupleVarTerm") continue;
+	  
+	  // Get range of term
+	  std::list<Exp*> lowerBounds = 
+		  c->GetLowerBounds(*((TupleVarTerm*)tupTerm));
+	  std::list<Exp*> upperBounds = 
+		  c->GetUpperBounds(*((TupleVarTerm*)tupTerm));
+	  
+	  Set * permuteRange = new Set(1); 
+	  Conjunction* permRangeConj = 
+		  *permuteRange->conjunctionBegin();
+	  // Search for 
+          TupleVarTerm tup(0);
+          // Build permute range with upper and lower.
+	  // bounds.
+	  for(Exp* e : upperBounds){
+	     Term* tupClone = tup.clone();
+	     tupClone->setCoefficient(-1);
+	     e->addTerm(tupClone);
+	     e->setInequality();
+	     permRangeConj->addInequality(e);
+	  }
+
+	  for(Exp* e : lowerBounds){
+	     Term* tupClone = tup.clone();
+	     tupClone->setCoefficient(1);
+	     e->multiplyBy(-1);
+	     e->addTerm(tupClone);
+	     e->setInequality();
+	     permRangeConj->addInequality(e);
+	  }
+	  permuteRange->cleanUp();
+
+	  // Now we have a permute range, we need to 
+	  // look for which UF satisfies => Domain(UF) = range(Permute)
+	  for (auto ufQuant : ufQuants){
+	     Set* ufQuantDomain = new Set(ufQuant.domain);
+	     if (*ufQuantDomain == *permuteRange && 
+			     ufQuant.rhsProperty!= ""){
+	        Set* rhsProperty = new Set(ufQuant.rhsProperty);
+		auto rhsConj = *rhsProperty->conjunctionBegin();
+                // Now we create comparator constraints based on this.
+                ss << "if(";
+		bool first = true;
+		for (Exp* rhsExp : rhsConj->inequalities()){
+		   if (first) { first = false;}
+		   else ss << " && "; 
+		   ss << rhsExp->prettyPrintString(rhsConj->
+				   getTupleDecl());
+                   ss << ">= 0";   
+		}
+		for (Exp* rhsExp : rhsConj->equalities()){
+		   ss << " && "; 
+		   ss << rhsExp->prettyPrintString(rhsConj->
+				   getTupleDecl());
+		   ss << " == 0";
+                   
+		}
+		ss << ")\n";
+		// TODO: Replace with actual vectors comming 
+		// into permutation.
+		ss << "return true;\n";
+	     }
+	  }
+       } 
+    }
+    ss << "    return false;\n";
+    ss << "}";
+    return ss.str();
+}
+

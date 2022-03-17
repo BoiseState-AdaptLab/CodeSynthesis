@@ -68,6 +68,25 @@ int main(int argc, char**argv) {
     
     
     
+    SparseFormat * mortonCoo = new SparseFormat();
+    mortonCoo->mapToDense = "{[n1] -> [i,j]:"
+                          " row3(n1) = i and 0 <= n1 and n1 < NNZ "
+			  "and col3(n1) = j and  i >= 0 and "
+                          " i < NR and j >= 0 and j < NC}";
+    mortonCoo->knowns = { "NR","NC","NNZ"};
+    mortonCoo->ufQuants = { UFQuant( "{[x]:0 <= x < NNZ}","{[i]: 0 <= i <= NC}",
+		    "col3",false, Monotonic_NONE, "{[e1,e2]: e1 < e2}",
+		    "{[e1,e2]: MORTON(row3(e1),col3(e1)) < "
+		    "MORTON(row3(e2),col3(e2))} "),
+
+                     UFQuant( "{[x]:0 <= x < NNZ}","{[i]: 0 <= i <= NR}",
+		    "row3",false, Monotonic_NONE,"{[e1,e2]: e1 < e2}",
+		    "{[e1,e2]: MORTON(row3(e1),col3(e1)) < "
+		    "MORTON(row3(e2),col3(e2))} ")};
+
+    mortonCoo->dataConstraint = "A[n]!=0";
+    mortonCoo->dataAccess = "{[n] -> [n]}";
+    supportedFormats["MCOO"] = mortonCoo;
     // Parse command line
     int currIndex = 1;
     SparseFormat* sourceFormat = NULL;
