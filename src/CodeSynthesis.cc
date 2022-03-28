@@ -15,7 +15,6 @@
 #include <list>
 using namespace code_synthesis;
 using iegenlib::Exp;
-/// TODO: Change to use TermVisitor
 /// Function flattens a sparse constraint : set, relation
 /// to individual terms
 /// \param sparseConstraint
@@ -203,8 +202,7 @@ Computation* CodeSynthesis::generateInspectorComputation() {
             if (findCallTerm(pExp,permute)!=NULL){
                 auto caseP = GetUFExpressionSynthCase(pExp,permute,
      	        			    transRel->inArity(),transRel->arity());
-                if (caseP == UNDEFINED || caseP == CASE3 || 
-		    caseP == CASE4 || caseP == SELF_REF)
+                if (caseP != CASE1)
 			continue;
 		std::string pStmt = 
     	              constraintToStatement(pExp,
@@ -531,7 +529,7 @@ CodeSynthesis::CodeSynthesis(SparseFormat* source,
     
     composeRel = invDestMap->Compose(sourceMapR);
     
-
+    
     transRel = composeRel->TransitiveClosure();
 
     transRelExpanded = substituteDirectEqualities(transRel);
@@ -1211,10 +1209,8 @@ std::vector<std::pair<std::string,std::string>>
 
 std::string CodeSynthesis::generateFullCode(){
     Computation* comp = generateInspectorComputation();
-    comp->printInfo();
     std::stringstream ss;
     ss << getSupportingMacros();
-    std::string permuteInit;
     for(auto permute : permutes ){
     
 	std::string permInit = "Permutation<int> * "+permute +
@@ -1225,24 +1221,56 @@ std::string CodeSynthesis::generateFullCode(){
 				return val.first == permute;
 			});
 	if (it != selfRefs.end()){
-            permInit = "Permutation<int> * "+permute+
-		    " = new Permutation <int>([]\
-(std::vector<int>& a,std::vector<int>& b){\n\
-		    for(int i = 0; i < a.size(); i++){\n\
-		       if (a[i]  < b[i] ) return true;\n\
-		       else if (a[i] > b[i]) return false;\n\
-		    }\n\
-		    return false;\n\
-		    });\n";
-	   
+	    // This has to be ordered by how much permute
+	    // level is different in self referential
+            Exp * e = it->second;
+	    UFCallTerm* ut = findCallTerm(e,permute);
+            Term* cloneUT = ut->clone();
+	    cloneUT->setCoefficient(1);
+ 	    Exp* solveE = e->solveForFactor(cloneUT);
+	    UFCallTerm* ut2 = findCallTerm(solveE,permute);;
+	    if (ut2 == NULL) continue;
+            std::stringstream ssP;
+	    ssP << "Permutation<int>* "<< permute
+		    << " = new Permutation <int>([]("
+		   << " std::vector<int>& a, std::vector<int>& b){\n"; 
+            for(int k = 0; k < ut->numArgs(); k++){
+	       Exp* kLHSExp = ut->getParamExp(k);
+	       Exp* kRHSExp = ut2->getParamExp(k);
+	       // Get the difference between lhs and rhs 
+	       // to see which is bigger.
+	       Exp* diff = new Exp();
+	       diff->addExp(kLHSExp);
+	       diff->multiplyBy(-1);
+	       diff->addExp(kRHSExp);
+               int coeff = 0;
+               Term * t = diff->getTerm();
+	       if (t!=NULL){
+                   coeff = t->coefficient();
+               }
+               if (coeff ==0) continue;
+	       ssP << "if (a[" << k  << "] ";
+	       if (coeff < 0 ){
+	          ssP << (ut->coefficient() < 0 ? "<": ">");   	  
+	       }else if( coeff > 0){
+	       
+	          ssP << (ut->coefficient() < 0 ? ">": "<");   	  
+	       }
+	       ssP << " b[" << k  << "] )";
+	       ssP << "    return true;\n";
+	    }
+
+	    ssP << "return false;\n";
+	    ssP << "});\n";
+	    permInit = ssP.str();
 	}else {
-	    std::string comp = GetPermuteComparator(permute,composeRel,ufQuants);
+	    std::string comp = GetPermuteComparator(permute,
+			    composeRel,ufQuants);
             permInit = "Permutation<int> * "+permute+
 		    " = new Permutation <int>("+comp+");\n";
 	}
-	permuteInit += permInit;
+	ss <<  permInit;
     }
-    ss << permuteInit;
     // Add Datamacros for Source and Destination
     // #define <sourceDataName>(i) <sourceDataName>[i]
     // #define <destDataName>(i) <destDataName>[

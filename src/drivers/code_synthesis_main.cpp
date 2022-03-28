@@ -67,6 +67,20 @@ int main(int argc, char**argv) {
     supportedFormats["CSR"] = csr;
     
     
+    SparseFormat * dia = new SparseFormat();
+    dia->mapToDense = "{[q,r,k]->[i,j]: q >= 0 and q < C and"
+	              " i >= 0 and i < NR and"
+                       " j >= 0 and j < NC and i = r and "
+		       " q * 99 + r = k and "
+		       " r >= 0 and r < R and j = offset(q) + i}";
+    dia->dataAccess = "{[q,r,k] -> [k]}";
+    dia->knowns = { "NR","NC","NNZ", "C", "R"};
+    // TODO: represent that there exists some non zero for 
+    // every zero that exists in the same plane as the diagonal.
+    dia->dataConstraint = "A[k]!=0";
+    // It is difficult to represent the rage of offset! It is the 
+    // count of the number of non zeros in each diagonal. So for now skip
+    supportedFormats["DIA"] = dia;
     
     SparseFormat * mortonCoo = new SparseFormat();
     mortonCoo->mapToDense = "{[n1] -> [i,j]:"
@@ -91,6 +105,8 @@ int main(int argc, char**argv) {
     int currIndex = 1;
     SparseFormat* sourceFormat = NULL;
     SparseFormat* destFormat = NULL;
+    
+
     while(currIndex < argc ){
         std::string argString (argv[currIndex]);
         if(argString == "-src"){
@@ -133,5 +149,8 @@ int main(int argc, char**argv) {
     fileOut.close();
     std::cout << "generated synth.c ..\n";
     
+    for (auto s : supportedFormats){
+       delete s.second;
+    }
     return 0;
 }
