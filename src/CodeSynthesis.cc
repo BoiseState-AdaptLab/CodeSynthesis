@@ -275,7 +275,7 @@ Computation* CodeSynthesis::generateInspectorComputation() {
 		continue;
 	     }
 	     // IF UF satisifies synthesis case
-	     if(ufCase !=UNDEFINED){
+	     if(ufCase !=UNDEFINED && ufCase != CASE1){
 	         std::string expStmt = 
 	             constraintToStatement(e,
 		       currentUF,transRel->getTupleDecl(),ufCase);
