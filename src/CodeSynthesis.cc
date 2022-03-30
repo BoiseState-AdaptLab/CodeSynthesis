@@ -529,8 +529,15 @@ CodeSynthesis::CodeSynthesis(SparseFormat* source,
     
     composeRel = invDestMap->Compose(sourceMapR);
     
+    std::cerr << "Compose Rel: "<< composeRel->prettyPrintString() 
+	       << " \n";
+    
+       
     
     transRel = composeRel->TransitiveClosure();
+    
+    std::cerr << "Trans Rel: "<< transRel->prettyPrintString()
+	    << "\n";
 
     transRelExpanded = substituteDirectEqualities(transRel);
     

@@ -66,7 +66,22 @@ int main(int argc, char**argv) {
 		    "col2",false, Monotonic_NONE)};
     supportedFormats["CSR"] = csr;
     
+
     
+    SparseFormat * csc = new SparseFormat();
+    csc->mapToDense = "{[j,k]->[i,j]: i >= 0 and i < NR and"
+                       " j >= 0 and j < NC and colptr(j) <= k < colptr(j+1)"
+			      " and i = row4(k)}";
+    csc->dataAccess = "{[i,k] -> [k]}";
+    csc->knowns = { "NR","NC","NNZ"};
+    csc->dataConstraint = "A[k]!=0";
+    csc->ufQuants = { UFQuant( "{[i]: 0 <= i <= NR}","{[x]:0 <= x < NNZ}",
+		    "colptr",false, Monotonic_Nondecreasing),
+                     UFQuant( "{[x]:0 <= x < NNZ}","{[i]: 0 <= i <= NR}",
+		    "row4",false, Monotonic_NONE)};
+    supportedFormats["CSC"] = csc;
+
+
     SparseFormat * dia = new SparseFormat();
     dia->mapToDense = "{[q,r,k]->[i,j]: q >= 0 and q < C and"
 	              " i >= 0 and i < NR and"
