@@ -82,8 +82,11 @@ void print_coo_1_based_index(uint64_t nnz, uint64_t rank, double * values, uint6
 }
 
 int main(int argc, char * argv[]) {
-    // TODO: replace with file read from command line
-    char * filename = (char *)"/home/aaron/Dev/c++/CodeSynthesis/test/data/test.mtx";
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s <filename of matrix market exchange file>\n", argv[0]);
+        exit(1);
+    }
+    char * filename = argv[1];
     FILE *file = fopen(filename, "r");
     if (!file) {
         fprintf(stderr, "Cannot find %s\n", filename);
