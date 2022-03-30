@@ -92,7 +92,6 @@ int main(int argc, char * argv[]) {
         fprintf(stderr, "Cannot find %s\n", filename);
         exit(1);
     }
-    // Perform some file format dependent set up.
     char line[kColWidth];
     uint64_t idata[512];
     bool isSymmetric = false;
@@ -100,7 +99,6 @@ int main(int argc, char * argv[]) {
     uint64_t rank = idata[0];
     uint64_t nnz = idata[1];
 
-    // Whether the given col/row has a value
     auto *dims = (uint64_t *) calloc(rank, sizeof(uint64_t));
     for(int i = 0; i < rank; i++) {
         dims[i] = idata[i + 2];
@@ -110,8 +108,10 @@ int main(int argc, char * argv[]) {
     for (int i = 0; i < rank; i++) {
         coord[i] = (uint64_t *) calloc(nnz, sizeof(uint64_t));
     }
+
     auto *values = (double *)calloc(nnz, sizeof(double));
 
+    // Read file into arrays
     for (uint64_t k = 0; k < nnz; k++) {
         if (!fgets(line, kColWidth, file)) {
             fprintf(stderr, "Cannot find next line of data in %s\n", filename);
