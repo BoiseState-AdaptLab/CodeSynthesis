@@ -67,22 +67,17 @@ static void readMMEHeader(FILE *file, char *filename, char *line,
     }
 }
 
-void print_coo(uint64_t nnz, uint64_t rank, double * ACOO, uint64_t **dims, uint64_t * dimSize, bool ** isOccupied) {
+// 1 based indexing to match mmx format, this function is intended for testing purposes.
+void print_coo_1_based_index(uint64_t nnz, uint64_t rank, double * values, uint64_t **coord) {
     for (uint64_t k = 0; k < nnz; k++) {
         for (uint64_t r = 0; r < rank; r++) {
             if (r == rank-1) {
-                printf("%lu: ", dims[r][k] + 1);
+                printf("%lu: ", coord[r][k] + 1);
             } else {
-                printf("%lu,", dims[r][k] + 1);
+                printf("%lu,", coord[r][k] + 1);
             }
         }
-        printf("%f\n", ACOO[k]);
-    }
-
-    for (uint64_t r = 0; r < rank; r++) {
-        for (uint64_t a = 0; a < dimSize[r]; a++) {
-            printf("%);
-        }
+        printf("%f\n", values[k]);
     }
 }
 
@@ -103,18 +98,16 @@ int main(int argc, char * argv[]) {
     uint64_t nnz = idata[1];
 
     // Whether the given col/row has a value
-    bool **isOccupied = (bool **) calloc(rank, sizeof(bool *));
-    auto *dimSize = (uint64_t *) calloc(rank, sizeof(uint64_t));
+    auto *dims = (uint64_t *) calloc(rank, sizeof(uint64_t));
     for(int i = 0; i < rank; i++) {
-        isOccupied[i] =(bool *) calloc(idata[i + 2], sizeof(bool));
-        dimSize[i] = idata[i + 2];
+        dims[i] = idata[i + 2];
     }
 
-    auto **dims = (uint64_t **) calloc(rank, sizeof(uint64_t *));
+    auto **coord = (uint64_t **) calloc(rank, sizeof(uint64_t *));
     for (int i = 0; i < rank; i++) {
-        dims[i] = (uint64_t *) calloc(nnz, sizeof(uint64_t));
+        coord[i] = (uint64_t *) calloc(nnz, sizeof(uint64_t));
     }
-    auto *ACOO = (double *)calloc(nnz, sizeof(double));
+    auto *values = (double *)calloc(nnz, sizeof(double));
 
     for (uint64_t k = 0; k < nnz; k++) {
         if (!fgets(line, kColWidth, file)) {
@@ -124,15 +117,14 @@ int main(int argc, char * argv[]) {
         char *linePtr = line;
         for (uint64_t r = 0; r < rank; r++) {
             uint64_t idx = strtoul(linePtr, &linePtr, 10);
-            dims[r][k] = idx - 1;
-            isOccupied[r][idx -1] = true;
+            coord[r][k] = idx - 1;
         }
 
         double value = strtod(linePtr, &linePtr);
-        ACOO[k] = value;
+        values[k] = value;
     }
 
-    print_coo(nnz, rank, ACOO, dims, dimSize, isOccupied);
+    print_coo_1_based_index(nnz, rank, values, coord);
 
     return 0;
 }
