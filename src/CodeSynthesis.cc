@@ -184,7 +184,7 @@ Computation* CodeSynthesis::generateInspectorComputation() {
              if (findCallTerm(e,permute)!=NULL){
                  auto caseP = 
      		    GetUFExpressionSynthCase(e,permute,
-     				    transRel->inArity(),transRel->arity());
+     		    transRel->inArity(),transRel->arity());
     	         if (caseP == SELF_REF) {
     	             selfRefs.push_back({permute,e});
     	         }
@@ -201,54 +201,117 @@ Computation* CodeSynthesis::generateInspectorComputation() {
     	        RemoveConstraint(transRel,selfRef.second);
     	    }
         }
-       
+        
+	// Gather all Permute PExpCandidate
+        std::vector<std::pair<Exp*,SynthExpressionCase>>
+	       	permuteExpCandidate; 
         
         for(auto pExp : expList){
             if (findCallTerm(pExp,permute)!=NULL){
                 auto caseP = GetUFExpressionSynthCase(pExp,permute,
-     	        			    transRel->inArity(),transRel->arity());
-                if (caseP != CASE1)
-			continue;
-		std::string pStmt = 
-    	              constraintToStatement(pExp,
-    		   permute,composeRel->getTupleDecl(),
-    		   caseP);
-                // Get Domain for P
-                iegenlib::Set* pDomain = 
-    	            GetCaseDomain(permute,composeSet,pExp,caseP);
-        
-                // remove constraints involving unknown UFs
-                RemoveSymbolicConstraints(unknowns,pDomain);
-        
-	        // Remove constraints involving permutes
-                RemoveSymbolicConstraints(permutes,pDomain);
-        	
-                 // Get execution schedule
-                iegenlib::Relation* pExecutionSchedule = 
-    	                getExecutionSchedule(
-    			    pDomain,executionScheduleIndex++);
-    
-        
-                // Get reads and writes.
-                auto writes = 
-    	              GetWrites(permute,pExp,caseP,pDomain->arity()); 
-    
-                auto reads = 
-    	              GetReads(permute,pExp,caseP,pDomain->arity()); 
-        
-        
-                addToDataSpace(*inspector,reads, "double");
-                // Writes to P is considered a single data space
-                // but read from P is a 2d data space 
-                //addToDataSpace((*inspector),
-                //				writes, "double");
-    
-                inspector->addStmt(new Stmt(pStmt,pDomain->prettyPrintString(),
-    			    pExecutionSchedule->prettyPrintString(),
-    			    reads,writes));
+     	        	transRel->inArity(),transRel->arity());
+                if (caseP == CASE1 || caseP == CASE2)
+		   permuteExpCandidate.push_back({pExp,caseP});    
          
 	    }
 	}
+	// If there is just a single candidate. use 
+	// the generic case insert.
+        if (permuteExpCandidate.size() == 1){
+	    auto caseP = permuteExpCandidate[0].second; 	
+	    auto pExp = permuteExpCandidate[0].first;
+	    std::string pStmt = 
+    	           constraintToStatement(pExp,
+    		   permute,composeRel->getTupleDecl(),
+    		   caseP);
+            // Get Domain for P
+            iegenlib::Set* pDomain = 
+    	        GetCaseDomain(permute,composeSet,pExp,caseP);
+        
+            // remove constraints involving unknown UFs
+            RemoveSymbolicConstraints(unknowns,pDomain);
+        
+	    // Remove constraints involving permutes
+            RemoveSymbolicConstraints(permutes,pDomain);
+        	
+            // Get execution schedule
+            iegenlib::Relation* pExecutionSchedule = 
+    	            getExecutionSchedule(
+    	            pDomain,executionScheduleIndex++);
+    
+        
+            // Get reads and writes.
+            auto writes = 
+                 GetWrites(permute,pExp,caseP,pDomain->arity()); 
+    
+            auto reads = 
+                 GetReads(permute,pExp,caseP,pDomain->arity()); 
+        
+        
+            addToDataSpace(*inspector,reads, "double");
+            // Writes to P is considered a single data space
+            // but read from P is a 2d data space 
+            //addToDataSpace((*inspector),
+            //				writes, "double");
+    
+            inspector->addStmt(new Stmt(pStmt,pDomain->
+		prettyPrintString(),pExecutionSchedule->
+		prettyPrintString(),reads,writes));
+	}else {
+            for(auto pCand : permuteExpCandidate) {
+		if (pCand.second == CASE1)
+		    continue;	
+	        auto pExp = pCand.first;
+	    auto permU =findCallTerm(pExp,permute);
+            // add permute to mergedPermutes 
+	    // so that Permutation will be initialized
+	    // accordingly
+            mergedPermutes.push_back({permute,permU->numArgs()});
+	    
+	    SynthExpressionCase caseP = MERGECASE;
+	    std::string pStmt = 
+    	           constraintToStatement(pExp,
+    		   permute,composeRel->getTupleDecl(),
+    		   caseP);
+            
+	    
+	    // Get Domain for P
+            iegenlib::Set* pDomain = 
+    	        GetCaseDomain(permute,composeSet,pExp,caseP);
+        
+            // remove constraints involving unknown UFs
+            RemoveSymbolicConstraints(unknowns,pDomain);
+        
+	    // Remove constraints involving permutes
+            RemoveSymbolicConstraints(permutes,pDomain);
+        	
+            // Get execution schedule
+            iegenlib::Relation* pExecutionSchedule = 
+    	            getExecutionSchedule(
+    	            pDomain,executionScheduleIndex++);
+    
+        
+            // Get reads and writes.
+            auto writes = 
+                 GetWrites(permute,pExp,caseP,pDomain->arity()); 
+    
+            auto reads = 
+                 GetReads(permute,pExp,caseP,pDomain->arity()); 
+        
+        
+            addToDataSpace(*inspector,reads, "double");
+            // Writes to P is considered a single data space
+            // but read from P is a 2d data space 
+            //addToDataSpace((*inspector),
+            //				writes, "double");
+    
+            inspector->addStmt(new Stmt(pStmt,pDomain->
+		prettyPrintString(),pExecutionSchedule->
+		prettyPrintString(),reads,writes));
+	
+	    }
+	}
+
      }
      
      std::vector<iegenlib::Set*> unknownDomain;
@@ -461,6 +524,18 @@ constraintToStatement(Exp* constraint,
 		    << "max(" << ufTerm->prettyPrintString(tupDecl,true)<< ","
 		    <<solvedUFConst->prettyPrintString(tupDecl)
 		    << ")";
+    }else if(expCase == MERGECASE){
+      ss << unknownUF << "->insert({";
+      bool firstArg = true;
+      for (int i = 0;i <ufTerm->numArgs(); ++i) {
+          if (not firstArg) { ss << ", "; }
+          if (ufTerm->getParamExp(i)) { 
+             ss << ufTerm->getParamExp(i)->prettyPrintString(tupDecl); }
+             firstArg = false;
+       }
+       ss << ",";
+       ss << solvedUFConst->prettyPrintString(tupDecl);
+       ss << "})";
     }
 
    delete solvedUFConst;
@@ -758,7 +833,6 @@ void DataAccessVisitor::preVisitUFCallTerm(UFCallTerm* t){
     delete rel;
 }
 
-
 /// Function returns a list of write accesses.
 std::vector<std::pair<std::string,std::string>> CodeSynthesis::GetWrites(
      std::string uf, iegenlib::Exp* constraint,
@@ -772,7 +846,7 @@ std::vector<std::pair<std::string,std::string>> CodeSynthesis::GetWrites(
     Term* ufClone = ufTerm->clone();
     ufClone->setCoefficient(1);
     Exp* solvedUFConst = constraint->solveForFactor(ufClone);
-    if (expCase == CASE1){
+    if (expCase == CASE1 || expCase == MERGECASE){
         // This is for case 1 where 
 	// we have an insert abstraction
 	TupleDecl tdl(arity);
@@ -1221,10 +1295,22 @@ std::vector<std::pair<std::string,std::string>>
 
 std::string CodeSynthesis::generateFullCode(){
     Computation* comp = generateInspectorComputation();
+    std::cout << "=======IR======\n";
+    comp->printInfo();
+    std::cout << "=======IR-END====\n";
     std::stringstream ss;
     ss << getSupportingMacros();
     for(auto permute : permutes ){
-    
+        auto mergeIT = std::find_if(mergedPermutes.begin(),
+		       mergedPermutes.end(), 
+			[&permute](std::pair<std::string,int>& val){
+				return val.first == permute;
+			});
+        if (mergeIT != mergedPermutes.end()){
+           ss << "Permutation<int> * " << permute <<
+	        " = new Permutation<int>("<<mergeIT->second <<");\n";
+	   continue;
+	}	
 	std::string permInit = "Permutation<int> * "+permute +
 	        " = new Permutation<int>();\n";
 	auto it = std::find_if(selfRefs.begin(),
