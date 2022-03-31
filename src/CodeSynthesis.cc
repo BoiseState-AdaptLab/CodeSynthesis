@@ -262,6 +262,14 @@ Computation* CodeSynthesis::generateInspectorComputation() {
 		if (pCand.second == CASE1)
 		    continue;	
 	        auto pExp = pCand.first;
+		bool hasUnknown = false;
+		for (auto uknwnUF : unknowns){
+		    if(findCallTerm(pExp,uknwnUF)!=NULL){
+		       hasUnknown = true;
+		       break;
+		    }
+		}
+		if (hasUnknown) continue;
 	    auto permU =findCallTerm(pExp,permute);
             // add permute to mergedPermutes 
 	    // so that Permutation will be initialized
