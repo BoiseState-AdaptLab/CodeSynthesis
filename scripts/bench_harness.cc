@@ -67,11 +67,13 @@ static void readMMEHeader(FILE *file, char *filename, char *line,
     }
 }
 
-// 1 based indexing to match mmx format, this function is intended for testing purposes.
-void print_coo_1_based_index(uint64_t nnz, uint64_t rank, double * values, uint64_t **coord) {
+// Print COO data in roughly matrix marget exchanged format. The output is not a correct mtx format just close, this
+// function is intended for debugging purposes.
+void printMTX(uint64_t nnz, uint64_t rank, double * values, uint64_t **coord) {
     for (uint64_t k = 0; k < nnz; k++) {
         for (uint64_t r = 0; r < rank; r++) {
             if (r == rank-1) {
+                // MTX uses 1 based indexing, hence the + 1.
                 printf("%lu: ", coord[r][k] + 1);
             } else {
                 printf("%lu,", coord[r][k] + 1);
@@ -79,6 +81,38 @@ void print_coo_1_based_index(uint64_t nnz, uint64_t rank, double * values, uint6
         }
         printf("%f\n", values[k]);
     }
+}
+
+
+void COOToCSR(uint64_t nnz, uint64_t rank, uint64_t *dims, double * cooValues, uint64_t **coord) {
+    int nr = dims[0];
+    int nc = dims[1];
+    int *csrCol = (int*) calloc(nnz,sizeof(int));
+    int *csrRowptr = (int*) calloc(nr+1,sizeof(int));
+    double *csrValues = (double*) calloc(nnz,sizeof(double));
+
+#define EX_ROW1(n) coord[0][n]
+#define EX_COL1(n) coord[1][n]
+#define EX_ACOO(n) cooValues[n]
+#define EX_COL2(n) csrCol[n]
+#define EX_ROWPTR(n) csrRowptr[n]
+#define EX_ACSR(n) csrValues[n]
+#define EX_ACSR(n) csrValues[n]
+#define NR nr
+#define NC nc
+#define NNZ nnz
+
+#include <coo_csr.h>
+
+#undef EX_ROW1
+#undef EX_COL1
+#undef EX_ACOO
+#undef EX_COL2
+#undef EX_ROWPTR
+#undef EX_ACSR
+#undef NR
+#undef NC
+#undef NNZ
 }
 
 int main(int argc, char * argv[]) {
@@ -127,7 +161,7 @@ int main(int argc, char * argv[]) {
         values[k] = value;
     }
 
-    print_coo_1_based_index(nnz, rank, values, coord);
+    printMTX(nnz, rank, values, coord);
 
     return 0;
 }
