@@ -174,7 +174,12 @@ Computation* CodeSynthesis::generateInspectorComputation() {
      }
      int executionScheduleIndex  = 0;
      for (auto permute : permutes){
-    
+         // TODO: Mege permutes with CASE1 and CASE2
+	 // CASE1, p0->insert({t1,t2})
+	 // CASE2, p0(t1,t2) = t3
+	 // Merged Permute 
+	 // P0 = Permute(2);
+	 // p0->insert({t1,t2,t3}) 
          for(auto e : expList){
              if (findCallTerm(e,permute)!=NULL){
                  auto caseP = 
