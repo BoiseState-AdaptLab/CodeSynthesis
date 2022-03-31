@@ -1,8 +1,10 @@
 #include <synth.h> 
 #define min(a,b) a < b ? a : b
 #define max(a,b) a > b ? a: b
-#define ACOO(n) ACOO[n]
-#define ACSR(i,k) ACSR[k]
+//This was modified to include another macro for indirection see bench_harness for how this is intended to be used.
+#define ACOO(n) EX_ACOO(n)
+//This was modified to include another macro for indirection see bench_harness for how this is intended to be used.
+#define ACSR(i,k) EX_ACSR(k)
 #undef s0
 #undef s_0
 #undef s1
@@ -46,13 +48,17 @@
 #undef P0_2
 #define P1(t0,t1) P1->get({t0,t1})
 #define P1_3(__tv0, __tv1, __tv2, __tv3) P1(__tv2, __tv3)
-#define col1(t0) col1[t0]
+//This was modified to include another macro for indirection see bench_harness for how this is intended to be used.
+#define col1(t0) EX_COL1(t0)
 #define col1_1(__tv0, __tv1) col1(__tv1)
-#define col2(t0) col2[t0]
+//This was modified to include another macro for indirection see bench_harness for how this is intended to be used.
+#define col2(t0) EX_COL2(t0)
 #define col2_4(__tv0, __tv1, __tv2, __tv3, __tv4, __tv5, __tv6, __tv7) col2(__tv7)
-#define row1(t0) row1[t0]
+//This was modified to include another macro for indirection see bench_harness for how this is intended to be used.
+#define row1(t0) EX_ROW1(t0)
 #define row1_0(__tv0, __tv1) row1(__tv1)
-#define rowptr(t0) rowptr[t0]
+//This was modified to include another macro for indirection see bench_harness for how this is intended to be used.
+#define rowptr(t0) EX_ROWPTR(t0)
 #define rowptr_5(__tv0, __tv1, __tv2, __tv3, __tv4, __tv5) rowptr(__tv5)
 #define rowptr_6(__tv0, __tv1, __tv2, __tv3, __tv4, __tv5) rowptr(__tv5 + 1)
 #define P0(t0,t1) P0->get({t0,t1})
