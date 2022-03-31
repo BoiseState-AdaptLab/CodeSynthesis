@@ -83,7 +83,7 @@ set_target_properties(CodeSynthesis_Driver
 add_executable(CodeSynthesis_t 
 	${CodeSynthesis_SOURCES} 
 	${CodSynthesis_t_SOURCES} )
-#add_dependencies(CodeSynthesis_t iegenlib_in)
+add_dependencies(CodeSynthesis_t iegenlib_in)
 #Tell included gtest headers to NOT use tuple support.
 add_definitions(-DGTEST_HAS_TR1_TUPLE=0)
 add_test(NAME unit_tests COMMAND CodeSynthesis_t)
