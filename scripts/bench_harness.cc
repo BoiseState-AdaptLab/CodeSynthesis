@@ -24,6 +24,26 @@ static char *toLower(char *token) {
     return token;
 }
 
+// TODO: if necessary make this work on arbitrary dimensions
+template<typename Fn>
+bool verify(const std::vector<std::vector<uint64_t>> &coords,
+            const std::vector<double> &values,
+            Fn f) {
+    uint64_t rank = coords.size();
+    uint64_t nnz = coords[0].size();
+    for (int k = 0; k < nnz; k++) {
+        std::vector<uint64_t> c(rank);
+        for (int r = 0; r < rank; r++) {
+            c[r] = coords[r][k];
+        }
+        double out = f(c);
+        if (out != values[k]) {
+            return false;
+        }
+    }
+    return true;
+}
+
 /// Taken from LLVM SparseTnesorUitls (see top for details).
 ///
 /// Read the MME header of a general sparse matrix of type real.
@@ -63,7 +83,7 @@ static void readMMEHeader(FILE *file, char *filename, char *line,
     // Next line contains M N NNZ.
     idata[0] = 2; // rank
     if (sscanf(line, "%" PRIu64 "%" PRIu64 "%" PRIu64 "\n", idata + 2, idata + 3,
-            idata + 1) != 3) {
+               idata + 1) != 3) {
         fprintf(stderr, "Cannot find size in %s\n", filename);
         exit(1);
     }
@@ -77,7 +97,7 @@ void printCOOAsMTX(uint64_t nnz,
                    const std::vector<std::vector<uint64_t>> &coord) {
     for (uint64_t k = 0; k < nnz; k++) {
         for (uint64_t r = 0; r < rank; r++) {
-            if (r == rank-1) {
+            if (r == rank - 1) {
                 // MTX uses 1 based indexing, hence the + 1.
                 printf("%lu: ", coord[r][k] + 1);
             } else {
@@ -91,15 +111,14 @@ void printCOOAsMTX(uint64_t nnz,
 void printCSRAsMTX(const std::vector<uint64_t> dims,
                    const std::vector<int> &col,
                    const std::vector<int> &rowptr,
-                   const std::vector<double>  &csrValues) {
+                   const std::vector<double> &csrValues) {
     uint64_t nr = dims[0];
-    for (int i = 0; i< nr; i++) {
-        for (int k=rowptr[i]; k<rowptr[i+1]; k++) {
+    for (int i = 0; i < nr; i++) {
+        for (int k = rowptr[i]; k < rowptr[i + 1]; k++) {
             int j = col[k];
-            printf("%d,%d: %f\n", i+1, j+1, csrValues[k]);
+            printf("%d,%d: %f\n", i + 1, j + 1, csrValues[k]);
         }
     }
-
 }
 
 struct CSR {
@@ -115,7 +134,7 @@ public:
     std::vector<double> values;
 };
 
-CSR* COOToCSR(uint64_t nnz, uint64_t rank,
+CSR *COOToCSR(uint64_t nnz, uint64_t rank,
               const std::vector<uint64_t> &dims,
               std::vector<double> &cooValues,
               std::vector<std::vector<uint64_t>> &coord) {
@@ -149,12 +168,12 @@ CSR* COOToCSR(uint64_t nnz, uint64_t rank,
     return csr;
 }
 
-int main(int argc, char * argv[]) {
+int main(int argc, char *argv[]) {
     if (argc != 2) {
         fprintf(stderr, "Usage: %s <filename of matrix market exchange file>\n", argv[0]);
         exit(1);
     }
-    char * filename = argv[1];
+    char *filename = argv[1];
     FILE *file = fopen(filename, "r");
     if (!file) {
         fprintf(stderr, "Cannot find %s\n", filename);
@@ -168,7 +187,7 @@ int main(int argc, char * argv[]) {
     uint64_t nnz = idata[1];
 
     auto dims = std::vector<uint64_t>(rank);
-    for(int i = 0; i < rank; i++) {
+    for (int i = 0; i < rank; i++) {
         dims[i] = idata[i + 2];
     }
 
@@ -191,14 +210,30 @@ int main(int argc, char * argv[]) {
         values[k] = value;
     }
 
-    printf("Before========\n");
-    printCOOAsMTX(nnz, rank, values, coord);
-
-
     CSR *csr = COOToCSR(nnz, rank, dims, values, coord);
 
-    printf("After=========\n");
-    printCSRAsMTX(dims, csr->col, csr->rowptr, csr->values);
+    auto checkCSR = [&csr, &dims](const std::vector<uint64_t> &cord) -> double {
+        // TODO: check dim
+
+        uint64_t inI = cord[0];
+        uint64_t inJ = cord[1];
+        uint64_t nr = dims[0];
+        for (uint64_t i = 0; i < nr; i++) {
+            for (uint64_t k = csr->rowptr[i]; k < csr->rowptr[i + 1]; k++) {
+                int j = csr->col[k];
+                if (i == inI && j == inJ) {
+                    return csr->values[k];
+                }
+            }
+        }
+        return 0;
+    };
+
+    if (verify(coord, values, checkCSR)) {
+        printf("[✔]: coo->csr %s\n", filename);
+    } else {
+        printf("[❌]: coo->csr %s\n", filename);
+    }
 
     return 0;
 }
