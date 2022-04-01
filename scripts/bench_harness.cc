@@ -9,6 +9,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <utility>
 #include <synth.h>
 
 /// Taken from LLVM SparseTnesorUitls (see top for details).
@@ -70,7 +71,10 @@ static void readMMEHeader(FILE *file, char *filename, char *line,
 
 // Print COO data in roughly matrix marget exchanged format. The output is not a correct mtx format just close, this
 // function is intended for debugging purposes.
-void printCOOAsMTX(uint64_t nnz, uint64_t rank, double * values, uint64_t **coord) {
+void printCOOAsMTX(uint64_t nnz,
+                   uint64_t rank,
+                   const std::vector<double> &values,
+                   const std::vector<std::vector<uint64_t>> &coord) {
     for (uint64_t k = 0; k < nnz; k++) {
         for (uint64_t r = 0; r < rank; r++) {
             if (r == rank-1) {
@@ -84,27 +88,48 @@ void printCOOAsMTX(uint64_t nnz, uint64_t rank, double * values, uint64_t **coor
     }
 }
 
-void printCSRAsMTX(uint64_t *dims, int * csrCols, int *csrRowptr, double  *csrValues) {
-    for (int i = 0; i< dims[0]; i++) {
-        for (int k=csrRowptr[i]; k<csrRowptr[i+1]; k++) {
-            int j = csrCols[k];
+void printCSRAsMTX(const std::vector<uint64_t> dims,
+                   const std::vector<int> &col,
+                   const std::vector<int> &rowptr,
+                   const std::vector<double>  &csrValues) {
+    uint64_t nr = dims[0];
+    for (int i = 0; i< nr; i++) {
+        for (int k=rowptr[i]; k<rowptr[i+1]; k++) {
+            int j = col[k];
             printf("%d,%d: %f\n", i+1, j+1, csrValues[k]);
         }
     }
 
 }
 
-void COOToCSR(uint64_t nnz, uint64_t rank, uint64_t *dims, double * cooValues, uint64_t **coord, int *csrCol, int *csrRowptr, double *csrValues) {
+struct CSR {
+    CSR(int nr, int nnz) {
+        col = std::vector<int>(nnz);
+        rowptr = std::vector<int>(nr);
+        values = std::vector<double>(nnz);
+    }
+
+public:
+    std::vector<int> col;
+    std::vector<int> rowptr;
+    std::vector<double> values;
+};
+
+CSR* COOToCSR(uint64_t nnz, uint64_t rank,
+              const std::vector<uint64_t> &dims,
+              std::vector<double> &cooValues,
+              std::vector<std::vector<uint64_t>> &coord) {
     int nr = dims[0];
     int nc = dims[1];
+
+    CSR *csr = new CSR(nr, nnz);
 
 #define EX_ROW1(n) coord[0][n]
 #define EX_COL1(n) coord[1][n]
 #define EX_ACOO(n) cooValues[n]
-#define EX_COL2(n) csrCol[n]
-#define EX_ROWPTR(n) csrRowptr[n]
-#define EX_ACSR(n) csrValues[n]
-#define EX_ACSR(n) csrValues[n]
+#define EX_COL2(n) csr->col[n]
+#define EX_ROWPTR(n) csr->rowptr[n]
+#define EX_ACSR(n) csr->values[n]
 #define NR nr
 #define NC nc
 #define NNZ nnz
@@ -120,6 +145,8 @@ void COOToCSR(uint64_t nnz, uint64_t rank, uint64_t *dims, double * cooValues, u
 #undef NR
 #undef NC
 #undef NNZ
+
+    return csr;
 }
 
 int main(int argc, char * argv[]) {
@@ -140,19 +167,15 @@ int main(int argc, char * argv[]) {
     uint64_t rank = idata[0];
     uint64_t nnz = idata[1];
 
-    auto *dims = (uint64_t *) calloc(rank, sizeof(uint64_t));
+    auto dims = std::vector<uint64_t>(rank);
     for(int i = 0; i < rank; i++) {
         dims[i] = idata[i + 2];
     }
 
-    auto **coord = (uint64_t **) calloc(rank, sizeof(uint64_t *));
-    for (int i = 0; i < rank; i++) {
-        coord[i] = (uint64_t *) calloc(nnz, sizeof(uint64_t));
-    }
+    std::vector<std::vector<uint64_t>> coord(rank, std::vector<uint64_t>(nnz));
+    std::vector<double> values(nnz);
 
-    auto *values = (double *)calloc(nnz, sizeof(double));
-
-    // Read file into arrays
+    // Read file into vectors
     for (uint64_t k = 0; k < nnz; k++) {
         if (!fgets(line, kColWidth, file)) {
             fprintf(stderr, "Cannot find next line of data in %s\n", filename);
@@ -171,14 +194,11 @@ int main(int argc, char * argv[]) {
     printf("Before========\n");
     printCOOAsMTX(nnz, rank, values, coord);
 
-    int *csrCol = (int*) calloc(nnz,sizeof(int));
-    int *csrRowptr = (int*) calloc(dims[0]+1,sizeof(int));
-    double *csrValues = (double*) calloc(nnz,sizeof(double));
 
-    COOToCSR(nnz, rank, dims, values, coord, csrCol, csrRowptr, csrValues);
+    CSR *csr = COOToCSR(nnz, rank, dims, values, coord);
 
     printf("After=========\n");
-    printCSRAsMTX(dims, csrCol, csrRowptr, csrValues);
+    printCSRAsMTX(dims, csr->col, csr->rowptr, csr->values);
 
     return 0;
 }
