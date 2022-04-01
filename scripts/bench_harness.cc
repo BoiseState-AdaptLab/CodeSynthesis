@@ -11,6 +11,7 @@
 #include <cstring>
 #include <utility>
 #include <synth.h>
+#include <chrono>
 
 /// Taken from LLVM SparseTnesorUitls (see top for details).
 static constexpr int kColWidth = 1025;
@@ -134,14 +135,16 @@ public:
     std::vector<double> values;
 };
 
-CSR *COOToCSR(uint64_t nnz, uint64_t rank,
-              const std::vector<uint64_t> &dims,
-              std::vector<double> &cooValues,
-              std::vector<std::vector<uint64_t>> &coord) {
+std::pair<CSR *, uint64_t> COOToCSR(uint64_t nnz, uint64_t rank,
+                                    const std::vector<uint64_t> &dims,
+                                    std::vector<double> &cooValues,
+                                    std::vector<std::vector<uint64_t>> &coord) {
     int nr = dims[0];
     int nc = dims[1];
 
     CSR *csr = new CSR(nr, nnz);
+
+    auto start = std::chrono::high_resolution_clock::now();
 
 #define EX_ROW1(n) coord[0][n]
 #define EX_COL1(n) coord[1][n]
@@ -165,7 +168,10 @@ CSR *COOToCSR(uint64_t nnz, uint64_t rank,
 #undef NC
 #undef NNZ
 
-    return csr;
+    auto stop = std::chrono::high_resolution_clock::now();
+    uint64_t microseconds = std::chrono::duration_cast<std::chrono::microseconds>(stop - start).count();
+
+    return {csr, microseconds};
 }
 
 int main(int argc, char *argv[]) {
@@ -210,7 +216,9 @@ int main(int argc, char *argv[]) {
         values[k] = value;
     }
 
-    CSR *csr = COOToCSR(nnz, rank, dims, values, coord);
+    auto p = COOToCSR(nnz, rank, dims, values, coord);
+    CSR *csr = p.first;
+    uint64_t microseconds = p.second;
 
     auto checkCSR = [&csr, &dims](const std::vector<uint64_t> &cord) -> double {
         // TODO: check dim
@@ -230,11 +238,11 @@ int main(int argc, char *argv[]) {
     };
 
     if (verify(coord, values, checkCSR)) {
-        printf("[✔]: coo->csr %s\n", filename);
+        printf("[PASS] coo->csr %s, time: %lu μs, \n", filename, microseconds);
+        return 0;
     } else {
-        printf("[❌]: coo->csr %s\n", filename);
+        printf("[FAIL] coo->csr %s, time: %lu μs, \n", filename, microseconds);
+        return 1;
     }
-
-    return 0;
 }
 
