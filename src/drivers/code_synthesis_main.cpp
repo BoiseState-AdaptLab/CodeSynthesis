@@ -83,14 +83,18 @@ int main(int argc, char**argv) {
 
 
     SparseFormat * dia = new SparseFormat();
-    dia->mapToDense = "{[i,d,k] -> [ii,j]: i = ii && 0 <= i < NR"
-	    " && 0 <= d < ND && j = i + off(d) && 0 <= j < NC }";
+    dia->mapToDense = "{[id,dd,kd] -> [ii,j]: id = ii && 0 <= id"
+	    " < NR &&  0 <= id < NR && 0<= ii < NR &&"
+	    " 0 <= dd < ND && dd = pos(ii - j)"
+	    " && j = id + off(dd) && 0 <= j < NC && "
+	    "kd = 99 * id + dd }";
+    // 99 is ND, direct replacement is required.
     dia->dataAccess = "{[q,r,k] -> [k]}";
-    dia->knowns = { "NR","NC","NNZ", "ND"};
+    dia->knowns = { "NR","NC","NNZ", "ND","pos"};
     // TODO: represent that there exists some non zero for 
     // every zero that exists in the same plane as the diagonal.
-    dia->dataConstraint = "A(i, j) != 0 ∨ ∃i′, j′, x|"
-	    "A(i′, j′) = 0 ^ i' - j' &&i - j";
+    dia->dataConstraint = "∃i′, j′, x|"
+	    "A(i′, j′) = 0 ^ i' - j'  = i - j";
     // It is difficult to represent the rage of offset! It is the 
     // count of the number of non zeros in each diagonal. So for now skip
     supportedFormats["DIA"] = dia;
