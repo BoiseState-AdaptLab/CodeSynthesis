@@ -15,7 +15,7 @@ make
 ```
 ## Running Synthesis
 
-We currently have preloaded format descriptions for COO and CSR, 
+We currently have preloaded format descriptions for COO, CSR, DIA, BCSR, MORTONCOO 
 more formats will be added
 
 ```shell script
