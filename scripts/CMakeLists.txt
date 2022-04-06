@@ -41,7 +41,7 @@ set_target_properties(non_substitute_coo_csr
 
 include_directories(./)
 add_custom_target(scripts
-	DEPENDS coo_csr_gen_code
+	DEPENDS bench_harness 
                 new_coo_csr_gen_code
 		csr_coo_gen_code
 		coo_dia_trial

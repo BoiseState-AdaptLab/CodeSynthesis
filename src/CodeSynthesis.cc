@@ -173,6 +173,62 @@ Computation* CodeSynthesis::generateInspectorComputation() {
         }
      }
      int executionScheduleIndex  = 0;
+     
+     // Resolve Special UFs
+     for (auto spec : specialUFs){
+	 std::string specialUF = spec.first;
+        
+        for(auto specExp : expList){
+           UFCallTerm* ut = NULL; 
+	   if ((ut = findCallTerm(specExp,specialUF)) != NULL){
+                auto caseSpec = GetUFExpressionSynthCase(specExp,specialUF,
+     	        	transRel->inArity(),transRel->arity());
+                if (caseSpec != CASE1) continue;
+                specialUFArity[specialUF] = ut->numArgs();
+	        std::string specStmt = 
+    	               constraintToStatement(specExp,
+    		       specialUF,composeRel->getTupleDecl(),
+    		       caseSpec);
+		
+		iegenlib::Set* specDomain = 
+		       GetCaseDomain(specialUF,composeSet,specExp,caseSpec);
+	
+		// remove constraints involving unknown UFs
+		RemoveSymbolicConstraints(unknowns,specDomain);
+		
+			
+		RemoveSymbolicConstraints(permutes,specDomain);
+		
+		// Get execution schedule
+		iegenlib::Relation* pExecutionSchedule = 
+			    getExecutionSchedule(
+			    specDomain,executionScheduleIndex++);
+	    
+		
+		// Get reads and writes.
+		auto writes = 
+		        GetWrites(specialUF,specExp,caseSpec,specDomain->arity()); 
+	    
+		auto reads = 
+		        GetReads(specialUF,specExp,caseSpec,specDomain->arity()); 
+		
+		
+		addToDataSpace(*inspector,reads, "double");
+	    
+		inspector->addStmt(new Stmt(specStmt,specDomain->
+			prettyPrintString(),pExecutionSchedule->
+			prettyPrintString(),reads,writes));
+	   	// special uf is resolved so it is known
+                auto it = std::find(unknowns.begin(),
+				unknowns.end(),specialUF);
+		if (it  != unknowns.end()){
+		    unknowns.erase(it);
+		}
+              
+	    }
+	}
+     }
+     auto unresolvedPermutes = permutes;
      for (auto permute : permutes){
          // TODO: Mege permutes with CASE1 and CASE2
 	 // CASE1, p0->insert({t1,t2})
@@ -257,6 +313,10 @@ Computation* CodeSynthesis::generateInspectorComputation() {
             inspector->addStmt(new Stmt(pStmt,pDomain->
 		prettyPrintString(),pExecutionSchedule->
 		prettyPrintString(),reads,writes));
+	    auto unresolvedIt = std::find(unresolvedPermutes.begin(),
+		  unresolvedPermutes.end(),permute);
+	    if (unresolvedIt != unresolvedPermutes.end())
+		 unresolvedPermutes.erase(unresolvedIt);
 	}else {
             for(auto pCand : permuteExpCandidate) {
 		if (pCand.second == CASE1)
@@ -265,6 +325,16 @@ Computation* CodeSynthesis::generateInspectorComputation() {
 		bool hasUnknown = false;
 		for (auto uknwnUF : unknowns){
 		    if(findCallTerm(pExp,uknwnUF)!=NULL){
+		       hasUnknown = true;
+		       break;
+		    }
+		}
+		if (hasUnknown) continue;
+		// This is to avoid cyclic dependency for 
+		// now.
+		for (auto uknwnUF : unresolvedPermutes){
+		    if(uknwnUF!=permute &&
+				    findCallTerm(pExp,uknwnUF)!=NULL){
 		       hasUnknown = true;
 		       break;
 		    }
@@ -317,6 +387,10 @@ Computation* CodeSynthesis::generateInspectorComputation() {
 		prettyPrintString(),pExecutionSchedule->
 		prettyPrintString(),reads,writes));
 	
+	    auto unresolvedIt = std::find(unresolvedPermutes.begin(),
+		  unresolvedPermutes.end(),permute);
+	    if (unresolvedIt != unresolvedPermutes.end())
+		 unresolvedPermutes.erase(unresolvedIt);
 	    }
 	}
 
@@ -617,18 +691,16 @@ CodeSynthesis::CodeSynthesis(SparseFormat* source,
     
     composeRel = invDestMap->Compose(sourceMapR);
     
-    std::cerr << "Compose Rel: "<< composeRel->prettyPrintString() 
-	       << " \n";
     
        
     
     transRel = composeRel->TransitiveClosure();
     
-    std::cerr << "Trans Rel: "<< transRel->prettyPrintString()
-	    << "\n";
-
+    // Expanded candidates for statement selections.
     transRelExpanded = substituteDirectEqualities(transRel);
-    
+    std::cout << "Statment Candidates: ";
+    std::cout << "\n " << transRelExpanded->prettyPrintString()
+	<< " \n";    
 
     sourceDataName = source->dataName;
     destDataName = dest->dataName;
@@ -656,6 +728,10 @@ CodeSynthesis::CodeSynthesis(SparseFormat* source,
        iegenlib::appendCurrEnv(uf.name,ufDomain,ufRange,false,
 		       uf.type);
        ufQuants.push_back(uf);
+    }
+
+    for(auto specialUf: dest->specialUFs){
+        specialUFs.push_back(specialUf);
     }
     
     for(auto known : dest->knowns){
@@ -1308,6 +1384,11 @@ std::string CodeSynthesis::generateFullCode(){
     std::cout << "=======IR-END====\n";
     std::stringstream ss;
     ss << getSupportingMacros();
+    for(auto spec : specialUFs){
+        if (spec.second == GROUP){
+	    ss << "GROUP <int> * "<< spec.first << " = new GROUP<int>();\n";
+	}
+    }
     for(auto permute : permutes ){
         auto mergeIT = std::find_if(mergedPermutes.begin(),
 		       mergedPermutes.end(), 
@@ -1418,7 +1499,36 @@ std::string CodeSynthesis::generateFullCode(){
     }
     ss << "#define " << destD1 << " "<< destD2 << "\n";
     std::string code = comp->codeGen();
-    
+    // Hack: Add special ufs to permutes
+    // so they act the same way for macro 
+    // replaceemnt
+    for(auto spec : specialUFs){
+        std::string specUF = spec.first;
+        // Replace spec[][] access to spec->get({});
+        // #define spec(i,j) spec[i][j] becomes:
+        // #define spec(i,j) spec->get({i,j})
+        std::string p1 = specUF+ "(";
+        std::string p2 = specUF;
+        std::string p3 = specUF+ "->get({";
+        isFirst = true;
+        for (int i =0 ; i < specialUFArity[specUF]; i++){
+            if(isFirst){
+	        p1+="t" + std::to_string(i);
+	        p3+="t" + std::to_string(i);
+	        isFirst = false;
+            }else{
+	        p1+=",t"+ std::to_string(i);
+	        p3+=",t"+ std::to_string(i);
+	    }
+            p2+="[t" + std::to_string(i)+ "]";
+        }
+        p1 += ")";
+        p3 += "})";
+        std::string toReplace  = "#define "+ p1 + " "+ p2;
+        std::string replacement = "#define "+ p1 + " "+ p3;
+	Utils::replaceAllString(code, toReplace,replacement);
+    } 
+
     for(auto permute : permutes){
         // Replace P[][] access to P->get({});
         // #define P(i,j) P[i][j] becomes:
@@ -1445,6 +1555,15 @@ std::string CodeSynthesis::generateFullCode(){
         Utils::replaceAllString(code, toReplace,replacement);
     }
     ss <<code;
+
+    for(auto permute: permutes){
+       ss << "delete "<< permute << "; \n";
+    }
+
+
+    for(auto spec : specialUFs){
+       ss << "delete "<< spec.first << "; \n";
+    }
     delete comp;
     return ss.str();    
 }
@@ -1522,6 +1641,56 @@ std::string CodeSynthesis::GetSupportHeader(){
    ss << "    }\n";
    ss << "};\n";
    ss << "\n";
+   ss << "// This abstraction is helpful for DIA and ELL\n";
+   ss << "// When a tuple is inserted,say {-1}\n";
+   ss << "// it gets ordered to 0\n";
+   ss << "// then after {-2} is inserted,\n";
+   ss << "// {-1} becomees 1\n";
+   ss << "// {-2} becomes 0\n";
+   ss << "// This is all dependent on the comparator.\n";
+   ss << "// If the comparator is ascending, we have \n";
+   ss << "// the example shown above.\n";
+   ss << "template <typename T>\n";
+   ss << "class GROUP {\n";
+   ss << "private:\n";
+   ss << "    Comparator<T> constraint;\n";
+   ss << "    std::vector<std::vector<T>> d;\n";
+   ss << "public:\n";
+   ss << "    GROUP() {}\n";
+   ss << "    void insert (std::vector<T> tup){\n";
+   ss << "        typename std::vector<std::vector<T>>::iterator it;\n";
+   ss << "	it = std::find(d.begin(),d.end(),tup);\n";
+   ss << "	if (it == d.end()){\n";
+   ss << "	    d.push_back(tup);\n";
+   ss << "	    if (constraint!= NULL)\n";
+   ss << "	        std::sort(d.begin(),d.end(),constraint);\n";
+   ss << "	    else \n";
+   ss << "	        std::sort(d.begin(),d.end());\n";
+   ss << "	}\n";
+   ss << "    }\n";
+   ss << "    int get(std::vector<T> tup){\n";
+   ss << "        typename std::vector<std::vector<T>>::iterator it;\n";
+   ss << "	it = std::find(d.begin(),d.end(),tup);\n";
+   ss << "	if (it == d.end()) {\n";
+   ss << "	    assert(0 &&  \"tuple does not exist\");\n";
+   ss << "	}\n";
+   ss << "	return it - d.begin();\n";
+   ss << "    }\n";
+   ss << "    \n";
+   ss << "    std::string toString(){\n";
+   ss << "	std::stringstream ss;\n";
+   ss << "	for(int i = 0; i < d.size(); i++){\n";
+   ss << "	    ss<< \"[\" << i << \"] => {\";\n";
+   ss << "	    for(int j = 0; j  < d[i].size(); j++){\n";
+   ss << "	        ss << d[i][j] << \",\";\n";
+   ss << "	    }\n";
+   ss << "	    ss << \"}\";\n";
+   ss << "	}\n";
+   ss << "	return ss.str();\n";
+   ss << "    }\n";
+   ss << "\n";
+   ss << "};\n";
+   ss << "  \n";
    ss << "#endif\n";
    return ss.str(); 
 }

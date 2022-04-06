@@ -45,6 +45,25 @@ namespace code_synthesis {
       UNDEFINED
   } SynthExpressionCase;
   
+  /// Special UFs
+  /// PERMUTE UF is generated internally 
+  //             it has the insert and get
+  //             functionality and helps 
+  //             with reordering
+  //  GROUP UF     is a special kind of UF. It groups
+  //  		 whatever tuple is inserted. such that 
+  //  		 a repititve insert of a value i results 
+  //  		 to the same result. It orders this grouping 
+  //  		 by ascending order based on the value 
+  //  		 upon each insert 
+  // GROUP has a higher order than PERMUTE and should 
+  //     be generated first. 
+  typedef enum {
+      PERMUTE,
+      GROUP
+  } SpecialUF;
+
+
   struct UFQuant;
 
   struct SparseFormat{
@@ -53,8 +72,8 @@ namespace code_synthesis {
      std::string dataConstraint;
      std::string dataAccess;
      std::vector<UFQuant> ufQuants;
-
      std::vector<std::string> knowns;
+     std::vector<std::pair<std::string,SpecialUF>> specialUFs;
   }; 
 
   //Helper data structure specifying a universal 
@@ -81,7 +100,13 @@ namespace code_synthesis {
 
   class CodeSynthesis {
   private:
-     
+    
+      // Special UFs
+      std::vector<std::pair<std::string,SpecialUF>> specialUFs;
+      
+      // Special UFs Arity
+      std::map<std::string,int> specialUFArity;
+       
       std::vector<std::string> permutes; 
 
       // Permutes exhibiting merge attributes
