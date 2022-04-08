@@ -83,7 +83,7 @@ int main(int argc, char**argv) {
 
 
     SparseFormat * dia = new SparseFormat();
-    dia->mapToDense = "{[id,dd,kd] -> [ii,j]: id = ii && 0 <= id"
+    dia->mapToDense = "{[id,dd,j,kd] -> [ii,j]: id = ii && 0 <= id"
 	    " < NR &&  0 <= id < NR && 0<= ii < NR &&"
 	    " 0 <= dd < ND && dd = pos(-ii + j)"
 	    " && j = id + off(dd) && 0 <= j < NC && "
