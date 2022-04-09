@@ -1,5 +1,5 @@
 # Fake files
-test/data/fake_nnz_*
+fake_nnz_*
 
 # Nested build directory
 /build*
