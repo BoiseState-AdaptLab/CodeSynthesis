@@ -204,7 +204,6 @@ int main(int argc, char *argv[]) {
     std::vector<double> values(nnz);
 
     // Read file into vectors
-    printf("reading %s into vectors\n", filename);
     for (uint64_t k = 0; k < nnz; k++) {
         if (!fgets(line, kColWidth, file)) {
             fprintf(stderr, "Cannot find next line of data in %s\n", filename);
@@ -220,12 +219,10 @@ int main(int argc, char *argv[]) {
         values[k] = value;
     }
 
-    printf("converting %s into csr\n", filename);
     auto p = COOToCSR(nnz, rank, dims, values, coord);
     CSR *csr = p.first;
     uint64_t microseconds = p.second;
 
-    printf("verifying %s conversion\n", filename);
     auto checkCSR = [&csr, &dims](const std::vector<uint64_t> &cord) -> double {
         uint64_t inI = cord[0];
         uint64_t inJ = cord[1];
