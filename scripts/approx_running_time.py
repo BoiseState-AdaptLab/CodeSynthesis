@@ -251,8 +251,8 @@ x_for_plot = np.linspace(100, 100_000, 100)
 model = Polynomial.fit(nnzs, microsecond_run_times, 2)
 plt.scatter(nnzs, microsecond_run_times, c="r", label="data")
 plt.plot(x_for_plot, model(x_for_plot), label="model")
-plt.xlabel("hours running time")
-plt.ylabel("number non zeros")
+plt.ylabel("hours running time")
+plt.xlabel("number non zeros")
 
 print(f"r2: {r2_score(microsecond_run_times, model(nnzs))}")
 for fn, nnz in filename_to_nnz.items():
