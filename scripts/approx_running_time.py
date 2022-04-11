@@ -209,6 +209,9 @@ nnzs.append(9800)
 microseconds_run_times.append(77094542)
 nnzs.append(9900)
 microseconds_run_times.append(78743363)
+# actual running time for obstclae.mtx
+nnzs.append(118804)
+microseconds_run_times.append(12855414433) # 3.5 hours
 
 filename_to_nnz = {
     "atmosmodd.mtx": 8814880,
@@ -246,9 +249,9 @@ microsecond_run_times = microsecond_run_times / 60
 # minute to hour
 microsecond_run_times = microsecond_run_times / 60
 
-x_for_plot = np.linspace(100, 100_000, 100)
+x_for_plot = np.linspace(100, 118_804, 100)
 
-model = Polynomial.fit(nnzs, microsecond_run_times, 2)
+model = Polynomial.fit(nnzs, microsecond_run_times, 3)
 plt.scatter(nnzs, microsecond_run_times, c="r", label="data")
 plt.plot(x_for_plot, model(x_for_plot), label="model")
 plt.ylabel("hours running time")
@@ -256,7 +259,7 @@ plt.xlabel("number non zeros")
 
 print(f"r2: {r2_score(microsecond_run_times, model(nnzs))}")
 for fn, nnz in filename_to_nnz.items():
-    print(f"{fn}, nnz: {nnz}, Approx. running time (hrs) {int(model(nnz))}")
+    print(f"filename: {fn}, nnz: {nnz}, Approx. running time : {int(model(nnz))} hrs")
 
 plt.legend()
 plt.show()
