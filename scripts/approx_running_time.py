@@ -1,0 +1,265 @@
+from cProfile import label
+import numpy as np
+from numpy.polynomial import Polynomial
+import matplotlib.pyplot as plt
+
+from sklearn.metrics import r2_score
+
+# Data created from runs of bench_harness on files created using
+# make_fake_mtx_files.cpp running COO -> CSR naive on R2.
+nnzs = []
+microseconds_run_times = []
+nnzs.append(10000)
+microseconds_run_times.append(80496679)
+nnzs.append(1000)
+microseconds_run_times.append(700862)
+nnzs.append(100)
+microseconds_run_times.append(6750)
+nnzs.append(1100)
+microseconds_run_times.append(854533)
+nnzs.append(1200)
+microseconds_run_times.append(1007534)
+nnzs.append(1300)
+microseconds_run_times.append(1191167)
+nnzs.append(1400)
+microseconds_run_times.append(1397598)
+nnzs.append(1500)
+microseconds_run_times.append(1616634)
+nnzs.append(1600)
+microseconds_run_times.append(1853279)
+nnzs.append(1700)
+microseconds_run_times.append(2102343)
+nnzs.append(1800)
+microseconds_run_times.append(2361046)
+nnzs.append(1900)
+microseconds_run_times.append(2639108)
+nnzs.append(2000)
+microseconds_run_times.append(2932511)
+nnzs.append(200)
+microseconds_run_times.append(26219)
+nnzs.append(2100)
+microseconds_run_times.append(3240595)
+nnzs.append(2200)
+microseconds_run_times.append(3557956)
+nnzs.append(2300)
+microseconds_run_times.append(3874505)
+nnzs.append(2400)
+microseconds_run_times.append(4220446)
+nnzs.append(2500)
+microseconds_run_times.append(4620048)
+nnzs.append(2600)
+microseconds_run_times.append(4991912)
+nnzs.append(2700)
+microseconds_run_times.append(5414581)
+nnzs.append(2800)
+microseconds_run_times.append(5865209)
+nnzs.append(2900)
+microseconds_run_times.append(6317193)
+nnzs.append(3000)
+microseconds_run_times.append(6770350)
+nnzs.append(300)
+microseconds_run_times.append(58538)
+nnzs.append(3100)
+microseconds_run_times.append(7253527)
+nnzs.append(3200)
+microseconds_run_times.append(7738618)
+nnzs.append(3300)
+microseconds_run_times.append(8262744)
+nnzs.append(3400)
+microseconds_run_times.append(8796457)
+nnzs.append(3500)
+microseconds_run_times.append(9326100)
+nnzs.append(3600)
+microseconds_run_times.append(9887132)
+nnzs.append(3700)
+microseconds_run_times.append(10461994)
+nnzs.append(3800)
+microseconds_run_times.append(11041843)
+nnzs.append(3900)
+microseconds_run_times.append(11661302)
+nnzs.append(4000)
+microseconds_run_times.append(12490671)
+nnzs.append(400)
+microseconds_run_times.append(106993)
+nnzs.append(4100)
+microseconds_run_times.append(12960426)
+nnzs.append(4200)
+microseconds_run_times.append(13553864)
+nnzs.append(4300)
+microseconds_run_times.append(14214752)
+nnzs.append(4400)
+microseconds_run_times.append(14896891)
+nnzs.append(4500)
+microseconds_run_times.append(15562772)
+nnzs.append(4600)
+microseconds_run_times.append(16240238)
+nnzs.append(4700)
+microseconds_run_times.append(16948003)
+nnzs.append(4800)
+microseconds_run_times.append(17917970)
+nnzs.append(4900)
+microseconds_run_times.append(18448372)
+nnzs.append(5000)
+microseconds_run_times.append(19220080)
+nnzs.append(500)
+microseconds_run_times.append(168175)
+nnzs.append(5100)
+microseconds_run_times.append(20062925)
+nnzs.append(5200)
+microseconds_run_times.append(20928653)
+nnzs.append(5300)
+microseconds_run_times.append(21798433)
+nnzs.append(5400)
+microseconds_run_times.append(22753638)
+nnzs.append(5500)
+microseconds_run_times.append(23616463)
+nnzs.append(5600)
+microseconds_run_times.append(24488975)
+nnzs.append(5700)
+microseconds_run_times.append(25404448)
+nnzs.append(5800)
+microseconds_run_times.append(26365127)
+nnzs.append(5900)
+microseconds_run_times.append(27377576)
+nnzs.append(6000)
+microseconds_run_times.append(28319439)
+nnzs.append(600)
+microseconds_run_times.append(241468)
+nnzs.append(6100)
+microseconds_run_times.append(29326039)
+nnzs.append(6200)
+microseconds_run_times.append(30337373)
+nnzs.append(6300)
+microseconds_run_times.append(31429479)
+nnzs.append(6400)
+microseconds_run_times.append(32394387)
+nnzs.append(6500)
+microseconds_run_times.append(33476326)
+nnzs.append(6600)
+microseconds_run_times.append(34561408)
+nnzs.append(6700)
+microseconds_run_times.append(35687664)
+nnzs.append(6800)
+microseconds_run_times.append(36749973)
+nnzs.append(6900)
+microseconds_run_times.append(37872997)
+nnzs.append(7000)
+microseconds_run_times.append(39050697)
+nnzs.append(700)
+microseconds_run_times.append(334599)
+nnzs.append(7100)
+microseconds_run_times.append(40184924)
+nnzs.append(7200)
+microseconds_run_times.append(41393534)
+nnzs.append(7300)
+microseconds_run_times.append(42601622)
+nnzs.append(7400)
+microseconds_run_times.append(43779036)
+nnzs.append(7500)
+microseconds_run_times.append(45009738)
+nnzs.append(7600)
+microseconds_run_times.append(46248504)
+nnzs.append(7700)
+microseconds_run_times.append(47495146)
+nnzs.append(7800)
+microseconds_run_times.append(48779173)
+nnzs.append(7900)
+microseconds_run_times.append(50003281)
+nnzs.append(8000)
+microseconds_run_times.append(51348749)
+nnzs.append(800)
+microseconds_run_times.append(444831)
+nnzs.append(8100)
+microseconds_run_times.append(52696991)
+nnzs.append(8200)
+microseconds_run_times.append(53997152)
+nnzs.append(8300)
+microseconds_run_times.append(55453448)
+nnzs.append(8400)
+microseconds_run_times.append(56704723)
+nnzs.append(8500)
+microseconds_run_times.append(58096869)
+nnzs.append(8600)
+microseconds_run_times.append(59455796)
+nnzs.append(8700)
+microseconds_run_times.append(60874337)
+nnzs.append(8800)
+microseconds_run_times.append(62293438)
+nnzs.append(8900)
+microseconds_run_times.append(63700749)
+nnzs.append(9000)
+microseconds_run_times.append(65097220)
+nnzs.append(900)
+microseconds_run_times.append(564044)
+nnzs.append(9100)
+microseconds_run_times.append(66510176)
+nnzs.append(9200)
+microseconds_run_times.append(67924776)
+nnzs.append(9300)
+microseconds_run_times.append(69359286)
+nnzs.append(9400)
+microseconds_run_times.append(70889437)
+nnzs.append(9500)
+microseconds_run_times.append(72362868)
+nnzs.append(9600)
+microseconds_run_times.append(73884180)
+nnzs.append(9700)
+microseconds_run_times.append(75479068)
+nnzs.append(9800)
+microseconds_run_times.append(77094542)
+nnzs.append(9900)
+microseconds_run_times.append(78743363)
+# actual running time for obstclae.mtx
+nnzs.append(118804)
+microseconds_run_times.append(12855414433) # 3.5 hours
+
+filename_to_nnz = {
+    "atmosmodd.mtx": 8814880,
+    "Baumann.mtx": 760631,
+    "cant.mtx": 2034917,
+    "chem_master1.mtx": 201201,
+    "consph.mtx": 3046907,
+    "cop20k_A.mtx": 1362087,
+    "denormal.mtx": 622812,
+    "dixmaanl.mtx": 179999,
+    "ecology1.mtx": 2998000,
+    "jnlbrng1.mtx": 119600,
+    "Lin.mtx": 1011200,
+    "mac_econ_fwd500.mtx": 1273389,
+    "majorbasis.mtx": 1750416,
+    "obstclae.mtx": 118804,
+    "pdb1HYS.mtx": 2190591,
+    "pwtk.mtx": 5926171,
+    "rma10.mtx": 2374001,
+    "scircuit.mtx": 958936,
+    "shipsec1.mtx": 3977139,
+    "shyy161.mtx": 329762,
+    "webbase_1M.mtx": 3105536,
+}
+
+nnzs = np.array(nnzs)
+microsecond_run_times = np.array(microseconds_run_times)
+
+# microsecond to second
+microsecond_run_times = microsecond_run_times / 1_000_000
+
+# second to minute
+microsecond_run_times = microsecond_run_times / 60
+
+# minute to hour
+microsecond_run_times = microsecond_run_times / 60
+
+x_for_plot = np.linspace(100, 118_804, 100)
+
+model = Polynomial.fit(nnzs, microsecond_run_times, 3)
+plt.scatter(nnzs, microsecond_run_times, c="r", label="data")
+plt.plot(x_for_plot, model(x_for_plot), label="model")
+plt.ylabel("hours running time")
+plt.xlabel("number non zeros")
+
+print(f"r2: {r2_score(microsecond_run_times, model(nnzs))}")
+for fn, nnz in filename_to_nnz.items():
+    print(f"filename: {fn}, nnz: {nnz}, Approx. running time : {int(model(nnz))} hrs")
+
+plt.legend()
+plt.show()

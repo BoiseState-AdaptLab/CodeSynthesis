@@ -82,7 +82,7 @@ Permutation<int,P1_Comp>* P1 = new Permutation <int,P1_Comp>();
 
 if (NC >= 1 && NR >= 1) {
   
-   std::cerr << "S0: Permute Code Start\n";	
+//   std::cerr << "S0: Permute Code Start\n";
    for(t2 = 0; t2 <= NNZ-1; t2++) {
     if (col1_1(t1,t2) >= 0 && NC >= col1_1(t1,t2)+1) {
       t4=row1_0(t1,t2);
@@ -90,7 +90,7 @@ if (NC >= 1 && NR >= 1) {
       s0(0,t2,0,t4,0,t6,0);
     }
   }
-  std::cerr << "S0: Permute Code Ended\n";
+//  std::cerr << "S0: Permute Code Ended\n";
   for(t2 = 0; t2 <= NNZ-1; t2++) {
     if (col1_1(t1,t2) >= 0 && NC >= col1_1(t1,t2)+1) {
       t4=row1_0(t1,t2);
@@ -98,7 +98,7 @@ if (NC >= 1 && NR >= 1) {
       s1(1,t2,0,t4,0,t6,0);
     }
   }
-  std::cerr << "S1: completed \n";
+//  std::cerr << "S1: completed \n";
   for(t2 = 0; t2 <= NNZ-1; t2++) {
     if (row1_0(t1,t2) >= 0 && NC >= col1_1(t1,t2)+1 && NR >= row1_0(t1,t2)+1 && col1_1(t1,t2) >= 0) {
       t3=row1_0(t1,t2);
@@ -108,7 +108,7 @@ if (NC >= 1 && NR >= 1) {
       }
     }
   }
-  std::cerr << "S2: completed \n";
+//  std::cerr << "S2: completed \n";
   for(t2 = 0; t2 <= NNZ-1; t2++) {
     if (col1_1(t1,t2) >= 0 && NR >= row1_0(t1,t2)+1 && NC >= col1_1(t1,t2)+1 && row1_0(t1,t2) >= 0) {
       t3=row1_0(t1,t2);
@@ -120,7 +120,7 @@ if (NC >= 1 && NR >= 1) {
       }
     }
   }
-  std::cerr << "S3: completed \n";
+//  std::cerr << "S3: completed \n";
   for(t2 = 0; t2 <= NNZ-1; t2++) {
     if (row1_0(t1,t2) >= 0 && NC >= col1_1(t1,t2)+1 && NR >= row1_0(t1,t2)+1 && col1_1(t1,t2) >= 0) {
       t3=row1_0(t1,t2);
@@ -130,7 +130,7 @@ if (NC >= 1 && NR >= 1) {
       }
     }
   }
-  std::cerr << "S4: completed \n";
+//  std::cerr << "S4: completed \n";
   for(t2 = 0; t2 <= NNZ-1; t2++) {
     if (row1_0(t1,t2) >= 0 && NC >= col1_1(t1,t2)+1 && NR >= row1_0(t1,t2)+1 && col1_1(t1,t2) >= 0) {
       t3=row1_0(t1,t2);
@@ -141,13 +141,13 @@ if (NC >= 1 && NR >= 1) {
     }
   }
 }
-  std::cerr << "S5: completed \n";
+//  std::cerr << "S5: completed \n";
 for(t2 = 0; t2 <= NR-1; t2++) {
   for(t4 = t2+1; t4 <= NR; t4++) {
     s6(6,t2,0,t4,0,0,0);
   }
 }
-  std::cerr << "S6: completed \n";
+//  std::cerr << "S6: completed \n";
 if (NR >= 1 && NC >= 1) {
   for(t2 = 0; t2 <= NNZ-1; t2++) {
     if (row1_0(t1,t2) >= 0 && NC >= col1_1(t1,t2)+1 && col1_1(t1,t2) >= 0 && NR >= row1_0(t1,t2)+1) {
@@ -166,7 +166,7 @@ if (NR >= 1 && NC >= 1) {
   }
 }
 
-  std::cerr << "S7: Copy code completed \n";
+//  std::cerr << "S7: Copy code completed \n";
 
 
 

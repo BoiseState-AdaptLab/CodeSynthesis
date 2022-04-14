@@ -1,0 +1,8 @@
+# Fake files
+fake_nnz_*
+
+# Nested build directory
+/build*
+
+# CLion project configuration
+/.idea
