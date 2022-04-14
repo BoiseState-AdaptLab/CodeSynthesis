@@ -14,7 +14,7 @@ using Comparator = std::function<bool (std::vector<T>&,std::vector<T>&)>;
 struct P1_Comp{
 bool operator() (const std::vector<int>& a,const std::vector<int>& b){
 if (a[0] < b[0] )  return true;
-return false;
+return a < b;
 }
 };
 
@@ -22,7 +22,7 @@ return false;
 template <typename T,typename C = std::less<std::vector<T> > >
 class Permutation{
 private: 
-    std::multiset<std::vector<T>,C> d;
+    std::set<std::vector<T>,C> d;
     int tupleSplit = 0;
     Comparator<T> sortConstraint;
 public:
