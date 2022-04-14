@@ -10,7 +10,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <utility>
-#include <synth.h>
+#include <opt_synth.h>
 #include <chrono>
 
 /// Taken from LLVM SparseTnesorUitls (see top for details).

@@ -1,4 +1,4 @@
-#include <synth.h> 
+#include <opt_synth.h> 
 #define min(a,b) a < b ? a : b
 #define max(a,b) a > b ? a: b
 //This was modified to include another macro for indirection see bench_harness for how this is intended to be used.
@@ -77,10 +77,7 @@ int t9 = 0;
 
 Permutation<int> * P0 = new Permutation <int>(2);
 
-Permutation<int>* P1 = new Permutation <int>([]( std::vector<int>& a, std::vector<int>& b){
-if (a[0] < b[0] )  return true;
-return false;
-});
+Permutation<int,P1_Comp>* P1 = new Permutation <int,P1_Comp>();
 
 
 if (NC >= 1 && NR >= 1) {

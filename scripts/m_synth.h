@@ -26,9 +26,6 @@ public:
     Permutation(int tupleSplit): tupleSplit(tupleSplit) {}
     void insert(std::vector<T> tup){
         d.push_back(tup);
-	if (sortConstraint != NULL){
-	    std::sort(d.begin(),d.end(),sortConstraint);
-	}
     }
     int get(std::vector<T> tup){
         typename std::vector<std::vector<T>>::iterator it;
