@@ -80,8 +80,9 @@ Permutation<int> * P0 = new Permutation <int>(2);
 Permutation<int,P1_Comp>* P1 = new Permutation <int,P1_Comp>();
 
 
-if (NC >= 1 && NR >= 1) {
+
   
+auto start_ = std::chrono::high_resolution_clock::now();
 //   std::cerr << "S0: Permute Code Start\n";
    for(t2 = 0; t2 <= NNZ-1; t2++) {
     if (col1_1(t1,t2) >= 0 && NC >= col1_1(t1,t2)+1) {
@@ -90,6 +91,12 @@ if (NC >= 1 && NR >= 1) {
       s0(0,t2,0,t4,0,t6,0);
     }
   }
+auto stop_ = std::chrono::high_resolution_clock::now();
+uint64_t microseconds_ = std::chrono::duration_cast<std::chrono::microseconds>(stop_ - start_).count();
+std::cerr << "P0 Synthesis: " << microseconds_ <<  "\n";
+
+
+start_ = std::chrono::high_resolution_clock::now();
 //  std::cerr << "S0: Permute Code Ended\n";
   for(t2 = 0; t2 <= NNZ-1; t2++) {
     if (col1_1(t1,t2) >= 0 && NC >= col1_1(t1,t2)+1) {
@@ -98,6 +105,12 @@ if (NC >= 1 && NR >= 1) {
       s1(1,t2,0,t4,0,t6,0);
     }
   }
+
+stop_ = std::chrono::high_resolution_clock::now();
+microseconds_ = std::chrono::duration_cast<std::chrono::microseconds>(stop_ - start_).count();
+std::cerr << "P1 Synthesis: " << microseconds_ <<  "\n";
+
+start_ = std::chrono::high_resolution_clock::now();
 //  std::cerr << "S1: completed \n";
   for(t2 = 0; t2 <= NNZ-1; t2++) {
     if (row1_0(t1,t2) >= 0 && NC >= col1_1(t1,t2)+1 && NR >= row1_0(t1,t2)+1 && col1_1(t1,t2) >= 0) {
@@ -108,6 +121,11 @@ if (NC >= 1 && NR >= 1) {
       }
     }
   }
+stop_ = std::chrono::high_resolution_clock::now();
+microseconds_ = std::chrono::duration_cast<std::chrono::microseconds>(stop_ - start_).count();
+std::cerr << "Col2 Synthesis: " << microseconds_ <<  "\n";
+
+start_ = std::chrono::high_resolution_clock::now();
 //  std::cerr << "S2: completed \n";
   for(t2 = 0; t2 <= NNZ-1; t2++) {
     if (col1_1(t1,t2) >= 0 && NR >= row1_0(t1,t2)+1 && NC >= col1_1(t1,t2)+1 && row1_0(t1,t2) >= 0) {
@@ -120,6 +138,13 @@ if (NC >= 1 && NR >= 1) {
       }
     }
   }
+
+stop_ = std::chrono::high_resolution_clock::now();
+microseconds_ = std::chrono::duration_cast<std::chrono::microseconds>(stop_ - start_).count();
+std::cerr << "Col2_2 Synthesis: " << microseconds_ <<  "\n";
+ 
+
+start_ = std::chrono::high_resolution_clock::now();
 //  std::cerr << "S3: completed \n";
   for(t2 = 0; t2 <= NNZ-1; t2++) {
     if (row1_0(t1,t2) >= 0 && NC >= col1_1(t1,t2)+1 && NR >= row1_0(t1,t2)+1 && col1_1(t1,t2) >= 0) {
@@ -130,6 +155,12 @@ if (NC >= 1 && NR >= 1) {
       }
     }
   }
+stop_ = std::chrono::high_resolution_clock::now();
+microseconds_ = std::chrono::duration_cast<std::chrono::microseconds>(stop_ - start_).count();
+std::cerr << "rowptr Synthesis: " << microseconds_ <<  "\n";
+
+start_ = std::chrono::high_resolution_clock::now();
+
 //  std::cerr << "S4: completed \n";
   for(t2 = 0; t2 <= NNZ-1; t2++) {
     if (row1_0(t1,t2) >= 0 && NC >= col1_1(t1,t2)+1 && NR >= row1_0(t1,t2)+1 && col1_1(t1,t2) >= 0) {
@@ -140,13 +171,24 @@ if (NC >= 1 && NR >= 1) {
       }
     }
   }
-}
+stop_ = std::chrono::high_resolution_clock::now();
+microseconds_ = std::chrono::duration_cast<std::chrono::microseconds>(stop_ - start_).count();
+std::cerr << "rowptr_2 Synthesis: " << microseconds_ <<  "\n";
+
+start_ = std::chrono::high_resolution_clock::now();
 //  std::cerr << "S5: completed \n";
 for(t2 = 0; t2 <= NR-1; t2++) {
   for(t4 = t2+1; t4 <= NR; t4++) {
     s6(6,t2,0,t4,0,0,0);
   }
 }
+stop_ = std::chrono::high_resolution_clock::now();
+microseconds_ = std::chrono::duration_cast<std::chrono::microseconds>(stop_ - start_).count();
+std::cerr << "rowptr UQ verficiation Synthesis: " << microseconds_ <<  "\n";
+
+
+
+start_ = std::chrono::high_resolution_clock::now();
 //  std::cerr << "S6: completed \n";
 if (NR >= 1 && NC >= 1) {
   for(t2 = 0; t2 <= NNZ-1; t2++) {
@@ -166,6 +208,9 @@ if (NR >= 1 && NC >= 1) {
   }
 }
 
+stop_ = std::chrono::high_resolution_clock::now();
+microseconds_ = std::chrono::duration_cast<std::chrono::microseconds>(stop_ - start_).count();
+std::cerr << "Copy Code verficiation Synthesis: " << microseconds_ <<  "\n";
 //  std::cerr << "S7: Copy code completed \n";
 
 
