@@ -9,7 +9,7 @@
 int main()
 {
     mkdir("fake_data", 0777);
-    for (int n = 100; n <= 10000; n += 100)
+    for (int n = 60000; n <= 300000; n += 20000)
     {
         std::stringstream ss;
         ss << "./fake_data/fake_nnz_" << n << ".mtx";
