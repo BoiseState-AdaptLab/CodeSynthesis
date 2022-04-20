@@ -159,7 +159,7 @@ std::pair<CSR *, uint64_t> COOToCSR(uint64_t nnz, uint64_t rank,
 #define NC nc
 #define NNZ nnz
 
-#include <coo_csr.h>
+#include <coo_csr_opt.h>
 
 #undef EX_ROW1
 #undef EX_COL1
