@@ -16,12 +16,11 @@ set_target_properties(csr_coo_gen_code
 set_target_properties(make_fake_mtx_files
 		PROPERTIES
 		RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/scripts"
-		COMPILE_FLAGS "-g -Wall -Werror -Wextra -fno-omit-frame-pointer -fsanitize=address"
-		LINKER_FLAGS "-fno-omit-frame-pointer -fsanitize=address"
+		COMPILE_FLAGS "-g -Wall -Werror -Wextra"
 		)
 
-set (CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
-set (CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
+#set (CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
+#set (CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
 
 set_target_properties(bench_harness
 		PROPERTIES
