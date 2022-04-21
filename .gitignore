@@ -6,3 +6,6 @@ fake_nnz_*
 
 # CLion project configuration
 /.idea
+
+# Taco benchmarks can be explicitly added with the -f flag, otherwise ignored (they are too large)
+test/data/taco_benchmarks/*.mtx
