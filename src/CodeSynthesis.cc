@@ -1884,3 +1884,19 @@ std::string CodeSynthesis::GetPermuteComparator(std::string& permute,Relation* c
     return ss.str();
 }
 
+
+// This function agressively fuses loops with true dependency
+// in order. 
+void CodeSynthesis::ReadReductionFusionOptimization(Computation* comp){
+   
+}
+
+// Remove statements that write to the same point in memory
+void CodeSynthesis::RedundantStatementElimination(Computation* comp){
+}
+
+// Simplify constraints and also optimizes out statements
+// involving such constraints.
+void CodeSynthesis::ConstraintSimplification(Computation* comp){
+}
+
