@@ -127,7 +127,7 @@ void printCSRAsMTX(const std::vector<uint64_t> dims,
 struct CSR {
     CSR(int nr, int nnz) {
         col = std::vector<int>(nnz);
-        rowptr = std::vector<int>(nr);
+        rowptr = std::vector<int>(nr + 1);
         values = std::vector<double>(nnz);
     }
 
@@ -162,7 +162,7 @@ std::pair<COO *, uint64_t> COOToSortedCOO(uint64_t nnz, uint64_t rank,
 
     // sort indexes based row
     std::sort(idx.begin(), idx.end(),
-                [&coo](size_t i1, size_t i2) { return coo.coord[0][i1] < coo.coord[0][i2]; });
+              [&coo](size_t i1, size_t i2) { return coo.coord[0][i1] < coo.coord[0][i2]; });
 
     // load data into new COO matrix based on row index
     for (int k = 0; k < nnz; k++) {
@@ -202,7 +202,7 @@ std::pair<CSR *, uint64_t> COOToCSR(uint64_t nnz, uint64_t rank,
 #define NC nc
 #define NNZ nnz
 
-#include <coo_csr_opt.h>
+#include <scoo_csr_opt.h>
 
 #undef EX_ROW1
 #undef EX_COL1
@@ -221,13 +221,18 @@ std::pair<CSR *, uint64_t> COOToCSR(uint64_t nnz, uint64_t rank,
 }
 
 int main(int argc, char *argv[]) {
-    if (argc != 3) {
+    if (argc != 4) {
         fprintf(stderr, "Usage: %s <filename (should be in matrix market exchange format)> "
-                        "<type of conversion to run options: csr, sort>\n", argv[0]);
+                        "<type of conversion to run options: csr, sort> <validate: t/f>\n", argv[0]);
         exit(1);
     }
-    char *conversion = argv[2];
     char *filename = argv[1];
+    char *conversion = argv[2];
+    bool validate = false;
+    if (strcmp(argv[3], "t") == 0) {
+        validate = true;
+    }
+
     FILE *file = fopen(filename, "r");
     if (!file) {
         fprintf(stderr, "Cannot find %s\n", filename);
@@ -270,11 +275,12 @@ int main(int argc, char *argv[]) {
     uint64_t microseconds;
 
     if (strcmp(conversion, "csr") == 0) {
-        auto p = COOToCSR(nnz, rank, dims, coo);
+        auto p1 = COOToSortedCOO(nnz, rank, coo);
+        auto p = COOToCSR(nnz, rank, dims, *p1.first);
         CSR *csr = p.first;
         microseconds = p.second;
 
-        check = [&csr, &dims](const std::vector<uint64_t> &cord) -> double {
+        check = [csr, dims](const std::vector<uint64_t> &cord) -> double {
             uint64_t inI = cord[0];
             uint64_t inJ = cord[1];
             uint64_t nr = dims[0];
@@ -293,7 +299,7 @@ int main(int argc, char *argv[]) {
         COO *sortedCOO = p.first;
         microseconds = p.second;
 
-        check = [&sortedCOO, nnz](const std::vector<uint64_t> &cord) -> double {
+        check = [sortedCOO, nnz](const std::vector<uint64_t> &cord) -> double {
             uint64_t inI = cord[0];
             uint64_t inJ = cord[1];
             for (int k = 0; k < nnz; k++) {
@@ -308,9 +314,13 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
-    if (verify(coord, values, check)) {
-        printf("[PASS] coo->%s %s, time: %lu microseconds, \n", conversion, filename, microseconds);
+    if (validate) {
+        if (verify(coord, values, check)) {
+            printf("[PASS] coo->%s %s, time: %lu microseconds, \n", conversion, filename, microseconds);
+        } else {
+            printf("[FAIL] coo->%s %s, time: %lu microseconds, \n", conversion, filename, microseconds);
+        }
     } else {
-        printf("[FAIL] coo->%s %s, time: %lu microseconds, \n", conversion, filename, microseconds);
+        printf("[NOT CHECKED] coo->%s %s, time: %lu microseconds, \n", conversion, filename, microseconds);
     }
 }
