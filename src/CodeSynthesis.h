@@ -451,7 +451,17 @@ namespace code_synthesis {
 		      iegenlib::Relation* composeRel,
 		      std::vector<UFQuant>& ufQuants);
 
-  
+      // This function agressively fuses loops with true dependency
+      // in order. 
+      static void ReadReductionFusionOptimization(Computation* comp);
+
+      // Remove statements that write to the same point in memory
+      static void RedundantStatementElimination(Computation* comp);
+
+      // Simplify constraints and also optimizes out statements
+      // involving such constraints.
+      static void ConstraintSimplification(Computation* comp);
+
   
   };
 }

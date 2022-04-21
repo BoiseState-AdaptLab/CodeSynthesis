@@ -7,6 +7,7 @@
 // exist in reality except for reordering
 // 2. Redundant Statement Elimination
 // 3. Read reduction fusion
+// 4. Simplify universal quantifiers enforcement.
 #define min(a,b) a < b ? a : b
 #define max(a,b) a > b ? a: b
 //This was modified to include another macro for indirection see bench_harness for how this is intended to be used.
@@ -94,10 +95,10 @@ int t9 = 0;
     }
   }
 //  std::cerr << "S5: completed \n";
+// Optimize UQ verficiation to O(NR)
 for(t2 = 0; t2 <= NR-1; t2++) {
-  for(t4 = t2+1; t4 <= NR; t4++) {
-    s6(6,t2,0,t4,0,0,0);
-  }
+   t4 = t2 + 1;
+   s6(6,t2,0,t4,0,0,0);
 }
 
 
