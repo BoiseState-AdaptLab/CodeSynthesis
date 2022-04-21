@@ -172,9 +172,9 @@ std::pair<COO *, uint64_t> COOToSortedCOO(uint64_t nnz, uint64_t rank,
     }
 
     auto stop = std::chrono::high_resolution_clock::now();
-    uint64_t microseconds = std::chrono::duration_cast<std::chrono::microseconds>(stop - start).count();
+    uint64_t milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
 
-    return {sorted, microseconds};
+    return {sorted, milliseconds};
 }
 
 std::pair<CSR *, uint64_t> COOToCSR(uint64_t nnz, uint64_t rank,
@@ -215,9 +215,9 @@ std::pair<CSR *, uint64_t> COOToCSR(uint64_t nnz, uint64_t rank,
 #undef NNZ
 
     auto stop = std::chrono::high_resolution_clock::now();
-    uint64_t microseconds = std::chrono::duration_cast<std::chrono::microseconds>(stop - start).count();
+    uint64_t milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
 
-    return {csr, microseconds};
+    return {csr, milliseconds};
 }
 
 int main(int argc, char *argv[]) {
@@ -272,13 +272,13 @@ int main(int argc, char *argv[]) {
     }
 
     std::function<double(const std::vector<uint64_t> &)> check;
-    uint64_t microseconds;
+    uint64_t milliseconds;
 
     if (strcmp(conversion, "csr") == 0) {
         auto p1 = COOToSortedCOO(nnz, rank, coo);
         auto p = COOToCSR(nnz, rank, dims, *p1.first);
         CSR *csr = p.first;
-        microseconds = p.second;
+        milliseconds = p.second;
 
         check = [csr, dims](const std::vector<uint64_t> &cord) -> double {
             uint64_t inI = cord[0];
@@ -297,7 +297,7 @@ int main(int argc, char *argv[]) {
     } else if (strcmp(conversion, "sort") == 0) {
         auto p = COOToSortedCOO(nnz, rank, coo);
         COO *sortedCOO = p.first;
-        microseconds = p.second;
+        milliseconds = p.second;
 
         check = [sortedCOO, nnz](const std::vector<uint64_t> &cord) -> double {
             uint64_t inI = cord[0];
@@ -316,11 +316,11 @@ int main(int argc, char *argv[]) {
 
     if (validate) {
         if (verify(coord, values, check)) {
-            printf("[PASS] coo->%s %s, time: %lu microseconds, \n", conversion, filename, microseconds);
+            printf("[PASS] coo->%s %s, time: %lu milliseconds, \n", conversion, filename, milliseconds);
         } else {
-            printf("[FAIL] coo->%s %s, time: %lu microseconds, \n", conversion, filename, microseconds);
+            printf("[FAIL] coo->%s %s, time: %lu milliseconds, \n", conversion, filename, milliseconds);
         }
     } else {
-        printf("[NOT CHECKED] coo->%s %s, time: %lu microseconds, \n", conversion, filename, microseconds);
+        printf("[NOT CHECKED] coo->%s %s, time: %lu milliseconds, \n", conversion, filename, milliseconds);
     }
 }
