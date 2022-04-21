@@ -12,6 +12,8 @@
 #include <utility>
 #include <opt_synth.h>
 #include <chrono>
+#include <algorithm>  // std::sort
+#include <numeric>    // std::iota
 
 /// Taken from LLVM SparseTnesorUitls (see top for details).
 static constexpr int kColWidth = 1025;
@@ -135,10 +137,49 @@ public:
     std::vector<double> values;
 };
 
+struct COO {
+    COO(uint64_t nnz, uint64_t rank) {
+        coord = std::vector<std::vector<uint64_t>>(rank, std::vector<uint64_t>(nnz));
+        values = std::vector<double>(nnz);
+    }
+
+public:
+    std::vector<std::vector<uint64_t>> coord;
+    std::vector<double> values;
+};
+
+
+std::pair<COO *, uint64_t> COOToSortedCOO(uint64_t nnz, uint64_t rank,
+                                          const COO &coo) {
+    auto start = std::chrono::high_resolution_clock::now();
+    COO *sorted = new COO(nnz, rank);
+    sorted->coord = coo.coord;
+    sorted->values = coo.values;
+
+    // initialize original index locations
+    std::vector<size_t> idx(coo.values.size());
+    iota(idx.begin(), idx.end(), 0);
+
+    // sort indexes based row
+    std::sort(idx.begin(), idx.end(),
+                [&coo](size_t i1, size_t i2) { return coo.coord[0][i1] < coo.coord[0][i2]; });
+
+    // load data into new COO matrix based on row index
+    for (int k = 0; k < nnz; k++) {
+        sorted->values[k] = coo.values[idx[k]];
+        sorted->coord[0][k] = coo.coord[0][idx[k]];
+        sorted->coord[1][k] = coo.coord[1][idx[k]];
+    }
+
+    auto stop = std::chrono::high_resolution_clock::now();
+    uint64_t microseconds = std::chrono::duration_cast<std::chrono::microseconds>(stop - start).count();
+
+    return {sorted, microseconds};
+}
+
 std::pair<CSR *, uint64_t> COOToCSR(uint64_t nnz, uint64_t rank,
                                     const std::vector<uint64_t> &dims,
-                                    const std::vector<double> &cooValues,
-                                    const std::vector<std::vector<uint64_t>> &coord) {
+                                    const COO &coo) {
     int nr = dims[0];
     int nc = dims[1];
 
@@ -146,6 +187,8 @@ std::pair<CSR *, uint64_t> COOToCSR(uint64_t nnz, uint64_t rank,
     std::vector<int> &col = csr->col;
     std::vector<int> &rowptr = csr->rowptr;
     std::vector<double> &values = csr->values;
+    const std::vector<std::vector<uint64_t>> &coord = coo.coord;
+    const std::vector<double> &cooValues = coo.values;
 
     auto start = std::chrono::high_resolution_clock::now();
 
@@ -178,10 +221,12 @@ std::pair<CSR *, uint64_t> COOToCSR(uint64_t nnz, uint64_t rank,
 }
 
 int main(int argc, char *argv[]) {
-    if (argc != 2) {
-        fprintf(stderr, "Usage: %s <filename (should be in matrix market exchange format)>\n", argv[0]);
+    if (argc != 3) {
+        fprintf(stderr, "Usage: %s <filename (should be in matrix market exchange format)> "
+                        "<type of conversion to run options: csr, sort>\n", argv[0]);
         exit(1);
     }
+    char *conversion = argv[2];
     char *filename = argv[1];
     FILE *file = fopen(filename, "r");
     if (!file) {
@@ -200,8 +245,10 @@ int main(int argc, char *argv[]) {
         dims[i] = idata[i + 2];
     }
 
-    std::vector<std::vector<uint64_t>> coord(rank, std::vector<uint64_t>(nnz));
-    std::vector<double> values(nnz);
+    COO coo = COO(nnz, rank);
+
+    std::vector<std::vector<uint64_t>> &coord = coo.coord;
+    std::vector<double> &values = coo.values;
 
     // Read file into vectors
     for (uint64_t k = 0; k < nnz; k++) {
@@ -219,28 +266,51 @@ int main(int argc, char *argv[]) {
         values[k] = value;
     }
 
-    auto p = COOToCSR(nnz, rank, dims, values, coord);
-    CSR *csr = p.first;
-    uint64_t microseconds = p.second;
+    std::function<double(const std::vector<uint64_t> &)> check;
+    uint64_t microseconds;
 
-    auto checkCSR = [&csr, &dims](const std::vector<uint64_t> &cord) -> double {
-        uint64_t inI = cord[0];
-        uint64_t inJ = cord[1];
-        uint64_t nr = dims[0];
-        for (uint64_t i = 0; i < nr; i++) {
-            for (uint64_t k = csr->rowptr[i]; k < csr->rowptr[i + 1]; k++) {
-                int j = csr->col[k];
-                if (i == inI && j == inJ) {
-                    return csr->values[k];
+    if (strcmp(conversion, "csr") == 0) {
+        auto p = COOToCSR(nnz, rank, dims, coo);
+        CSR *csr = p.first;
+        microseconds = p.second;
+
+        check = [&csr, &dims](const std::vector<uint64_t> &cord) -> double {
+            uint64_t inI = cord[0];
+            uint64_t inJ = cord[1];
+            uint64_t nr = dims[0];
+            for (uint64_t i = 0; i < nr; i++) {
+                for (uint64_t k = csr->rowptr[i]; k < csr->rowptr[i + 1]; k++) {
+                    int j = csr->col[k];
+                    if (i == inI && j == inJ) {
+                        return csr->values[k];
+                    }
                 }
             }
-        }
-        return 0;
-    };
+            return 0;
+        };
+    } else if (strcmp(conversion, "sort") == 0) {
+        auto p = COOToSortedCOO(nnz, rank, coo);
+        COO *sortedCOO = p.first;
+        microseconds = p.second;
 
-    if (verify(coord, values, checkCSR)) {
-        printf("[PASS] coo->csr %s, time: %lu microseconds, \n", filename, microseconds);
+        check = [&sortedCOO, nnz](const std::vector<uint64_t> &cord) -> double {
+            uint64_t inI = cord[0];
+            uint64_t inJ = cord[1];
+            for (int k = 0; k < nnz; k++) {
+                if (sortedCOO->coord[0][k] == inI && sortedCOO->coord[1][k] == inJ) {
+                    return sortedCOO->values[k];
+                }
+            }
+            return 0;
+        };
     } else {
-        printf("[FAIL] coo->csr %s, time: %lu microseconds, \n", filename, microseconds);
+        printf("unknown conversion: %s\n", conversion);
+        exit(1);
+    }
+
+    if (verify(coord, values, check)) {
+        printf("[PASS] coo->%s %s, time: %lu microseconds, \n", conversion, filename, microseconds);
+    } else {
+        printf("[FAIL] coo->%s %s, time: %lu microseconds, \n", conversion, filename, microseconds);
     }
 }
