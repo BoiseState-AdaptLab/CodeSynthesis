@@ -177,11 +177,13 @@ std::pair<COO *, uint64_t> COOToSortedCOO(uint64_t nnz, uint64_t rank,
     return {sorted, milliseconds};
 }
 
-std::pair<CSR *, uint64_t> COOToCSR(uint64_t nnz, uint64_t rank,
-                                    const std::vector<uint64_t> &dims,
-                                    const COO &coo) {
+std::pair<CSR *, double> COOToCSR(uint64_t nnz, uint64_t rank,
+                                  const std::vector<uint64_t> &dims,
+                                  const COO &coo) {
     int nr = dims[0];
     int nc = dims[1];
+
+    auto start = std::chrono::high_resolution_clock::now();
 
     CSR *csr = new CSR(nr, nnz);
     std::vector<int> &col = csr->col;
@@ -189,8 +191,6 @@ std::pair<CSR *, uint64_t> COOToCSR(uint64_t nnz, uint64_t rank,
     std::vector<double> &values = csr->values;
     const std::vector<std::vector<uint64_t>> &coord = coo.coord;
     const std::vector<double> &cooValues = coo.values;
-
-    auto start = std::chrono::high_resolution_clock::now();
 
 #define EX_ROW1(n) coord[0][n]
 #define EX_COL1(n) coord[1][n]
@@ -215,9 +215,9 @@ std::pair<CSR *, uint64_t> COOToCSR(uint64_t nnz, uint64_t rank,
 #undef NNZ
 
     auto stop = std::chrono::high_resolution_clock::now();
-    uint64_t milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
+    std::chrono::duration<double, std::milli> fp_ms = stop - start;
 
-    return {csr, milliseconds};
+    return {csr, fp_ms.count()};
 }
 
 int main(int argc, char *argv[]) {
@@ -271,16 +271,39 @@ int main(int argc, char *argv[]) {
         values[k] = value;
     }
 
-    std::function<double(const std::vector<uint64_t> &)> check;
-    uint64_t milliseconds;
+    auto output = [validate, &coord, &values, conversion, filename](
+            std::function<double(const std::vector<uint64_t> &)> &&check, double milliseconds) {
+        if (validate) {
+            if (verify(coord, values, check)) {
+                printf("[PASS] coo->%s %s, time: %f milliseconds, \n", conversion, filename, milliseconds);
+            } else {
+                printf("[FAIL] coo->%s %s, time: %f milliseconds, \n", conversion, filename, milliseconds);
+            }
+        } else {
+            printf("%s, %f, \n", filename, milliseconds);
+        }
+    };
+
+    int n = validate ? 1 : 25;
 
     if (strcmp(conversion, "csr") == 0) {
         auto p1 = COOToSortedCOO(nnz, rank, coo);
-        auto p = COOToCSR(nnz, rank, dims, *p1.first);
-        CSR *csr = p.first;
-        milliseconds = p.second;
+        auto sortedCOO = p1.first;
 
-        check = [csr, dims](const std::vector<uint64_t> &cord) -> double {
+        CSR *csr;
+        double milliseconds = 0;
+        for (int i = 0; i < n; i++) {
+            auto p = COOToCSR(nnz, rank, dims, *sortedCOO);
+            csr = p.first;
+            milliseconds += p.second;
+            if (i != n - 1) {
+                delete (csr);
+            }
+        }
+        milliseconds /= n;
+        delete (sortedCOO);
+
+        output([&csr, dims](const std::vector<uint64_t> &cord) -> double {
             uint64_t inI = cord[0];
             uint64_t inJ = cord[1];
             uint64_t nr = dims[0];
@@ -293,13 +316,14 @@ int main(int argc, char *argv[]) {
                 }
             }
             return 0;
-        };
+        }, milliseconds);
+        delete (csr);
     } else if (strcmp(conversion, "sort") == 0) {
         auto p = COOToSortedCOO(nnz, rank, coo);
         COO *sortedCOO = p.first;
-        milliseconds = p.second;
+        double milliseconds = p.second;
 
-        check = [sortedCOO, nnz](const std::vector<uint64_t> &cord) -> double {
+        output([sortedCOO, nnz](const std::vector<uint64_t> &cord) -> double {
             uint64_t inI = cord[0];
             uint64_t inJ = cord[1];
             for (int k = 0; k < nnz; k++) {
@@ -308,19 +332,10 @@ int main(int argc, char *argv[]) {
                 }
             }
             return 0;
-        };
+        }, milliseconds);
+        delete (sortedCOO);
     } else {
         printf("unknown conversion: %s\n", conversion);
         exit(1);
-    }
-
-    if (validate) {
-        if (verify(coord, values, check)) {
-            printf("[PASS] coo->%s %s, time: %lu milliseconds, \n", conversion, filename, milliseconds);
-        } else {
-            printf("[FAIL] coo->%s %s, time: %lu milliseconds, \n", conversion, filename, milliseconds);
-        }
-    } else {
-        printf("[NOT CHECKED] coo->%s %s, time: %lu milliseconds, \n", conversion, filename, milliseconds);
     }
 }
