@@ -9,8 +9,8 @@
 Permutation<int> * P0 = new Permutation<int>(2);
 auto P1Comp = []( const std::vector<int>& a, const std::vector<int>& b){
 if (a[1] < b[1] )    return true;
-// Override set equality behaviour (Tuowen)
-return a < b;
+// TODO: Generatee this to work on set comparator equality behaviour
+return (a[1] == b[1]) && a < b;
 };
 Permutation<int,decltype(P1Comp)>* P1 = new Permutation <int,decltype(P1Comp)>(P1Comp);
 #define ACSR(i,k) EX_ACSR(k)
@@ -43,7 +43,8 @@ Permutation<int,decltype(P1Comp)>* P1 = new Permutation <int,decltype(P1Comp)>(P
 #define s5(__x0, a1, __x2, a3, tv4, __x5, a5, __x7, a7, __x9)   s_5(a1, a3, a5, a7);
 #define s_6(e1, e2)   if ( not (colptr(e1) <= colptr(e2))){colptr(e2) = colptr(e1);} 
 #define s6(__x0, a1, __x2, a3, __x4, __x5, __x6, __x7, __x8)   s_6(a1, a3);
-#define s_7(i, k, j, k1)   ACSC(j,k) = ACSR(i,k ) 
+// TODO: bug in tuple variable names
+#define s_7(i, k, j, k1)   ACSC(j,k1) = ACSR(i,k ) 
 #define s7(__x0, a1, __x2, a3, tv4, __x5, a5, __x7, a7, __x9)   s_7(a1, a3, a5, a7);
 
 #undef P1_4

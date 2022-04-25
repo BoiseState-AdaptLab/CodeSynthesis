@@ -9,7 +9,9 @@ if(-MORTON(a[0], a[1]) + MORTON(b[0], b[1]) - 1>= 0)
 return true;
 if(-MORTON(a[0], a[1]) + MORTON(b[0], b[1]) - 1>= 0)
 return true;
-    return false;
+    
+
+return false;
 });
 #define ACOO(n) ACOO[n]
 #define AMCOO(n1) AMCOO[n]
