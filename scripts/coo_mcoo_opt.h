@@ -1,14 +1,15 @@
 #include <synth.h> 
 #define min(a,b) a < b ? a : b
 #define max(a,b) a > b ? a: b
-auto P0Comp = [](const std::vector<int>& a, const std::vector<int>& b){
-if(-MORTON(a[0], a[1]) + MORTON(b[0], b[1]) - 1>= 0)
-return true;
-if(-MORTON(a[0], a[1]) + MORTON(b[0], b[1]) - 1>= 0)
-return true;
-    return false;
-};
-Permutation<int,decltype(P0Comp)> * P0 = new Permutation <int,decltype(P0Comp)>(P0Comp);
+	auto P0Comp = [](const std::vector<int>& a, const std::vector<int>& b){
+	if(-MORTON(a[0], a[1]) + MORTON(b[0], b[1]) - 1>= 0)
+	return true;
+	if(-MORTON(a[0], a[1]) + MORTON(b[0], b[1]) - 1>= 0)
+	return true;
+        // Oveerride comparator equality behavior
+	return !(-MORTON(a[0], a[1]) + MORTON(b[0], b[1]) - 1>= 0) && a < b;
+	};
+	Permutation<int,decltype(P0Comp)> * P0 = new Permutation <int,decltype(P0Comp)>(P0Comp);
 #define ACOO(n) EX_ACOO(n)
 //TODO n generated for RHS, fix!!!
 #define AMCOO(n1) EX_AMCOO(n1)
