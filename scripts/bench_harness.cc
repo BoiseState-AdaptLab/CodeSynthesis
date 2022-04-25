@@ -261,7 +261,7 @@ std::pair<COO *, uint64_t> COOToMCOO(uint64_t nnz, uint64_t rank,
 }
 
 std::pair<COO *, double> COOToSortedCOO(uint64_t nnz, uint64_t rank,
-                                          const COO &coo) {
+                                        const COO &coo) {
     auto start = std::chrono::high_resolution_clock::now();
     COO *sorted = new COO(nnz, rank);
     sorted->coord = coo.coord;
@@ -273,7 +273,15 @@ std::pair<COO *, double> COOToSortedCOO(uint64_t nnz, uint64_t rank,
 
     // sort indexes based row
     std::sort(idx.begin(), idx.end(),
-              [&coo](size_t i1, size_t i2) { return coo.coord[0][i1] < coo.coord[0][i2]; });
+              [&coo](size_t i1, size_t i2) {
+                  auto row1 = coo.coord[0][i1];
+                  auto row2 = coo.coord[0][i2];
+                  if (row1 == row2) {
+                      // Sort based on col
+                      return coo.coord[1][i1] < coo.coord[1][i2];
+                  }
+                  return row1 < row2;
+              });
 
     // load data into new COO matrix based on row index
     for (int k = 0; k < nnz; k++) {
@@ -433,29 +441,29 @@ int main(int argc, char *argv[]) {
         }, milliseconds);
         delete (csr);
     } else if (strcmp(conversion, "sort") == 0) {
-        COO *sortedCOO;
+        COO *sortedCoo;
         double milliseconds = 0;
         for (int i = 0; i < n; i++) {
             auto p = COOToSortedCOO(nnz, rank, coo);
-            sortedCOO = p.first;
+            sortedCoo = p.first;
             milliseconds += p.second;
             if (i != n - 1) {
-                delete (sortedCOO);
+                delete (sortedCoo);
             }
         }
         milliseconds /= n;
 
-        output([sortedCOO, nnz](const std::vector<uint64_t> &cord) -> double {
+        output([sortedCoo, nnz](const std::vector<uint64_t> &cord) -> double {
             uint64_t inI = cord[0];
             uint64_t inJ = cord[1];
             for (int k = 0; k < nnz; k++) {
-                if (sortedCOO->coord[0][k] == inI && sortedCOO->coord[1][k] == inJ) {
-                    return sortedCOO->values[k];
+                if (sortedCoo->coord[0][k] == inI && sortedCoo->coord[1][k] == inJ) {
+                    return sortedCoo->values[k];
                 }
             }
             return 0;
         }, milliseconds);
-        delete (sortedCOO);
+        delete (sortedCoo);
     } else if (strcmp(conversion, "coo_mcoo") == 0) {
         COO *mcoo;
         double milliseconds = 0;
@@ -482,10 +490,10 @@ int main(int argc, char *argv[]) {
         delete (mcoo);
     } else if (strcmp(conversion, "csr_csc") == 0) {
         auto p1 = COOToSortedCOO(nnz, rank, coo);
-        auto sortedCOO = p1.first;
+        auto sortedCoo = p1.first;
         // COO to CSR first
         CSR *csr;
-        auto p = COOToCSR(nnz, rank, dims, *p1.first);
+        auto p = COOToCSR(nnz, rank, dims, *sortedCoo);
         csr = p.first;
 
         CSC *csc;
