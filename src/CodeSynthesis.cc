@@ -1020,15 +1020,30 @@ SynthExpressionCase CodeSynthesis::GetUFExpressionSynthCase(Exp* constraint,
 	 //UF(x) = F(x)
 	 //solved for must not depend on output term,
 	 //Will need the number of tuple declarations here.
-         bool dependsOnOutput  = false;
+	 //
+	 //Case 5
+	 //UF(y) = F(x) && y is upper bound by unknown
+         bool FdependsOnOutput  = false;
 	 for(int i = inputArity; i < tupleSize; i++){
             TupleVarTerm t(1,i);
 	    if (solvedUFConst->dependsOn(t)){
-	       dependsOnOutput = true;
+	       FdependsOnOutput = true;
 	       break;
 	    }
 	 }
-	 if (not dependsOnOutput){
+	 bool UFDependsOnOutput = false;
+
+	 for(int i = inputArity; i < tupleSize; i++){
+            TupleVarTerm t(1,i);
+	    for(int arg = 0; arg < ufTerm->numArgs(); arg++){
+	        if (ufTerm->getParamExp(arg)->dependsOn(t)){
+	           UFDependsOnOutput = true;
+	           break;
+	        }
+	        
+	    }
+	 }
+	 if (!FdependsOnOutput && !UFDependsOnOutput){
 		 
              caseResult = CASE2;
            
@@ -1377,9 +1392,14 @@ std::vector<std::pair<std::string,std::string>>
 }
 
 
-std::string CodeSynthesis::generateFullCode(){
+std::string CodeSynthesis::generateFullCode(std::vector<int>& fuseStmts,
+		int level){
     Computation* comp = generateInspectorComputation();
-    std::cout << "=======IR======\n";
+    std::cout << "=======IR Before Opt======\n";
+    comp->printInfo();
+    std::cout << "=======IR-END====\n";
+    ReadReductionFusionOptimization(comp,fuseStmts,level);
+    std::cout << "=======IR After Opt======\n";
     comp->printInfo();
     std::cout << "=======IR-END====\n";
     std::stringstream ss;
@@ -1418,8 +1438,7 @@ std::string CodeSynthesis::generateFullCode(){
 	    UFCallTerm* ut2 = findCallTerm(solveE,permute);;
 	    if (ut2 == NULL) continue;
             std::stringstream ssP;
-	    ssP << "Permutation<int>* "<< permute
-		    << " = new Permutation <int>([]("
+	    ssP << "Comparator "<< permute << "Comp = "<<"[]("
 		   << " std::vector<int>& a, std::vector<int>& b){\n"; 
             for(int k = 0; k < ut->numArgs(); k++){
 	       Exp* kLHSExp = ut->getParamExp(k);
@@ -1446,17 +1465,24 @@ std::string CodeSynthesis::generateFullCode(){
 	       ssP << " b[" << k  << "] )";
 	       ssP << "    return true;\n";
 	    }
-
-	    ssP << "return false;\n";
-	    ssP << "});\n";
-	    permInit = ssP.str();
+            ssP << "// Override set equality behaviour (Tuowen)\n";
+	    ssP << "return a < b;\n";
+	    ssP << "};\n";
+            ssP << "Permutation<int,decltype("<< permute 
+		    << "Comp)>* "<< permute
+		    << " = new Permutation <int,decltype(" <<
+		    permute << "Comp)>("<<permute <<"Comp);\n";
+	   ss << ssP.str();
 	}else {
 	    std::string comp = GetPermuteComparator(permute,
 			    composeRel,ufQuants);
-            permInit = "Permutation<int> * "+permute+
-		    " = new Permutation <int>("+comp+");\n";
+	    ss << "Comparator "<< permute << "Comp = "<<
+		    comp << "; \n";
+            ss << "Permutation<int,decltype("<< permute 
+		    << "Comp)>* "<< permute
+		    << " = new Permutation <int,decltype(" <<
+		    permute << "Comp)>("<<permute <<"Comp);\n";
 	}
-	ss <<  permInit;
     }
     // Add Datamacros for Source and Destination
     // #define <sourceDataName>(i) <sourceDataName>[i]
@@ -1574,125 +1600,56 @@ std::string CodeSynthesis::GetSupportHeader(){
    ss << "#define SYNTH_HEADER\n";
    ss << "#include <functional>\n";
    ss << "#include <algorithm>\n";
+   ss << "#include <set>\n";
    ss << "#include <vector>\n";
    ss << "#include <assert.h>\n";
    ss << "#include <iostream>\n";
    ss << "#include <string>\n";
    ss << "#include <sstream>\n";
-   ss << "// Define P Data structure\n";
-   ss << "template <typename T>\n";
-   ss << "using Comparator = std::function<bool (std::vector<T>&,std::vector<T>&)>;\n";
-   ss << "\n";
-   ss << "template <typename T>\n";
-   ss << "class Permutation{\n";
-   ss << "private:\n";
-   ss << "    std::vector<std::vector<T>> d;\n";
-   ss << "    int tupleSplit = 0;\n";
-   ss << "    Comparator<T> sortConstraint;\n";
-   ss << "public:\n";
-   ss << "    Permutation(Comparator<T> sortConstraint): tupleSplit(tupleSplit),\n";
-   ss << "	sortConstraint(sortConstraint){}\n";
-   ss << "    Permutation(){\n";
-   ss << "       this->sortConstraint = NULL;\n";
-   ss << "    }\n";
-   ss << "    Permutation(int tupleSplit): tupleSplit(tupleSplit) {}\n";
-   ss << "    void insert(std::vector<T> tup){\n";
-   ss << "        d.push_back(tup);\n";
-   ss << "	if (sortConstraint != NULL){\n";
-   ss << "	    std::sort(d.begin(),d.end(),sortConstraint);\n";
-   ss << "	}\n";
-   ss << "    }\n";
-   ss << "    int get(std::vector<T> tup){\n";
-   ss << "        typename std::vector<std::vector<T>>::iterator it;\n";
-   ss << "    	if (tupleSplit == 0){\n";
-   ss << "	    it = std::find(d.begin(),d.end(),tup);\n";
-   ss << "	}else{\n";
-   ss << "	    it = std::find_if(d.begin(),d.end(),[this,&tup](std::vector<T> &a){\n";
-   ss << "			        for(int i=0; i < tupleSplit; i++){\n";
-   ss << "				    if(a[i] != tup[i]) return false;\n";
-   ss << "				}\n";
-   ss << "				return true;\n";
-   ss << "			    });\n";
-   ss << "	}\n";
-   ss << "	if (it == d.end()) {\n";
-   ss << "	    std::stringstream ss;\n";
-   ss << "	    ss << \"Permutation::get: Tuple {\";\n";
-   ss << "\n";
-   ss << "	    for(int j = 0; j  < tup.size(); j++){\n";
-   ss << "	        ss << tup[j] << ",";\n";
-   ss << "	    }\n";
-   ss << "	    ss << \"} not found\";\n";
-   ss << "	    std::cerr << ss.str();\n";
-   ss << "	    assert(0 && ss.str().c_str());\n";
-   ss << "	}\n";
-   ss << "	if (tupleSplit == 0) return it - d.begin();\n";
-   ss << "	else return (*it)[tupleSplit];\n";
-   ss << "    }\n";
-   ss << "    std::string toString(){\n";
-   ss << "	std::stringstream ss;\n";
-   ss << "	for(int i = 0; i < d.size(); i++){\n";
-   ss << "	    ss<< \"[\" << i << \"] => {\";\n";
-   ss << "	    for(int j = 0; j  < d[i].size(); j++){\n";
-   ss << "	        ss << d[i][j] << \",\";\n";
-   ss << "	    }\n";
-   ss << "	    ss << \"}\";\n";
-   ss << "	}\n";
-   ss << "	return ss.str();\n";
-   ss << "    }\n";
-   ss << "};\n";
-   ss << "\n";
-   ss << "// This abstraction is helpful for DIA and ELL\n";
-   ss << "// When a tuple is inserted,say {-1}\n";
-   ss << "// it gets ordered to 0\n";
-   ss << "// then after {-2} is inserted,\n";
-   ss << "// {-1} becomees 1\n";
-   ss << "// {-2} becomes 0\n";
-   ss << "// This is all dependent on the comparator.\n";
-   ss << "// If the comparator is ascending, we have \n";
-   ss << "// the example shown above.\n";
-   ss << "template <typename T>\n";
-   ss << "class GROUP {\n";
-   ss << "private:\n";
-   ss << "    Comparator<T> constraint;\n";
-   ss << "    std::vector<std::vector<T>> d;\n";
-   ss << "public:\n";
-   ss << "    GROUP() {}\n";
-   ss << "    void insert (std::vector<T> tup){\n";
-   ss << "        typename std::vector<std::vector<T>>::iterator it;\n";
-   ss << "	it = std::find(d.begin(),d.end(),tup);\n";
-   ss << "	if (it == d.end()){\n";
-   ss << "	    d.push_back(tup);\n";
-   ss << "	    if (constraint!= NULL)\n";
-   ss << "	        std::sort(d.begin(),d.end(),constraint);\n";
-   ss << "	    else \n";
-   ss << "	        std::sort(d.begin(),d.end());\n";
-   ss << "	}\n";
-   ss << "    }\n";
-   ss << "    int get(std::vector<T> tup){\n";
-   ss << "        typename std::vector<std::vector<T>>::iterator it;\n";
-   ss << "	it = std::find(d.begin(),d.end(),tup);\n";
-   ss << "	if (it == d.end()) {\n";
-   ss << "	    assert(0 &&  \"tuple does not exist\");\n";
-   ss << "	}\n";
-   ss << "	return it - d.begin();\n";
-   ss << "    }\n";
-   ss << "    \n";
-   ss << "    std::string toString(){\n";
-   ss << "	std::stringstream ss;\n";
-   ss << "	for(int i = 0; i < d.size(); i++){\n";
-   ss << "	    ss<< \"[\" << i << \"] => {\";\n";
-   ss << "	    for(int j = 0; j  < d[i].size(); j++){\n";
-   ss << "	        ss << d[i][j] << \",\";\n";
-   ss << "	    }\n";
-   ss << "	    ss << \"}\";\n";
-   ss << "	}\n";
-   ss << "	return ss.str();\n";
-   ss << "    }\n";
-   ss << "\n";
-   ss << "};\n";
-   ss << "  \n";
-   ss << "#endif\n";
-   return ss.str(); 
+   ss<<"template <typename T,typename C = std::less<std::vector<T> > >   \n";
+   ss<<"class Permutation{   \n";
+   ss<<"private:    \n";
+   ss<<"    std::set<std::vector<T>,C> d;   \n";
+   ss<<"    int tupleSplit = 0;   \n";
+   ss<<"public:   \n";
+   ss<<"    Permutation(C comp):d(comp), tupleSplit(0){}   \n";
+   ss<<"    Permutation(int tupleSplit): tupleSplit(tupleSplit) {}   \n";
+   ss<<"    void insert(std::vector<T> tup){   \n";
+   ss<<"        d.insert(tup);   \n";
+   ss<<"    }   \n";
+   ss<<"    int get(std::vector<T> tup){   \n";
+   ss<<"        typename std::set<std::vector<T>>::iterator it;   \n";
+   ss<<"    	if (tupleSplit == 0){   \n";
+   ss<<"	    it = d.find(tup);   \n";
+   ss<<"	}else{   \n";
+   ss<<"	    it = std::find_if(d.begin(),d.end(),\n";
+   ss <<	   "[this,&tup](const std::vector<T> &a){   \n";
+   ss<<"			        for(int i=0; i < tupleSplit; i++){   \n";
+   ss<<"				    if(a[i] != tup[i]) return false;   \n";
+   ss<<"				}   \n";
+   ss<<"				return true;   \n";
+   ss<<"			    });   \n";
+   ss<<"	}   \n";
+   ss<<"	if (it == d.end()) {   \n";
+   ss<<"	    assert(0 && \"Tuple get tuple does not exist\");   \n";
+   ss<<"	}   \n";
+   ss<<"	if (tupleSplit == 0) return std::distance(d.begin(),it);   \n";
+   ss<<"	else return (*it)[tupleSplit];   \n";
+   ss<<"    }   \n";
+   ss<<"    std::string toString(){   \n";
+   ss<<"	std::stringstream ss;   \n";
+   ss<<"	for(int i = 0; i < d.size(); i++){   \n";
+   ss<<"	    ss<< \"[\" << i << \"] => {\";   \n";
+   ss<<"	    for(int j = 0; j  < d[i].size(); j++){   \n";
+   ss<<"	        ss << d[i][j] << \",\";   \n";
+   ss<<"	    }   \n";
+   ss<<"	    ss << \"}\";   \n";
+   ss<<"	}   \n";
+   ss<<"	return ss.str();   \n";
+   ss<<"    }   \n";
+   ss<<"};   \n";
+   ss<<"#endif   \n";
+   return ss.str();
 }
 
 
@@ -1887,16 +1844,25 @@ std::string CodeSynthesis::GetPermuteComparator(std::string& permute,Relation* c
 
 // This function agressively fuses loops with true dependency
 // in order. 
-void CodeSynthesis::ReadReductionFusionOptimization(Computation* comp){
-   
+void CodeSynthesis::ReadReductionFusionOptimization(Computation* comp,
+		std::vector<int>& fuseStmts, int level
+		){
+   if (fuseStmts.size() == 0) return;
+   // Statements with the same domain and does not write 
+   int fuseStart = *fuseStmts.begin();
+   for (auto it = fuseStmts.begin() + 1; it!=fuseStmts.end() ; it++){
+      comp->fuse(fuseStart,*it,level);
+   }   
 }
 
 // Remove statements that write to the same point in memory
 void CodeSynthesis::RedundantStatementElimination(Computation* comp){
+   comp->deleteDeadStatements();
 }
 
 // Simplify constraints and also optimizes out statements
 // involving such constraints.
 void CodeSynthesis::ConstraintSimplification(Computation* comp){
+  
 }
 

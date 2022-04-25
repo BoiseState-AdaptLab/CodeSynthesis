@@ -32,6 +32,9 @@ namespace code_synthesis {
   /// Case 4
   /// UF(x) >= F(y)
   /// where arity(x) < arity(y) and y is not an output tuple variable.
+  /// Case 5
+  /// UF(y) = F(x)
+  /// arity(y) == 1 , and 
   /// SELF_REF
   /// Special case where the UF 
   /// References itself
@@ -40,6 +43,7 @@ namespace code_synthesis {
       CASE2,
       CASE3,
       CASE4,
+      CASE5,
       MERGECASE,
       SELF_REF,
       UNDEFINED
@@ -171,7 +175,7 @@ namespace code_synthesis {
       
       ~CodeSynthesis();
       
-      std::string generateFullCode();
+      std::string generateFullCode( std::vector<int>& fuseStmts,int level);
 
 
       /// This gets the list of all expressions in a conjunction.
@@ -453,7 +457,8 @@ namespace code_synthesis {
 
       // This function agressively fuses loops with true dependency
       // in order. 
-      static void ReadReductionFusionOptimization(Computation* comp);
+      static void ReadReductionFusionOptimization(Computation* comp,
+		     std::vector<int>& fuseStmts,int level );
 
       // Remove statements that write to the same point in memory
       static void RedundantStatementElimination(Computation* comp);

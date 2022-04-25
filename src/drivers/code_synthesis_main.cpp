@@ -10,11 +10,15 @@
 
 using namespace code_synthesis;
 int main(int argc, char**argv) {
-    if(argc != 5){
+    if(argc != 5 && argc != 9){
 	std::cerr << "Usage: synthDriver -src "
-		<<"<formatname>,<dataName> -dest <formatName>,<dataName>\n";
+		<<"<formatname>,<dataName> -dest <formatName>,<dataName> "
+		<<" [-fuse <fuse-list> -fuselevel <level>]\n";
         return 0;
     }
+    // Load preset optimizations
+    std::vector<int> fuseStmts;
+    int fuseLevel = 0;
     //Load preset formats
     std::map<std::string,SparseFormat*> supportedFormats;
     SparseFormat * coo = new SparseFormat();
@@ -90,7 +94,7 @@ int main(int argc, char**argv) {
 	    "kd = 99 * id + dd }";
     // 99 is ND, direct replacement is required.
     dia->dataAccess = "{[id,dd,kd] -> [kd]}";
-    dia->knowns = { "NR","NC","NNZ", "ND"};
+    dia->knowns = { "NR","NC","NNZ"};
     dia->specialUFs = {{"pos",GROUP}};
     // TODO: represent that there exists some non zero for 
     // every zero that exists in the same plane as the diagonal.
@@ -150,12 +154,28 @@ int main(int argc, char**argv) {
 	    assert(destFormat && "Destination format is not supported");
 	    destFormat->dataName = dataName;
 	}
+	if (argString == "-fuse"){
+	    std::string s(argv[++currIndex]);
+	    size_t pos = 0;
+            std::string token;
+	    std::string delimiter = ",";
+            while ((pos = s.find(delimiter)) != std::string::npos) {
+               token = s.substr(0, pos);
+	       fuseStmts.push_back(std::stoi(token));
+               s.erase(0, pos + delimiter.length());
+            }
+	}
+
+	if (argString == "-fuselevel"){
+	    std::string level(argv[++currIndex]);
+            fuseLevel = std::stoi(level);
+        }
 	currIndex++;
     }
     assert(sourceFormat && destFormat 
 		    && "Unsopported Source or Destination Format");
     CodeSynthesis* synth = new CodeSynthesis(sourceFormat, destFormat);
-    std::string code = synth->generateFullCode();
+    std::string code = synth->generateFullCode(fuseStmts,fuseLevel);
     std::ofstream fileOut;
     fileOut.open("synth.h");
     fileOut << synth->GetSupportHeader();

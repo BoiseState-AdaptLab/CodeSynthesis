@@ -10,10 +10,12 @@
 #include <cstdlib>
 #include <cstring>
 #include <utility>
-#include <opt_synth.h>
+#include <vector>
+#include <synth.h>
 #include <chrono>
 #include <algorithm>  // std::sort
 #include <numeric>    // std::iota
+#include <user_defs.h>
 
 /// Taken from LLVM SparseTnesorUitls (see top for details).
 static constexpr int kColWidth = 1025;
@@ -137,6 +139,30 @@ public:
     std::vector<double> values;
 };
 
+
+struct CSC {
+    CSC(int nc, int nnz) {
+        row = std::vector<int>(nnz);
+        colptr = std::vector<int>(nc + 1);
+        values = std::vector<double>(nnz);
+    }
+
+public:
+    std::vector<int> row;
+    std::vector<int> colptr;
+    std::vector<double> values;
+};
+
+struct DIA{
+    DIA(int nd, int nr, int nc){
+       off = std::vector<int>(nd);
+       values = std::vector<double>((nr<nc?nr:nc) * nd);
+    }
+public:
+    std::vector<int> off;
+    std::vector<double> values;
+};
+
 struct COO {
     COO(uint64_t nnz, uint64_t rank) {
         coord = std::vector<std::vector<uint64_t>>(rank, std::vector<uint64_t>(nnz));
@@ -147,7 +173,91 @@ public:
     std::vector<std::vector<uint64_t>> coord;
     std::vector<double> values;
 };
+std::pair<CSC *, double> CSRToCSC(uint64_t nnz, uint64_t rank,
+                                  const std::vector<uint64_t> &dims,
+                                  const CSR &csr) {
 
+    int nr = dims[0];
+    int nc = dims[1];
+    auto start = std::chrono::high_resolution_clock::now();
+
+    CSC *csc = new CSC(nr, nnz);
+    std::vector<int> &row = csc->row;
+    std::vector<int> &colptr = csc->colptr;
+    std::vector<double> &cscValues = csc->values;
+    const std::vector<int> &col = csr.col;
+    const std::vector<int> &rowptr = csr.rowptr;
+    const std::vector<double> &csrValues = csr.values;
+
+#define EX_COL(n) col[n]
+#define EX_ROW(n) row[n]
+#define EX_ACSR(n) csrValues[n]
+#define EX_ROWPTR(n) rowptr[n]
+#define EX_COLPTR(n) colptr[n]
+#define EX_ACSC(n) cscValues[n]
+#define NR nr
+#define NC nc
+#define NNZ nnz
+
+#include <csr_csc_opt.h>
+
+#undef EX_ROW
+#undef EX_COL
+#undef EX_ACSR
+#undef EX_COLPTR
+#undef EX_ROWPTR
+#undef EX_ACSC
+#undef NR
+#undef NC
+#undef NNZ
+
+    auto stop = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> fp_ms = stop - start;
+
+    return {csc, fp_ms.count()};
+
+
+}
+
+
+std::pair<COO* , uint64_t> COOToMCOO(uint64_t nnz, uint64_t rank,
+                                  const std::vector<uint64_t> &dims,
+                                          const COO &coo) {
+
+    int nr = dims[0];
+    int nc = dims[1];
+    auto start = std::chrono::high_resolution_clock::now();
+    COO *mcoo = new COO(nnz, rank);
+    std::vector<std::vector<uint64_t>> &mCoord = mcoo->coord;
+    std::vector<double> &mCooValues = mcoo->values;
+    const std::vector<std::vector<uint64_t>> &coord = coo.coord;
+    const std::vector<double> &cooValues = coo.values;
+#define EX_ROW1(n) coord[0][n]
+#define EX_COL1(n) coord[1][n]
+#define EX_ACOO(n) cooValues[n]
+#define EX_ROW3(n) mCoord[0][n]
+#define EX_COL3(n) mCoord[1][n]
+#define EX_AMCOO(n) mCooValues[n]
+#define NR nr
+#define NC nc
+#define NNZ nnz
+#include <coo_mcoo_opt.h>
+
+#undef EX_ROW1
+#undef EX_COL1
+#undef EX_ACOO
+#undef EX_ROW3
+#undef EX_COL3
+#undef EX_AMCOO
+#undef NR
+#undef NC
+#undef NNZ
+
+    auto stop = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> fp_ms = stop - start;
+
+    return {mcoo, fp_ms.count()};
+}
 
 std::pair<COO *, uint64_t> COOToSortedCOO(uint64_t nnz, uint64_t rank,
                                           const COO &coo) {
@@ -176,6 +286,7 @@ std::pair<COO *, uint64_t> COOToSortedCOO(uint64_t nnz, uint64_t rank,
 
     return {sorted, milliseconds};
 }
+
 
 std::pair<CSR *, double> COOToCSR(uint64_t nnz, uint64_t rank,
                                   const std::vector<uint64_t> &dims,
@@ -223,7 +334,7 @@ std::pair<CSR *, double> COOToCSR(uint64_t nnz, uint64_t rank,
 int main(int argc, char *argv[]) {
     if (argc != 4) {
         fprintf(stderr, "Usage: %s <filename (should be in matrix market exchange format)> "
-                        "<type of conversion to run options: csr, sort> <validate: t/f>\n", argv[0]);
+                        "<type of conversion to run options: csr, sort,coo_mcoo,csr_csc> <validate: t/f>\n", argv[0]);
         exit(1);
     }
     char *filename = argv[1];
@@ -334,7 +445,67 @@ int main(int argc, char *argv[]) {
             return 0;
         }, milliseconds);
         delete (sortedCOO);
-    } else {
+    } else if (strcmp(conversion, "coo_mcoo") == 0) {
+        COO *mcoo;
+        double milliseconds = 0;
+        for (int i = 0; i < n; i++) {
+            auto p = COOToMCOO(nnz, rank, dims, coo);
+            mcoo = p.first;
+            milliseconds += p.second;
+            if (i != n - 1) {
+                delete (mcoo);
+            }
+        }
+        milliseconds /= n;
+
+        output([mcoo, nnz](const std::vector<uint64_t> &cord) -> double {
+            uint64_t inI = cord[0];
+            uint64_t inJ = cord[1];
+            for (int k = 0; k < nnz; k++) {
+                if (mcoo->coord[0][k] == inI && mcoo->coord[1][k] == inJ) {
+                    return mcoo->values[k];
+                }
+            }
+            return 0;
+        }, milliseconds);
+        delete (mcoo);
+    } else if (strcmp(conversion, "csr_csc") == 0) {
+        // COO to CSR firsst
+	CSR* csr; 
+        auto p = COOToCSR(nnz, rank, dims, coo);
+	csr = p.first;
+
+        CSC *csc;
+        double milliseconds = 0;
+        for (int i = 0; i < n; i++) {
+            auto p = CSRToCSC(nnz, rank, dims, *csr);
+            csc = p.first;
+            milliseconds += p.second;
+            if (i != n - 1) {
+                delete (csc);
+            }
+        }
+        milliseconds /= n;
+
+        output([&csc, dims](const std::vector<uint64_t> &cord) -> double {
+            uint64_t inI = cord[0];
+            uint64_t inJ = cord[1];
+            uint64_t nc = dims[1];
+            for (uint64_t j = 0; j < nc; j++) {
+                for (uint64_t k = csc->colptr[j]; k < csc->colptr[j + 1]; k++) {
+                    int i = csc->row[k];
+                    if (i == inI && j == inJ) {
+                        return csc->values[k];
+                    }
+                }
+            }
+            return 0;
+        }, milliseconds);
+        delete (csc);
+    
+    }
+
+    else {
         printf("unknown conversion: %s\n", conversion);
         exit(1);
     }
