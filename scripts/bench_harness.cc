@@ -153,11 +153,12 @@ public:
     std::vector<double> values;
 };
 
-struct DIA{
-    DIA(int nd, int nr, int nc){
-       off = std::vector<int>(nd);
-       values = std::vector<double>((nr<nc?nr:nc) * nd);
+struct DIA {
+    DIA(int nd, int nr, int nc) {
+        off = std::vector<int>(nd);
+        values = std::vector<double>((nr < nc ? nr : nc) * nd);
     }
+
 public:
     std::vector<int> off;
     std::vector<double> values;
@@ -173,6 +174,7 @@ public:
     std::vector<std::vector<uint64_t>> coord;
     std::vector<double> values;
 };
+
 std::pair<CSC *, double> CSRToCSC(uint64_t nnz, uint64_t rank,
                                   const std::vector<uint64_t> &dims,
                                   const CSR &csr) {
@@ -215,14 +217,12 @@ std::pair<CSC *, double> CSRToCSC(uint64_t nnz, uint64_t rank,
     std::chrono::duration<double, std::milli> fp_ms = stop - start;
 
     return {csc, fp_ms.count()};
-
-
 }
 
 
-std::pair<COO* , uint64_t> COOToMCOO(uint64_t nnz, uint64_t rank,
-                                  const std::vector<uint64_t> &dims,
-                                          const COO &coo) {
+std::pair<COO *, uint64_t> COOToMCOO(uint64_t nnz, uint64_t rank,
+                                     const std::vector<uint64_t> &dims,
+                                     const COO &coo) {
 
     int nr = dims[0];
     int nc = dims[1];
@@ -241,6 +241,7 @@ std::pair<COO* , uint64_t> COOToMCOO(uint64_t nnz, uint64_t rank,
 #define NR nr
 #define NC nc
 #define NNZ nnz
+
 #include <coo_mcoo_opt.h>
 
 #undef EX_ROW1
@@ -259,7 +260,7 @@ std::pair<COO* , uint64_t> COOToMCOO(uint64_t nnz, uint64_t rank,
     return {mcoo, fp_ms.count()};
 }
 
-std::pair<COO *, uint64_t> COOToSortedCOO(uint64_t nnz, uint64_t rank,
+std::pair<COO *, double> COOToSortedCOO(uint64_t nnz, uint64_t rank,
                                           const COO &coo) {
     auto start = std::chrono::high_resolution_clock::now();
     COO *sorted = new COO(nnz, rank);
@@ -282,9 +283,9 @@ std::pair<COO *, uint64_t> COOToSortedCOO(uint64_t nnz, uint64_t rank,
     }
 
     auto stop = std::chrono::high_resolution_clock::now();
-    uint64_t milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
+    std::chrono::duration<double, std::milli> fp_ms = stop - start;
 
-    return {sorted, milliseconds};
+    return {sorted, fp_ms.count()};
 }
 
 
@@ -334,7 +335,7 @@ std::pair<CSR *, double> COOToCSR(uint64_t nnz, uint64_t rank,
 int main(int argc, char *argv[]) {
     if (argc != 4) {
         fprintf(stderr, "Usage: %s <filename (should be in matrix market exchange format)> "
-                        "<type of conversion to run options: csr, sort,coo_mcoo,csr_csc> <validate: t/f>\n", argv[0]);
+                        "<type of conversion to run options: csr,sort,coo_mcoo,csr_csc> <validate: t/f>\n", argv[0]);
         exit(1);
     }
     char *filename = argv[1];
@@ -395,6 +396,8 @@ int main(int argc, char *argv[]) {
         }
     };
 
+    // The number of runs to average over
+    // TODO: this should apparently be median not average
     int n = validate ? 1 : 25;
 
     if (strcmp(conversion, "csr") == 0) {
@@ -430,9 +433,17 @@ int main(int argc, char *argv[]) {
         }, milliseconds);
         delete (csr);
     } else if (strcmp(conversion, "sort") == 0) {
-        auto p = COOToSortedCOO(nnz, rank, coo);
-        COO *sortedCOO = p.first;
-        double milliseconds = p.second;
+        COO *sortedCOO;
+        double milliseconds = 0;
+        for (int i = 0; i < n; i++) {
+            auto p = COOToSortedCOO(nnz, rank, coo);
+            sortedCOO = p.first;
+            milliseconds += p.second;
+            if (i != n - 1) {
+                delete (sortedCOO);
+            }
+        }
+        milliseconds /= n;
 
         output([sortedCOO, nnz](const std::vector<uint64_t> &cord) -> double {
             uint64_t inI = cord[0];
@@ -470,10 +481,12 @@ int main(int argc, char *argv[]) {
         }, milliseconds);
         delete (mcoo);
     } else if (strcmp(conversion, "csr_csc") == 0) {
-        // COO to CSR firsst
-	CSR* csr; 
-        auto p = COOToCSR(nnz, rank, dims, coo);
-	csr = p.first;
+        auto p1 = COOToSortedCOO(nnz, rank, coo);
+        auto sortedCOO = p1.first;
+        // COO to CSR first
+        CSR *csr;
+        auto p = COOToCSR(nnz, rank, dims, *p1.first);
+        csr = p.first;
 
         CSC *csc;
         double milliseconds = 0;
@@ -502,10 +515,7 @@ int main(int argc, char *argv[]) {
             return 0;
         }, milliseconds);
         delete (csc);
-    
-    }
-
-    else {
+    } else {
         printf("unknown conversion: %s\n", conversion);
         exit(1);
     }
