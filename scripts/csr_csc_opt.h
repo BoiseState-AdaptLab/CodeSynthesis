@@ -33,10 +33,10 @@ Permutation<int,decltype(P1Comp)>* P1 = new Permutation <int,decltype(P1Comp)>(P
 #define s0(__x0, a1, __x2, a3, __x4, __x5, __x6, __x7, __x8)   s_0(a1, a3);
 #define s_1(i, k, tv2, tv3)   P1->insert({i, col2(k)}) 
 #define s1(__x0, a1, __x2, a3, __x4, a5, __x6, a7, __x8)   s_1(a1, a3, a5, a7);
-#define s_2(i, k)   colptr(col2(k)) = min(colptr(col2(k)),k) 
-#define s2(__x0, a1, __x2, a3, tv4, __x5, __x6, __x7, __x8, __x9)   s_2(a1, a3);
-#define s_3(i, k)   colptr(col2(k) + 1) = max(colptr(col2(k) + 1),k + 1) 
-#define s3(__x0, a1, __x2, a3, tv4, __x5, __x6, __x7, __x8, __x9)   s_3(a1, a3);
+#define s_2(i, k, k1)   colptr(col2(k)) = min(colptr(col2(k)),k1) 
+#define s2(__x0, a1, __x2, a3, tv4, __x5, __x6, __x7, __x8, __x9)   s_2(a1, a3, __x5);
+#define s_3(i, k, k1)   colptr(col2(k) + 1) = max(colptr(col2(k) + 1),k1 + 1) 
+#define s3(__x0, a1, __x2, a3, tv4, __x5, __x6, __x7, __x8, __x9)   s_3(a1, a3, __x5);
 #define s_4(i, k)   row4(k)=i 
 #define s4(__x0, a1, __x2, a3, tv4, __x5, __x6, __x7, __x8, __x9)   s_4(a1, a3);
 #define s_5(i, k, j, k1)   row4(k1)=i 
@@ -81,29 +81,29 @@ int t8 = 0;
 int t9 = 0; 
 int t10 = 0; 
 
-if (NC >= 1) {
   // Assumed to be sorted so not timed
- // for(t2 = 0; t2 <= NR-1; t2++) {
- //   for(t4 = rowptr_0(t1,t2); t4 <= rowptr_1(t1,t2)-1; t4++) {
-  //    t8=col2_2(t1,t2,t3,t4);
-  //    s1(1,t2,0,t4,0,t2,0,t8,0);
-  //  }
- // }
-  // Fused row, colptr and data copy
+  for(t2 = 0; t2 <= NR-1; t2++) {
+    for(t4 = rowptr_0(t1,t2); t4 <= rowptr_1(t1,t2)-1; t4++) {
+      t8=col2_2(t1,t2,t3,t4);
+      s1(1,t2,0,t4,0,t2,0,t8,0);
+    }
+ }
+  
+auto start = std::chrono::high_resolution_clock::now();
+// Fused row, colptr and data copy
   for(t2 = 0; t2 <= NR-1; t2++) {
     for(t4 = rowptr_0(t1,t2); t4 <= rowptr_1(t1,t2)-1; t4++) {
       if (NC >= col2_2(t1,t2,t3,t4)+1 && col2_2(t1,t2,t3,t4) >= 0) {
         t5=col2_2(t1,t2,t3,t4);
         t7=t5;
-        t9=t4;
-        s3(3,t2,0,t4,t5,0,0,0,0,0);
-        s2(2,t2,0,t4,t5,0,0,0,0,0);
+        t9=P1_4(t1,t2,t3,t4,t5); 
+	s3(3,t2,0,t4,t5,t9,0,0,0,0);
+        s2(2,t2,0,t4,t5,t9,0,0,0,0);
         s7(7,t2,0,t4,t5,0,t7,0,t9,0);
-        s4(4,t2,0,t4,t5,0,0,0,0,0);
+        s5(4,t2,0,t4,t5,0,t7,0,t9,0);
       }
     }
   }
-}
 // Optimize UQ verification.
 for(t2 = 0; t2 <= NR-1; t2++) {
    t4 = t2 + 1; 
