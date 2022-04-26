@@ -20,7 +20,8 @@ more formats will be added
 
 ```shell script
 cd build
-./bin/CodeSynthesis_Driver -src <formatname>,<dataName> -dest <formatName>,<dataName>
+./bin/CodeSynthesis_Driver -src <formatname>,<dataName> -dest <formatName>,<dataName>\
+[-fuse <statement-list-delimited-by-comma> -fuselevel <level>]
 ```
 
 Driver generates synth.h and synth.c files which can be compiled / added to a pre-existing project.
