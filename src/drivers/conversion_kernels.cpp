@@ -41,7 +41,7 @@ int main(){
 
 
 
-comp->addStmt( new Stmt("col2(n)=P0_INV(n)[0]",
+comp->addStmt( new Stmt("row3(n)=P0_INV(n)[0]",
  "{ [n] : n >= 0 && P0(row1(n), col1(n)) >= 0 && col1(n) >= 0 && row1(n) >= 0 && NC - 1 >= 0 && NNZ - 1 >= 0 && NR - 1 >= 0 && -n + NNZ - 1 >= 0 && NC - col1(n) - 1 >= 0 && NNZ - P0(row1(n), col1(n)) - 1 >= 0 && NR - row1(n) - 1 >= 0 }",
  "{ [tv0] -> [2, a1, 0, 0, 0, 0, 0] : tv0 - a1 = 0 }",
 {

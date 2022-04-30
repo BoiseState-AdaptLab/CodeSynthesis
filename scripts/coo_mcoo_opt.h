@@ -2,16 +2,13 @@
 #define min(a,b) a < b ? a : b
 #define max(a,b) a > b ? a: b
 	auto P0Comp = [](const std::vector<int>& a, const std::vector<int>& b){
-		std::cerr << "m1, " << MORTON(a[0], a[1]) <<
-		       " m2, "<<	MORTON(b[0], b[1]);
-	if(-MORTON(a[0], a[1]) + MORTON(b[0], b[1]) - 1>= 0)
-	return true;
-	if(-MORTON(a[0], a[1]) + MORTON(b[0], b[1]) - 1>= 0)
-	return true;
-        // Oveerride comparator equality behavior
-	return false;
+	return MORTON(a[0], a[1]) < MORTON(b[0], b[1]);
 	};
-	Permutation<int,decltype(P0Comp)> * P0 = new Permutation <int,decltype(P0Comp)>(P0Comp);
+	auto P0Lin = [](const std::vector<int>& a){
+	   return MORTON(a[0],a[1]);
+	};
+	Permute<int,decltype(P0Lin),decltype(P0Comp)> * P0 = 
+	new Permute<int,decltype(P0Lin),decltype(P0Comp)>(P0Lin,P0Comp,22);
 #define ACOO(n) EX_ACOO(n)
 //TODO n generated for RHS, fix!!!
 #define AMCOO(n1) EX_AMCOO(n1)
@@ -25,18 +22,20 @@
 #undef s_3
 #define s_0(n, tv1, tv2)   P0->insert({row1(n), col1(n)}) 
 #define s0(__x0, a1, __x2, a3, __x4, a5, __x6)   s_0(a1, a3, a5);
-#define s_1(n)   col3(P0(row1(n), col1(n)))=col1(n) 
+#define s_1(n)   col3(n)=P0_INV(n)[1] 
 #define s1(__x0, a1, tv2, tv3, __x4, __x5, __x6, __x7, __x8)   s_1(a1);
-#define s_2(n)   row3(P0(row1(n), col1(n)))=row1(n) 
+#define s_2(n)   row3(n)=P0_INV(n)[0] 
 #define s2(__x0, a1, tv2, tv3, __x4, __x5, __x6, __x7, __x8)   s_2(a1);
 #define s_3(n, n1)   AMCOO(n1) = ACOO(n ) 
 #define s3(__x0, a1, tv2, tv3, __x4, a3, __x6, __x7, __x8)   s_3(a1, a3);
+
 
 #undef P0_2
 #undef col1_1
 #undef col3_3
 #undef row1_0
 #undef row3_4
+#define P0_INV(t0) P0->getInv(t0)
 #define P0(t0,t1) P0->get({t0,t1})
 #define P0_2(__tv0, __tv1, __tv2, __tv3) P0(__tv2, __tv3)
 #define col1(t0) EX_COL1(t0)
@@ -73,9 +72,7 @@ if (NR >= 1 && NC >= 1) {
       s1(1,t2,t3,t4,0,0,0,0,0);
       s2(2,t2,t3,t4,0,0,0,0,0);
       t6=P0_2(t1,t2,t3,t4);
-      if (row3_4(t1,t2,t3,t4,t5,t6) == t3 && col3_3(t1,t2,t3,t4,t5,t6) == col1_1(t1,t2)) {
-          s3(3,t2,t3,t4,0,t6,0,0,0);
-      }
+      s3(3,t2,t3,t4,0,t6,0,0,0);
     }
   }
 }

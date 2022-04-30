@@ -719,19 +719,18 @@ TEST_F(CodeSynthesisUnitTest, TEST_SUBSTITUTE_DIRECT_EQUALITIES){
 
 
 TEST_F(CodeSynthesisUnitTest, TEST_PERMUTE){
-     int NNZ = 10000;
-     int NR = 20000;
+     std::vector<std::vector<int>> test = {{0,0},{0,1},{4,2},{8,0},{4,4}};
+     int NNZ = test.size();
+     int NR = 10;
      auto comparator = [&NR](const std::vector<int>& a, const std::vector<int>& b)
      { return a[0]* NR + a[1] < b[0] * NR + b[1]; };
      auto linearization =  [&NR](const std::vector<int>& a)
      { return a[0]* NR + a[1]; };
      Permute<int,decltype(linearization),decltype(comparator)>* P0 = 
 	     new Permute<int,decltype(linearization),decltype(comparator)>
-	     (linearization,comparator,22);
+	     (linearization,comparator,8);
      for(int i = 0 ; i  < NNZ ; i++){
-          int x = rand() % NR;
-	  int y = rand() % NR;
-	  P0->insert({x,y});
+	  P0->insert(test[i]);
      }
      int prevI = -1;
      for (int i = 0 ; i < NNZ; i++){
@@ -741,5 +740,5 @@ TEST_F(CodeSynthesisUnitTest, TEST_PERMUTE){
      for (int i = 0 ; i < NNZ; i++){
          EXPECT_EQ( i , P0->get( {P0->getInv(i)[0],P0->getInv(i)[1]}));
      }
-
+     delete P0;
 }

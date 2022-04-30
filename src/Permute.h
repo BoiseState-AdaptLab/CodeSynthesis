@@ -18,7 +18,6 @@ class Permute{
    // Comparator 
    C comp;
    int bitCap = 0b0;
-   int msb = 0b0;
    // Buckets
    std::map<uint32_t,std::vector<std::vector<T>>> buckets;
    int binarySearch(const std::vector<std::vector<T>>& v, std::vector<T>& val){
@@ -28,7 +27,7 @@ class Permute{
          int m  = l + (r - l) / 2;
 	 if (v[m] == val) return m;
 	 if (comp(val,v[m])) r = m - 1;
-	 if (comp(v[m],val)) l = m + 1;
+	 else l = m + 1;
       }
       return -1;
    }
@@ -47,15 +46,10 @@ public:
       int insertPos = 0;
       while( insertPos < bucket.size() &&
 		comp(bucket[insertPos],tup)) insertPos++;
-      
-      bucket.resize(bucket.size() + 1);
-      int swapIndex = bucket.size() - 1;
-      while(swapIndex != insertPos){
-         // SHift forward
-         bucket[swapIndex] = bucket[swapIndex -1];
-	 swapIndex--;
-      }
-      bucket[insertPos] = tup;
+      // Cant have duplicate tuple as this DS
+      // must be a function.
+      if (bucket.size() > 0 && bucket[insertPos] == tup) return;
+      bucket.insert(bucket.begin() + insertPos,tup); 
    }
   
    uint32_t get (std::vector<T> tup){
