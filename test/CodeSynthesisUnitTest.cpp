@@ -733,9 +733,10 @@ TEST_F(CodeSynthesisUnitTest, TEST_PERMUTE){
 	  int y = rand() % NR;
 	  P0->insert({x,y});
      }
-
+     int prevI = -1;
      for (int i = 0 ; i < NNZ; i++){
-          P0->getInv(i)[0];
+         EXPECT_TRUE( prevI <= P0->getInv(i)[0]);
+	prevI = P0->getInv(i)[0]; 
      }
 
 }

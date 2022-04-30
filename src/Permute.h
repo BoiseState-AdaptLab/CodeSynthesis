@@ -19,7 +19,7 @@ class Permute{
    int bitCap = 0b0;
    int msb = 0b0;
    // Buckets
-   std::vector<std::vector<std::vector<T>>> buckets;
+   std::map<uint32_t,std::vector<std::vector<T>>> buckets;
    uint32_t binarySearch(const std::vector<std::vector<T>>& v, std::vector<T>& val){
       int l = 0;
       int r = v.size() - 1;
@@ -42,8 +42,6 @@ public:
       uint32_t bucketValue = linValue & mask;
       //Shift binary to the right so the 
       uint32_t bucketPos = (bucketValue >> bitCap);
-      if (bucketPos > buckets.size() - 1)
-	    buckets.resize(bucketPos+1);
       auto& bucket = buckets[bucketPos];
       int insertPos = 0;
       while( insertPos < bucket.size() &&
@@ -66,22 +64,27 @@ public:
       auto& bucket = buckets[bucketPos];
       auto localPos = binarySearch(bucket,linValue);
       assert(localPos!=-1 && "Tuple does not exist");
-      for( int i = 0; i < bucketValue; i++){
-         localPos+=buckets[i].size();
+      // Count up bucket sizes with bucketPositions
+      // 
+      for( auto it = buckets.begin(); it != buckets.end() &&
+		     it->first < bucketPos ; it++){
+         localPos+=it->second.size();
       }
       return localPos;
    }
 
    std::vector<T> getInv(uint32_t pos){
       uint32_t offset = 0;
-      for( int i = 0 ; i <buckets.size() ; i++){
-	 if ((offset + buckets[i].size()) > pos ) { 
+      for( auto  it = buckets.begin() ;
+		      it != buckets.end() ; it++){
+	 if ((offset + it->second.size()) > pos ) { 
  	    auto localPos = pos - offset;
-	    return buckets[i][localPos];
+	    return it->second[localPos];
 	 }
-         offset+= buckets[i].size();
+         offset+= it->second.size();
       }  
       assert(0 && "Position not found");
+      return {};
    }
 
    
