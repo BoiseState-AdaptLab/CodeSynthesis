@@ -1,9 +1,10 @@
-#ifndef SYNTH_HEADER
-#define SYNTH_HEADER
+#ifndef SYNTH_PERMUTE_HEADER
+#define SYNTH_PERMUTE_HEADER
 #include <functional>
 #include <algorithm>
 #include <set>
 #include <vector>
+#include <map>
 #include <assert.h>
 #include <iostream>
 #include <string>
@@ -20,10 +21,10 @@ class Permute{
    int msb = 0b0;
    // Buckets
    std::map<uint32_t,std::vector<std::vector<T>>> buckets;
-   uint32_t binarySearch(const std::vector<std::vector<T>>& v, std::vector<T>& val){
+   int binarySearch(const std::vector<std::vector<T>>& v, std::vector<T>& val){
       int l = 0;
-      int r = v.size() - 1;
-      while ( l <  r){
+      int r = v.size();
+      while (  r >= l){
          int m  = l + (r - l) / 2;
 	 if (v[m] == val) return m;
 	 if (comp(val,v[m])) r = m - 1;
@@ -62,14 +63,16 @@ public:
       uint32_t bucketValue = linValue & mask;
       uint32_t bucketPos = bucketValue >> bitCap;
       auto& bucket = buckets[bucketPos];
-      auto localPos = binarySearch(bucket,linValue);
-      assert(localPos!=-1 && "Tuple does not exist");
+      auto localPos = binarySearch(bucket,tup);
+      assert(localPos !=-1 && "Tuple does not exist");
       // Count up bucket sizes with bucketPositions
-      // 
+      //
+      if (localPos!=0) std::cerr << "Local Pos: "<<localPos << "\n"; 
       for( auto it = buckets.begin(); it != buckets.end() &&
 		     it->first < bucketPos ; it++){
          localPos+=it->second.size();
       }
+
       return localPos;
    }
 

@@ -12,6 +12,7 @@
 #include <utility>
 #include <vector>
 #include <synth.h>
+#include <Permute.h>
 #include <chrono>
 #include <algorithm>  // std::sort
 #include <numeric>    // std::iota

@@ -727,7 +727,7 @@ TEST_F(CodeSynthesisUnitTest, TEST_PERMUTE){
      { return a[0]* NR + a[1]; };
      Permute<int,decltype(linearization),decltype(comparator)>* P0 = 
 	     new Permute<int,decltype(linearization),decltype(comparator)>
-	     (linearization,comparator,8);
+	     (linearization,comparator,22);
      for(int i = 0 ; i  < NNZ ; i++){
           int x = rand() % NR;
 	  int y = rand() % NR;
@@ -737,6 +737,9 @@ TEST_F(CodeSynthesisUnitTest, TEST_PERMUTE){
      for (int i = 0 ; i < NNZ; i++){
          EXPECT_TRUE( prevI <= P0->getInv(i)[0]);
 	prevI = P0->getInv(i)[0]; 
+     }
+     for (int i = 0 ; i < NNZ; i++){
+         EXPECT_EQ( i , P0->get( {P0->getInv(i)[0],P0->getInv(i)[1]}));
      }
 
 }

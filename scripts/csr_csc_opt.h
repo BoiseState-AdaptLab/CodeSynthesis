@@ -1,4 +1,3 @@
-#include <synth.h> 
 // Optimizations
 // 1. Redundant Statement Elimination
 // 2. Fusion
@@ -6,13 +5,15 @@
 
 #define min(a,b) a < b ? a : b
 #define max(a,b) a > b ? a: b
-Permutation<int> * P0 = new Permutation<int>(2);
-auto P1Comp = []( const std::vector<int>& a, const std::vector<int>& b){
-if (a[1] < b[1] )    return true;
-// TODO: Generatee this to work on set comparator equality behaviour
-return (a[1] == b[1]) && a < b;
+auto P1Comp = [&NR]( const std::vector<int>& a, const std::vector<int>& b){
+return a[1]*NR + a[0] < NR*b[1] + b[0];
 };
-Permutation<int,decltype(P1Comp)>* P1 = new Permutation <int,decltype(P1Comp)>(P1Comp);
+
+auto P1Line = [&NR]( const std::vector<int>& a){
+return a[1]*NR + a[0];
+};
+Permute<int,decltype(P1Line),decltype(P1Comp)>* P1 = new Permute <int,decltype(P1Line),
+	decltype(P1Comp)>(P1Line,P1Comp,10);
 #define ACSR(i,k) EX_ACSR(k)
 #define ACSC(j,k) EX_ACSC(k)
 #undef s0
@@ -55,6 +56,7 @@ Permutation<int,decltype(P1Comp)>* P1 = new Permutation <int,decltype(P1Comp)>(P
 #undef P0_3
 #undef rowptr_0
 #undef rowptr_1
+#define P1_INV(d) P1->get_inv(d)
 #define P1(t0,t1) P1->get({t0,t1})
 #define P1_4(__tv0, __tv1, __tv2, __tv3, __tv4) P1(__tv1, __tv4)
 #define col2(t0) EX_COL(t0)
@@ -134,5 +136,4 @@ for(t2 = 0; t2 <= NR-1; t2++) {
 #undef P0_3
 #undef rowptr_0
 #undef rowptr_1
-delete P0; 
 delete P1; 
