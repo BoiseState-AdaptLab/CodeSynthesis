@@ -8,6 +8,9 @@
 #include <iostream>
 #include <string>
 #include <sstream>
+#define MAX_LEVEL 5
+template <typename T, typename C, typename E>class SkipList;
+template <typename T> class SkipNode;
 template <typename T,typename C = std::less<std::vector<T> > >   
 class Permutation{   
 private:    
@@ -49,5 +52,6 @@ public:
 	}   
 	return ss.str();   
     }   
-};   
+};
+
 #endif   

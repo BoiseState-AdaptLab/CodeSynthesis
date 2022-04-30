@@ -2,12 +2,14 @@
 #define min(a,b) a < b ? a : b
 #define max(a,b) a > b ? a: b
 	auto P0Comp = [](const std::vector<int>& a, const std::vector<int>& b){
+		std::cerr << "m1, " << MORTON(a[0], a[1]) <<
+		       " m2, "<<	MORTON(b[0], b[1]);
 	if(-MORTON(a[0], a[1]) + MORTON(b[0], b[1]) - 1>= 0)
 	return true;
 	if(-MORTON(a[0], a[1]) + MORTON(b[0], b[1]) - 1>= 0)
 	return true;
         // Oveerride comparator equality behavior
-	return !(-MORTON(a[0], a[1]) + MORTON(b[0], b[1]) - 1>= 0) && a < b;
+	return false;
 	};
 	Permutation<int,decltype(P0Comp)> * P0 = new Permutation <int,decltype(P0Comp)>(P0Comp);
 #define ACOO(n) EX_ACOO(n)

@@ -13,6 +13,7 @@ set(CodeSynthesis_SOURCES
         src/utils/Utils.h
 	src/Visitors.cc
 	src/Visitors.h
+	src/Permute.h
         src/CodeSynthesis.cc 
 	src/CodeSynthesis.h)
 set(CodSynthesis_t_SOURCES
@@ -66,6 +67,8 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/lib/IEGenLib/lib/isl/include)
 
 # BUILD CodeSynthesis_Driver
 add_executable(CodeSynthesis_Driver ${CodeSynthesis_SOURCES} src/drivers/code_synthesis_main.cpp)
+
+
 #add_dependencies(CodeSynthesis_Driver iegenlib_in)
 target_link_libraries(CodeSynthesis_Driver gtest iegenlib isl codegen omega )
 
@@ -79,6 +82,23 @@ set_target_properties(CodeSynthesis_Driver
         LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
         )
+
+#ADD KERNEL DRIVER
+add_executable(CodeSynthesis_Kernels ${CodeSynthesis_SOURCES} src/drivers/conversion_kernels.cpp)
+#add_dependencies(CodeSynthesis_Kernels iegenlib_in)
+target_link_libraries(CodeSynthesis_Kernels gtest iegenlib isl codegen omega )
+
+
+
+
+#Set Target properties
+set_target_properties(CodeSynthesis_Kernels
+        PROPERTIES
+        ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
+        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+        )
+
 #ADD TEST
 add_executable(CodeSynthesis_t 
 	${CodeSynthesis_SOURCES} 

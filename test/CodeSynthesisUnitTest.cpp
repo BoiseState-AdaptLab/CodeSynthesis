@@ -5,8 +5,8 @@
 #include <gtest/gtest.h>
 #include <iegenlib.h>
 #include <CodeSynthesis.h>
-
-
+#include <Permute.h>
+#include <stdlib.h>
 using namespace code_synthesis;
 class CodeSynthesisUnitTest : public::testing::Test{
 protected:
@@ -718,3 +718,24 @@ TEST_F(CodeSynthesisUnitTest, TEST_SUBSTITUTE_DIRECT_EQUALITIES){
 }
 
 
+TEST_F(CodeSynthesisUnitTest, TEST_PERMUTE){
+     int NNZ = 10000;
+     int NR = 20000;
+     auto comparator = [&NR](const std::vector<int>& a, const std::vector<int>& b)
+     { return a[0]* NR + a[1] < b[0] * NR + b[1]; };
+     auto linearization =  [&NR](const std::vector<int>& a)
+     { return a[0]* NR + a[1]; };
+     Permute<int,decltype(linearization),decltype(comparator)>* P0 = 
+	     new Permute<int,decltype(linearization),decltype(comparator)>
+	     (linearization,comparator,8);
+     for(int i = 0 ; i  < NNZ ; i++){
+          int x = rand() % NR;
+	  int y = rand() % NR;
+	  P0->insert({x,y});
+     }
+
+     for (int i = 0 ; i < NNZ; i++){
+          P0->getInv(i)[0];
+     }
+
+}
