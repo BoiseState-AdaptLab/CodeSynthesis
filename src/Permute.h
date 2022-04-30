@@ -67,7 +67,6 @@ public:
       assert(localPos !=-1 && "Tuple does not exist");
       // Count up bucket sizes with bucketPositions
       //
-      if (localPos!=0) std::cerr << "Local Pos: "<<localPos << "\n"; 
       for( auto it = buckets.begin(); it != buckets.end() &&
 		     it->first < bucketPos ; it++){
          localPos+=it->second.size();

@@ -13,7 +13,7 @@ auto P1Line = [&NR]( const std::vector<int>& a){
 return a[1]*NR + a[0];
 };
 Permute<int,decltype(P1Line),decltype(P1Comp)>* P1 = new Permute <int,decltype(P1Line),
-	decltype(P1Comp)>(P1Line,P1Comp,10);
+	decltype(P1Comp)>(P1Line,P1Comp,30);
 #define ACSR(i,k) EX_ACSR(k)
 #define ACSC(j,k) EX_ACSC(k)
 #undef s0
