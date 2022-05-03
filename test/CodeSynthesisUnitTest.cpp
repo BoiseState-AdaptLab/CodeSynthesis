@@ -742,3 +742,29 @@ TEST_F(CodeSynthesisUnitTest, TEST_PERMUTE){
      }
      delete P0;
 }
+
+
+TEST_F(CodeSynthesisUnitTest, TEST_PERMUTESL){
+     std::vector<std::vector<int>> test = {{0,0},{0,1},{4,2},{8,0},{4,4}};
+     int NNZ = test.size();
+     int NR = 10;
+     auto comparator = [&NR](const std::vector<int>& a, const std::vector<int>& b)
+     { return a[0]* NR + a[1] < b[0] * NR + b[1]; };
+     auto linearization =  [&NR](const std::vector<int>& a)
+     { return a[0]* NR + a[1]; };
+     PermuteSL<int,decltype(linearization),decltype(comparator)>* P0 = 
+	     new PermuteSL<int,decltype(linearization),decltype(comparator)>
+	     (linearization,comparator);
+     for(int i = 0 ; i  < NNZ ; i++){
+	  P0->insert(test[i]);
+     }
+     int prevI = -1;
+     for (int i = 0 ; i < NNZ; i++){
+         EXPECT_TRUE( prevI <= P0->getInv(i)[0]);
+	prevI = P0->getInv(i)[0]; 
+     }
+     for (int i = 0 ; i < NNZ; i++){
+         EXPECT_EQ( i , P0->get( {P0->getInv(i)[0],P0->getInv(i)[1]}));
+     }
+     delete P0;
+}
