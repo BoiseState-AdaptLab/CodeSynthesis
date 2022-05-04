@@ -160,7 +160,6 @@ public:
       assert( 0 && "tuple does not exist");
       return pos;
    }
-
    std::vector<T> getInv(uint32_t index){
       // Dont count the head
       uint32_t pos = index+1;
@@ -178,7 +177,6 @@ public:
       return temp->value;
       
    }
-
    void insert (std::vector<T> tup){
       Node* update[maxLevel];
       Node* temp = header;
@@ -208,8 +206,6 @@ public:
       } 
       size++;
    }
-
-
 };
 
 #endif   

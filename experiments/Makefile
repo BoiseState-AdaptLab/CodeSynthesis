@@ -1,5 +1,5 @@
 CC=g++
-CFLAGS=-I. -g -pthread -fopenmp
+CFLAGS=-I. -I../src -g -pthread -fopenmp
 DEPS = bitops.hpp sparse_format.h
 OBJ = alto_test.o sparse_format.o
 

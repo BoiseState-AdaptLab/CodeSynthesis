@@ -20,13 +20,13 @@
 #undef s_2
 #undef s3
 #undef s_3
-#define s_0(n, tv1, tv2)   P0->insert({row1(n), col1(n)}) 
+#define s_0(n, tv1, tv2)   P0->insert({row1(n), col1(n),n}) 
 #define s0(__x0, a1, __x2, a3, __x4, a5, __x6)   s_0(a1, a3, a5);
 #define s_1(n)   col3(n)=P0_INV(n)[1] 
 #define s1(__x0, a1, tv2, tv3, __x4, __x5, __x6, __x7, __x8)   s_1(a1);
 #define s_2(n)   row3(n)=P0_INV(n)[0] 
 #define s2(__x0, a1, tv2, tv3, __x4, __x5, __x6, __x7, __x8)   s_2(a1);
-#define s_3(n, n1)   AMCOO(n1) = ACOO(n ) 
+#define s_3(n, n1)   AMCOO(n) = ACOO(n1 ) 
 #define s3(__x0, a1, tv2, tv3, __x4, a3, __x6, __x7, __x8)   s_3(a1, a3);
 
 
@@ -37,7 +37,7 @@
 #undef row3_4
 #define P0_INV(t0) P0->getInv(t0)
 #define P0(t0,t1) P0->get({t0,t1})
-#define P0_2(__tv0, __tv1, __tv2, __tv3) P0(__tv2, __tv3)
+#define P0_2(__tv0, __tv1, __tv2, __tv3) P0_INV(__tv1)[2]
 #define col1(t0) EX_COL1(t0)
 #define col1_1(__tv0, __tv1) col1(__tv1)
 #define col3(t0) EX_COL3(t0)
