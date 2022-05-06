@@ -758,6 +758,8 @@ TEST_F(CodeSynthesisUnitTest, TEST_PERMUTESL){
      for(int i = 0 ; i  < NNZ ; i++){
 	  P0->insert(test[i]);
      }
+     std::cerr << "Permute Dump: \n" 
+	     << P0->toString();
      int prevI = -1;
      for (int i = 0 ; i < NNZ; i++){
          EXPECT_TRUE( prevI <= P0->getInv(i)[0]);

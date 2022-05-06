@@ -11,6 +11,7 @@
 #include <string>
 #include <sstream>
 #include <math.h>
+#include <time.h>
 #include <stdlib.h>
 // Permute Using Grouped Vectors
 template < typename T, typename L, typename C>
@@ -91,16 +92,16 @@ public:
 #define MAXLEVEL 32
 // Permute using IndexableSkipList
 template <typename T> struct SkipNode{
-   SkipNode** forward;
+   SkipNode<T>** forward;
    int * width;
    T value;
    int level;
    SkipNode(int level,T value):level(level),
 	value(value){
-      forward = new SkipNode* [level+1];
+      forward = new SkipNode <T>* [level+1];
       width = new int [level+1];
-      memset(forward,0,sizeof(SkipNode*));
-      memset(width,0,sizeof(int));
+      memset(forward,0,sizeof(SkipNode <T>*) * (level+1));
+      memset(width,0,sizeof(int) * (level+1));
    }
    ~SkipNode(){
       delete [] forward;
@@ -122,13 +123,15 @@ class PermuteSL{
    uint32_t currentLevel = 0;
    double p = 0.5f;
    inline double random(){
-      return sqrt((double)rand() / RAND_MAX);
+      return (double)rand() / RAND_MAX;
    }
    int randomLevel(){
       int level = 0;
-      while (random() < p and level < maxLevel-1){
+      double ranNum;
+      while ((ranNum = random()) < p && level < maxLevel-1){
          level++;
       }
+      std::cerr << "level: "<<level << "\n";
       return level;
    }
 public:
@@ -155,7 +158,7 @@ public:
       // -- x→key < searchKey ≤ x→forward[1]→key
       temp = temp->forward[0];
       if (temp!= NULL && temp->value == tup){
-         return pos+1;
+         return pos;
       }
       assert( 0 && "tuple does not exist");
       return pos;
@@ -178,33 +181,72 @@ public:
       
    }
    void insert (std::vector<T> tup){
-      Node* update[maxLevel];
+      int newLevel = randomLevel();
+      
+      Node*    update[currentLevel+1] = {0};
+      uint32_t width[currentLevel+1] = {0};
       Node* temp = header;
+      
       for(int i = currentLevel; i >= 0; i--){
+	  uint32_t off = 0;
+
           while(temp->forward[i] != NULL && comp(temp->forward[i]->value,tup)){
-	       temp = temp->forward[i];
-	    }
-	 update[i] = temp;
+	     off += temp->width[i];  
+	     temp = temp->forward[i];
+	  }
+	  update[i] = temp;
+	  width[i]  = off;
       }
+      
       // Cant have duplicates Permute must be a function
-      if (temp!= NULL && temp->value == tup){
+      if (temp!= NULL && temp!=header && temp->forward[0]
+		      ->value == tup){
          return;
       }
-
-      int newLevel = randomLevel();
-      if (newLevel > currentLevel) {
-         for(int i = currentLevel+1; i <= newLevel; i++){
-	    update[i] = header;
+      temp = new Node(newLevel,tup);
+      
+      if (newLevel > currentLevel){
+         
+	 for(int i = currentLevel + 1; i <= newLevel; i++){
+	    header->width[i] = size + 1;
+	    update[i]        = header; 
 	 }
 	 currentLevel = newLevel;
       }
-      temp = new Node(newLevel,tup);
-
+     
+      uint32_t cumWidth = 0;
       for (int i =0; i <= currentLevel; i++){
+	 if ( i > 0){
+	    cumWidth += width[i-1];
+	    update[i]->width[i]-=cumWidth;
+	 }else{
+	    update[i]->width[i] = 1;
+	 }
+
          temp->forward[i] = update[i]->forward[i];
 	 update[i]->forward[i] = temp;
       } 
       size++;
+   }
+   std::string toString(){
+      std::stringstream ss;
+      ss << "SkipList Size: "<< size << "\n"; 
+      for(int i = currentLevel; i >= 0; i--){
+          Node* temp = header;
+	  ss << "Level: " << i << ": ";
+          while(temp!= NULL){
+	     ss << "{[";
+	     for( auto v : temp->value){
+	        ss << "," << v;
+	     }
+	     ss << "],"<<
+		   " W: " <<temp->width[i] <<
+		  " L:" << temp->level << " } --->";
+	     temp = temp->forward[i];
+	  }
+	  ss << "\n";
+      }
+      return ss.str();
    }
 };
 
