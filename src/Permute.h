@@ -2,6 +2,7 @@
 #define SYNTH_PERMUTE_HEADER
 #include <functional>
 #include <algorithm>
+#include <numeric>
 #include <set>
 #include <vector>
 #include <map>
@@ -13,6 +14,19 @@
 #include <math.h>
 #include <time.h>
 #include <stdlib.h>
+template < typename C>
+class PermuteSimp {
+   C comp;
+   std::vector<uint32_t> pos;
+public:
+   PermuteSimp(uint32_t size,C comp): pos(size),comp(comp){
+      std::iota(pos.begin(),pos.end(),0);
+      std::sort(pos.begin(),pos.end(),comp);   
+   }
+   uint32_t getInv(uint32_t i){
+      return pos[i];
+   }
+};
 // Permute Using Grouped Vectors
 template < typename T, typename L, typename C>
 class Permute{
@@ -54,7 +68,9 @@ public:
       if (bucket.size() > 0 && bucket[insertPos] == tup) return;
       bucket.insert(bucket.begin() + insertPos,tup); 
    }
-  
+   void inserN(std::vector<T> tup){
+   
+   } 
    uint32_t get (std::vector<T> tup){
       uint32_t linValue = lin(tup);
       uint32_t bucketValue = linValue & mask;
@@ -182,50 +198,36 @@ public:
    }
    void insert (std::vector<T> tup){
       int newLevel = randomLevel();
-      
-      Node*    update[currentLevel+1] = {0};
-      uint32_t width[currentLevel+1] = {0};
-      Node* temp = header;
-      
-      for(int i = currentLevel; i >= 0; i--){
-	  uint32_t off = 0;
+      Node* newNode = new Node(newLevel,tup);
 
-          while(temp->forward[i] != NULL && comp(temp->forward[i]->value,tup)){
-	     off += temp->width[i];  
-	     temp = temp->forward[i];
-	  }
-	  update[i] = temp;
-	  width[i]  = off;
-      }
-      
-      // Cant have duplicates Permute must be a function
-      if (temp!= NULL && temp!=header && temp->forward[0]
-		      ->value == tup){
-         return;
-      }
-      temp = new Node(newLevel,tup);
-      
-      if (newLevel > currentLevel){
-         
-	 for(int i = currentLevel + 1; i <= newLevel; i++){
-	    header->width[i] = size + 1;
-	    update[i]        = header; 
+      if ( newLevel > currentLevel){
+         for( int i = currentLevel ; i >= newLevel; i--){
+	    header->forward[i] = NULL;
+	    header->width[i] = size +1;
 	 }
 	 currentLevel = newLevel;
       }
-     
-      uint32_t cumWidth = 0;
-      for (int i =0; i <= currentLevel; i++){
-	 if ( i > 0){
-	    cumWidth += width[i-1];
-	    update[i]->width[i]-=cumWidth;
-	 }else{
-	    update[i]->width[i] = 1;
+      Node* temp = header;
+      uint32_t pos = 0;
+      for( int i = currentLevel ; i >= 0; i--){
+         while(temp->forward[i] != NULL && comp(temp->forward[i]->value,tup)){
+            pos += temp->width[i];
+	    temp = temp->forward[i];
 	 }
-
-         temp->forward[i] = update[i]->forward[i];
-	 update[i]->forward[i] = temp;
-      } 
+	 if ( i > newLevel){
+	    temp->width[i]++;
+	 }else{
+	    // Insert new node between temp and temp forward
+	    Node* x = temp->forward[i];
+	    
+	    newNode->forward[i] = x;
+	    temp->forward[i] = newNode;
+            if (x != NULL){
+	       newNode->width[i] = pos + x->width[i];
+	       temp->width[i]    = 1 -pos;
+	    }
+	 }
+      }
       size++;
    }
    std::string toString(){
@@ -249,5 +251,6 @@ public:
       return ss.str();
    }
 };
+
 
 #endif   
