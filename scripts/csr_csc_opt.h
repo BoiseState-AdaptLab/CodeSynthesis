@@ -5,15 +5,6 @@
 
 #define min(a,b) a < b ? a : b
 #define max(a,b) a > b ? a: b
-auto P1Comp = [&NR]( const std::vector<int>& a, const std::vector<int>& b){
-return a[1]*NR + a[0] < NR*b[1] + b[0];
-};
-
-auto P1Line = [&NR]( const std::vector<int>& a){
-return a[1]*NR + a[0];
-};
-Permute<int,decltype(P1Line),decltype(P1Comp)>* P1 = new Permute <int,decltype(P1Line),
-	decltype(P1Comp)>(P1Line,P1Comp,30);
 #define ACSR(i,k) EX_ACSR(k)
 #define ACSC(j,k) EX_ACSC(k)
 #undef s0
@@ -32,7 +23,7 @@ Permute<int,decltype(P1Line),decltype(P1Comp)>* P1 = new Permute <int,decltype(P
 #undef s_7
 #define s_0(i, k)   P0->insert({i, col2(k),col2(k)}) 
 #define s0(__x0, a1, __x2, a3, __x4, __x5, __x6, __x7, __x8)   s_0(a1, a3);
-#define s_1(i, k, tv2, tv3)   P1->insert({i, col2(k)}) 
+#define s_1(i, k, tv2, tv3)   P1->insert({i, col2(k), k}) 
 #define s1(__x0, a1, __x2, a3, __x4, a5, __x6, a7, __x8)   s_1(a1, a3, a5, a7);
 #define s_2(i, k, k1)   colptr(col2(k)) = min(colptr(col2(k)),k1) 
 #define s2(__x0, a1, __x2, a3, tv4, __x5, __x6, __x7, __x8, __x9)   s_2(a1, a3, __x5);
@@ -56,9 +47,9 @@ Permute<int,decltype(P1Line),decltype(P1Comp)>* P1 = new Permute <int,decltype(P
 #undef P0_3
 #undef rowptr_0
 #undef rowptr_1
-#define P1_INV(d) P1->get_inv(d)
+#define P1_INV(d) P1->getInv(d)
 #define P1(t0,t1) P1->get({t0,t1})
-#define P1_4(__tv0, __tv1, __tv2, __tv3, __tv4) P1(__tv1, __tv4)
+#define P1_4(__tv0, __tv1, __tv2, __tv3, __tv4) P1_INV(__tv4)[2]
 #define col2(t0) EX_COL(t0)
 #define col2_2(__tv0, __tv1, __tv2, __tv3) col2(__tv3)
 #define colptr(t0) EX_COLPTR(t0)
@@ -84,14 +75,24 @@ int t9 = 0;
 int t10 = 0; 
 
   // Assumed to be sorted so not timed
-  for(t2 = 0; t2 <= NR-1; t2++) {
-    for(t4 = rowptr_0(t1,t2); t4 <= rowptr_1(t1,t2)-1; t4++) {
-      t8=col2_2(t1,t2,t3,t4);
-      s1(1,t2,0,t4,0,t2,0,t8,0);
-    }
- }
+auto P1Comp = [&]( const std::vector<int>& a,const  std::vector<int>& b){
+return a[1]*NR + a[0] < NR*b[1] + b[0];
+};
+
+auto P1Line = [&]( const std::vector<int>& a){
+return a[1]*NR + a[0];
+};
+PermuteSimp<decltype(P1Comp)>* P1 = new PermuteSimp <decltype(P1Comp)>
+(P1Comp);
   
 auto start = std::chrono::high_resolution_clock::now();
+for(t2 = 0; t2 <= NR-1; t2++) {
+   for(t4 = rowptr_0(t1,t2); t4 <= rowptr_1(t1,t2)-1; t4++) {
+      t8=col2_2(t1,t2,t3,t4);
+      s1(1,t2,0,t4,0,t2,0,t8,0);
+   }
+}
+P1->sort();
 // Fused row, colptr and data copy
   for(t2 = 0; t2 <= NR-1; t2++) {
     for(t4 = rowptr_0(t1,t2); t4 <= rowptr_1(t1,t2)-1; t4++) {

@@ -17,13 +17,18 @@
 template < typename C>
 class PermuteSimp {
    C comp;
-   std::vector<uint32_t> pos;
+   std::vector<std::vector<int>> pos;
 public:
-   PermuteSimp(uint32_t size,C comp): pos(size),comp(comp){
-      std::iota(pos.begin(),pos.end(),0);
+   PermuteSimp(C comp): comp(comp){
+   }
+   void insert(std::vector<int> val){
+      pos.push_back(val);
+   }
+
+   void sort(){
       std::sort(pos.begin(),pos.end(),comp);   
    }
-   uint32_t getInv(uint32_t i){
+   const std::vector<int>& getInv(uint32_t i){
       return pos[i];
    }
 };
