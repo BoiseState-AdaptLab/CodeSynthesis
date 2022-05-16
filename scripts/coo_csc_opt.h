@@ -69,7 +69,6 @@ int t7 = 0;
 int t8 = 0; 
 int t9 = 0; 
 
-if (NC >= 1 && NR >= 1) {
   for(t2 = 0; t2 <= NNZ-1; t2++) {
     if (row1_0(t1,t2) >= 0 && NR >= row1_0(t1,t2)+1) {
       t4=row1_0(t1,t2);
@@ -91,7 +90,6 @@ auto start = std::chrono::high_resolution_clock::now();
       s6(6,t2,t3,t4,0,t6,0,t8,0);
     }
   }
-}
 for(t2 = 0; t2 <= NC-1; t2++) {
   t4 = t2+1;
     s5(5,t2,0,t4,0,0,0);

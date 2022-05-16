@@ -346,7 +346,6 @@ std::pair<CSC *, double> COOToCSC(uint64_t nnz, uint64_t rank,
     int nr = dims[0];
     int nc = dims[1];
 
-    auto start = std::chrono::high_resolution_clock::now();
 
     CSC *csc = new CSC(nr, nnz);
     std::vector<int> &row = csc->row;
