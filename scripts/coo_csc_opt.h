@@ -78,6 +78,7 @@ if (NC >= 1 && NR >= 1) {
     }
   }
   P1->sort();
+auto start = std::chrono::high_resolution_clock::now();
   for(t2 = 0; t2 <= NNZ-1; t2++) {
     if (col1_1(t1,t2) >= 0 && NC >= col1_1(t1,t2)+1 && NR >= row1_0(t1,t2)+1 && row1_0(t1,t2) >= 0) {
       t3=row1_0(t1,t2);
