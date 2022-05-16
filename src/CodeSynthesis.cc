@@ -1427,58 +1427,13 @@ std::string CodeSynthesis::generateFullCode(std::vector<int>& fuseStmts,
 			[&permute](std::pair<std::string,iegenlib::Exp*>& val){
 				return val.first == permute;
 			});
-	if (it != selfRefs.end()){
-	    // This has to be ordered by how much permute
-	    // level is different in self referential
-            Exp * e = it->second;
-	    UFCallTerm* ut = findCallTerm(e,permute);
-            Term* cloneUT = ut->clone();
-	    cloneUT->setCoefficient(1);
- 	    Exp* solveE = e->solveForFactor(cloneUT);
-	    UFCallTerm* ut2 = findCallTerm(solveE,permute);;
-	    if (ut2 == NULL) continue;
-            std::stringstream ssP;
-	    ssP << "Comparator "<< permute << "Comp = "<<"[]("
-		   << " std::vector<int>& a, std::vector<int>& b){\n"; 
-            for(int k = 0; k < ut->numArgs(); k++){
-	       Exp* kLHSExp = ut->getParamExp(k);
-	       Exp* kRHSExp = ut2->getParamExp(k);
-	       // Get the difference between lhs and rhs 
-	       // to see which is bigger.
-	       Exp* diff = new Exp();
-	       diff->addExp(kLHSExp);
-	       diff->multiplyBy(-1);
-	       diff->addExp(kRHSExp);
-               int coeff = 0;
-               Term * t = diff->getTerm();
-	       if (t!=NULL){
-                   coeff = t->coefficient();
-               }
-               if (coeff ==0) continue;
-	       ssP << "if (a[" << k  << "] ";
-	       if (coeff < 0 ){
-	          ssP << (ut->coefficient() < 0 ? "<": ">");   	  
-	       }else if( coeff > 0){
-	       
-	          ssP << (ut->coefficient() < 0 ? ">": "<");   	  
-	       }
-	       ssP << " b[" << k  << "] )";
-	       ssP << "    return true;\n";
-	    }
-            ssP << "// Override set equality behaviour (Tuowen)\n";
-	    ssP << "return a < b;\n";
-	    ssP << "};\n";
-            ssP << "Permutation<int,decltype("<< permute 
-		    << "Comp)>* "<< permute
-		    << " = new Permutation <int,decltype(" <<
-		    permute << "Comp)>("<<permute <<"Comp);\n";
-	   ss << ssP.str();
-	}else {
-	    std::string comp = GetPermuteComparator(permute,
+	// For now take out self referential 
+	// and fully depend on UQ
+        std::string comp = GetPermuteComparator(permute,
 			    composeRel,ufQuants);
-	    ss << "Comparator "<< permute << "Comp = "<<
+	ss << "Comparator "<< permute << "Comp = "<<
 		    comp << "; \n";
-            ss << "Permutation<int,decltype("<< permute 
+        ss << "Permutation<int,decltype("<< permute 
 		    << "Comp)>* "<< permute
 		    << " = new Permutation <int,decltype(" <<
 		    permute << "Comp)>("<<permute <<"Comp);\n";
@@ -1748,7 +1703,7 @@ class ExpComparatorVisitor: public Visitor {
 
 std::string CodeSynthesis::GetPermuteComparator(std::string& permute,Relation* composeRel,std::vector<UFQuant>& ufQuants){
     std::stringstream ss;
-    ss << "[](std::vector<int>& a,std::vector<int>& b){\n";
+    ss << "[&](std::vector<int>& a,std::vector<int>& b){\n";
     // Discover the range of the permute in 
     // the relation. If equivalent to one of the UFs
     // enforce constraints from that UF 

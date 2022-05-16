@@ -340,6 +340,48 @@ std::pair<CSR *, double> COOToCSR(uint64_t nnz, uint64_t rank,
     return {csr, fp_ms.count()};
 }
 
+std::pair<CSC *, double> COOToCSC(uint64_t nnz, uint64_t rank,
+                                  const std::vector<uint64_t> &dims,
+                                  const COO &coo) {
+    int nr = dims[0];
+    int nc = dims[1];
+
+    auto start = std::chrono::high_resolution_clock::now();
+
+    CSC *csc = new CSC(nr, nnz);
+    std::vector<int> &row = csc->row;
+    std::vector<int> &colptr = csc->colptr;
+    std::vector<double> &values = csc->values;
+    const std::vector<std::vector<uint64_t>> &coord = coo.coord;
+    const std::vector<double> &cooValues = coo.values;
+
+#define EX_ROW1(n) coord[0][n]
+#define EX_COL1(n) coord[1][n]
+#define EX_ACOO(n) cooValues[n]
+#define EX_ROW(n) row[n]
+#define EX_COLPTR(n) colptr[n]
+#define EX_ACSC(n) values[n]
+#define NR nr
+#define NC nc
+#define NNZ nnz
+
+#include <coo_csc_opt.h>
+
+#undef EX_ROW1
+#undef EX_COL1
+#undef EX_ACOO
+#undef EX_COL2
+#undef EX_COLPTR
+#undef EX_ACSC
+#undef NR
+#undef NC
+#undef NNZ
+
+    auto stop = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> fp_ms = stop - start;
+
+    return {csc, fp_ms.count()};
+}
 int main(int argc, char *argv[]) {
     if (argc != 4) {
         fprintf(stderr, "Usage: %s <filename (should be in matrix market exchange format)> "
@@ -523,7 +565,41 @@ int main(int argc, char *argv[]) {
             return 0;
         }, milliseconds);
         delete (csc);
-    } else {
+	delete (csr);
+    }else if (strcmp(conversion, "coo_csc") == 0) {
+        auto p1 = COOToSortedCOO(nnz, rank, coo);
+        auto sortedCoo = p1.first;
+
+
+        CSC *csc;
+        double milliseconds = 0;
+        for (int i = 0; i < n; i++) {
+            auto p = COOToCSC(nnz, rank, dims, coo);
+            csc = p.first;
+            milliseconds += p.second;
+            if (i != n - 1) {
+                delete (csc);
+            }
+        }
+        milliseconds /= n;
+
+        output([&csc, dims](const std::vector<uint64_t> &cord) -> double {
+            uint64_t inI = cord[0];
+            uint64_t inJ = cord[1];
+            uint64_t nc = dims[1];
+            for (uint64_t j = 0; j < nc; j++) {
+                for (uint64_t k = csc->colptr[j]; k < csc->colptr[j + 1]; k++) {
+                    int i = csc->row[k];
+                    if (i == inI && j == inJ) {
+                        return csc->values[k];
+                    }
+                }
+            }
+            return 0;
+        }, milliseconds);
+        delete (csc);
+    } 
+    else {
         printf("unknown conversion: %s\n", conversion);
         exit(1);
     }

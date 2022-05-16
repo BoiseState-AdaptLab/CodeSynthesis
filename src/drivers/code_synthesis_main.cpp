@@ -67,7 +67,9 @@ int main(int argc, char**argv) {
     csr->ufQuants = { UFQuant( "{[i]: 0 <= i <= NR}","{[x]:0 <= x < NNZ}",
 		    "rowptr",false, Monotonic_Nondecreasing),
                      UFQuant( "{[x]:0 <= x < NNZ}","{[i]: 0 <= i <= NC}",
-		    "col2",false, Monotonic_NONE)};
+		    "col2",false, Monotonic_NONE,
+		    "{[e1,e2]: e1 < e2}",
+		    "{[e1,e2]: i * NR + e1 < j * NC + e2 ")};
     supportedFormats["CSR"] = csr;
     
 
@@ -82,7 +84,9 @@ int main(int argc, char**argv) {
     csc->ufQuants = { UFQuant( "{[i]: 0 <= i <= NR}","{[x]:0 <= x < NNZ}",
 		    "colptr",false, Monotonic_Nondecreasing),
                      UFQuant( "{[x]:0 <= x < NNZ}","{[i]: 0 <= i <= NR}",
-		    "row4",false, Monotonic_NONE)};
+		    "row4",false, Monotonic_NONE,
+		    "{[e1,e2]: e1 < e2}",
+		    "{[e1,e2]: j * NC + e1 < j * NC + e2 ")};
     supportedFormats["CSC"] = csc;
 
 
