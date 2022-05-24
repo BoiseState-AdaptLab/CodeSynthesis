@@ -22,7 +22,11 @@ public:
    PermuteSimp(C comp): comp(comp){
    }
    void insert(std::vector<int> val){
-      pos.push_back(val);
+      //ensure this is a function
+      auto it = std::find(pos.begin(),pos.end(), val);
+      if (it == pos.end()){
+          pos.push_back(val);
+      }
    }
 
    void sort(){

@@ -173,64 +173,11 @@ Computation* CodeSynthesis::generateInspectorComputation() {
         }
      }
      int executionScheduleIndex  = 0;
-     
-     // Resolve Special UFs
-     for (auto spec : specialUFs){
-	 std::string specialUF = spec.first;
-        
-        for(auto specExp : expList){
-           UFCallTerm* ut = NULL; 
-	   if ((ut = findCallTerm(specExp,specialUF)) != NULL){
-                auto caseSpec = GetUFExpressionSynthCase(specExp,specialUF,
-     	        	transRel->inArity(),transRel->arity());
-                if (caseSpec != CASE1) continue;
-                specialUFArity[specialUF] = ut->numArgs();
-	        std::string specStmt = 
-    	               constraintToStatement(specExp,
-    		       specialUF,composeRel->getTupleDecl(),
-    		       caseSpec);
-		
-		iegenlib::Set* specDomain = 
-		       GetCaseDomain(specialUF,composeSet,specExp,caseSpec);
-	
-		// remove constraints involving unknown UFs
-		RemoveSymbolicConstraints(unknowns,specDomain);
-		
-			
-		RemoveSymbolicConstraints(permutes,specDomain);
-		
-		// Get execution schedule
-		iegenlib::Relation* pExecutionSchedule = 
-			    getExecutionSchedule(
-			    specDomain,executionScheduleIndex++);
-	    
-		
-		// Get reads and writes.
-		auto writes = 
-		        GetWrites(specialUF,specExp,caseSpec,specDomain->arity()); 
-	    
-		auto reads = 
-		        GetReads(specialUF,specExp,caseSpec,specDomain->arity()); 
-		
-		
-		addToDataSpace(*inspector,reads, "double");
-	    
-		inspector->addStmt(new Stmt(specStmt,specDomain->
-			prettyPrintString(),pExecutionSchedule->
-			prettyPrintString(),reads,writes));
-	   	// special uf is resolved so it is known
-                auto it = std::find(unknowns.begin(),
-				unknowns.end(),specialUF);
-		if (it  != unknowns.end()){
-		    unknowns.erase(it);
-		}
-              
-	    }
-	}
-     }
-     auto unresolvedPermutes = permutes;
-     for (auto permute : permutes){
-         // TODO: Mege permutes with CASE1 and CASE2
+     std::vector<std::string> removedPermutes;
+     auto permIt = permutes.begin();
+     while (permIt != permutes.end()){
+         auto permute  = *permIt;
+	 // TODO: Mege permutes with CASE1 and CASE2
 	 // CASE1, p0->insert({t1,t2})
 	 // CASE2, p0(t1,t2) = t3
 	 // Merged Permute 
@@ -243,6 +190,7 @@ Computation* CodeSynthesis::generateInspectorComputation() {
      		    transRel->inArity(),transRel->arity());
     	         if (caseP == SELF_REF) {
     	             selfRefs.push_back({permute,e});
+		     std::cerr << "SELF_REF: "<< permute << "\n";
     	         }
     	     } 
          } 
@@ -276,6 +224,8 @@ Computation* CodeSynthesis::generateInspectorComputation() {
         if (permuteExpCandidate.size() == 1){
 	    auto caseP = permuteExpCandidate[0].second; 	
 	    auto pExp = permuteExpCandidate[0].first;
+	    // Check if this permutation will affect reordering
+	    // if it will 
 	    std::string pStmt = 
     	           constraintToStatement(pExp,
     		   permute,composeRel->getTupleDecl(),
@@ -313,98 +263,54 @@ Computation* CodeSynthesis::generateInspectorComputation() {
             inspector->addStmt(new Stmt(pStmt,pDomain->
 		prettyPrintString(),pExecutionSchedule->
 		prettyPrintString(),reads,writes));
-	    auto unresolvedIt = std::find(unresolvedPermutes.begin(),
-		  unresolvedPermutes.end(),permute);
-	    if (unresolvedIt != unresolvedPermutes.end())
-		 unresolvedPermutes.erase(unresolvedIt);
-	}else {
-            for(auto pCand : permuteExpCandidate) {
-		if (pCand.second == CASE1)
-		    continue;	
-	        auto pExp = pCand.first;
-		bool hasUnknown = false;
-		for (auto uknwnUF : unknowns){
-		    if(findCallTerm(pExp,uknwnUF)!=NULL){
-		       hasUnknown = true;
-		       break;
-		    }
-		}
-		if (hasUnknown) continue;
-		// This is to avoid cyclic dependency for 
-		// now.
-		for (auto uknwnUF : unresolvedPermutes){
-		    if(uknwnUF!=permute &&
-				    findCallTerm(pExp,uknwnUF)!=NULL){
-		       hasUnknown = true;
-		       break;
-		    }
-		}
-		if (hasUnknown) continue;
-	    auto permU =findCallTerm(pExp,permute);
-            // add permute to mergedPermutes 
-	    // so that Permutation will be initialized
-	    // accordingly
-            mergedPermutes.push_back({permute,permU->numArgs()});
-	    
-	    SynthExpressionCase caseP = MERGECASE;
-	    std::string pStmt = 
-    	           constraintToStatement(pExp,
-    		   permute,composeRel->getTupleDecl(),
-    		   caseP);
+	    // Add sort statement after
+            iegenlib::Set* sortDomain = new iegenlib::Set("{[0]}");
             
-	    
-	    // Get Domain for P
-            iegenlib::Set* pDomain = 
-    	        GetCaseDomain(permute,composeSet,pExp,caseP);
-        
-            // remove constraints involving unknown UFs
-            RemoveSymbolicConstraints(unknowns,pDomain);
-        
-	    // Remove constraints involving permutes
-            RemoveSymbolicConstraints(permutes,pDomain);
+
         	
             // Get execution schedule
-            iegenlib::Relation* pExecutionSchedule = 
+            iegenlib::Relation* sortExecutionSchedule = 
     	            getExecutionSchedule(
-    	            pDomain,executionScheduleIndex++);
+    	            sortDomain,executionScheduleIndex++);
     
         
             // Get reads and writes.
-            auto writes = 
+            auto sortRndW = 
                  GetWrites(permute,pExp,caseP,pDomain->arity()); 
     
-            auto reads = 
-                 GetReads(permute,pExp,caseP,pDomain->arity()); 
         
-        
-            addToDataSpace(*inspector,reads, "double");
-            // Writes to P is considered a single data space
-            // but read from P is a 2d data space 
-            //addToDataSpace((*inspector),
-            //				writes, "double");
-    
-            inspector->addStmt(new Stmt(pStmt,pDomain->
-		prettyPrintString(),pExecutionSchedule->
-		prettyPrintString(),reads,writes));
-	
-	    auto unresolvedIt = std::find(unresolvedPermutes.begin(),
-		  unresolvedPermutes.end(),permute);
-	    if (unresolvedIt != unresolvedPermutes.end())
-		 unresolvedPermutes.erase(unresolvedIt);
-	    }
+		
+            inspector->addStmt(new Stmt(permute+ "->sort()",sortDomain->
+		prettyPrintString(),sortExecutionSchedule->
+		prettyPrintString(),sortRndW,sortRndW));
+	    
+	}else {
+	    //Remove all instances of permutes that also 
+	    //fall into CASE 2 and references input tuple 
+	    //they do not need to be generated. In the 
+	    //future permutes that do not directly affect 
+	    //the order of the output tensor will also be removed.
+	    RemoveSymbolicConstraints({permute},transSet);
+	    RemoveSymbolicConstraints({permute},transRelExpanded);
+            RemoveSymbolicConstraints({permute},composeRel);
+	    //Referesh expression list in case some 
+            //redundant permutes have been removed.
+            conj = *transRelExpanded->conjunctionBegin();
+            expList = getExprs(conj);
+	    removedPermutes.push_back(permute);
 	}
 
+	permIt++;
      }
-     
-     std::vector<iegenlib::Set*> unknownDomain;
-    
-     for(std::string unknown: unknowns){
-         iegenlib::Set* domain = transRel->GetDomain(unknown);
-         unknownDomain.push_back(domain);	
-     } 
-    
-
-    for (auto currentUF : unknowns){
+     // Remove deleted permutes from 
+     // permute list.
+     for(auto permute: removedPermutes){
+	auto it = std::find(permutes.begin(),
+		  permutes.end(),permute);
+	    if (it != permutes.end())
+		 permutes.erase(it);
+     }
+     for (auto currentUF : unknowns){
         // skip UF for P since it has already been 
 	// synthesized at this point.
         std::list<iegenlib::Exp*> expUfs;
@@ -425,7 +331,7 @@ Computation* CodeSynthesis::generateInspectorComputation() {
 		continue;
 	     }
 	     // IF UF satisifies synthesis case
-	     if(ufCase !=UNDEFINED && ufCase != CASE1){
+	     if(ufCase !=UNDEFINED ){
 	         std::string expStmt = 
 	             constraintToStatement(e,
 		       currentUF,transRel->getTupleDecl(),ufCase);
@@ -606,7 +512,12 @@ constraintToStatement(Exp* constraint,
 		    << "max(" << ufTerm->prettyPrintString(tupDecl,true)<< ","
 		    <<solvedUFConst->prettyPrintString(tupDecl)
 		    << ")";
-    }else if(expCase == MERGECASE){
+    } else if (expCase == CASE5){
+        ss << unknownUF << "->insert({";
+	ss << solvedUFConst->prettyPrintString(tupDecl);
+	ss << "})";
+    }
+    else if(expCase == MERGECASE){
       ss << unknownUF << "->insert({";
       bool firstArg = true;
       for (int i = 0;i <ufTerm->numArgs(); ++i) {
@@ -1008,21 +919,16 @@ SynthExpressionCase CodeSynthesis::GetUFExpressionSynthCase(Exp* constraint,
    std::stringstream ss;
    if (constraint->isEquality()){
       //Case 1
-      // If rhs only has one term and the term is an output tuple
-      // var term.
-      if (solvedUFConst->getTermList().size()== 1
-   		   && solvedUFConst->getTerm()->type() == "TupleVarTerm"
-		   && ((TupleVarTerm*)solvedUFConst->getTerm())->
-		      tvloc() >= inputArity){
-          caseResult = CASE1;
-      }else{
+	 // Case 1
+	 // UF(x) = F(y)
+	 //
          //Case 2
 	 //UF(x) = F(x)
 	 //solved for must not depend on output term,
 	 //Will need the number of tuple declarations here.
 	 //
 	 //Case 5
-	 //UF(y) = F(x) && y is upper bound by unknown
+	 //UF(y) = F(x)
          bool FdependsOnOutput  = false;
 	 for(int i = inputArity; i < tupleSize; i++){
             TupleVarTerm t(1,i);
@@ -1044,11 +950,13 @@ SynthExpressionCase CodeSynthesis::GetUFExpressionSynthCase(Exp* constraint,
 	    }
 	 }
 	 if (!FdependsOnOutput && !UFDependsOnOutput){
-		 
-             caseResult = CASE2;
-           
+            caseResult = CASE2;
+	 }else if (UFDependsOnOutput && !FdependsOnOutput) {
+       	    caseResult = CASE5; 
+	 } else if (!UFDependsOnOutput && FdependsOnOutput) {
+            caseResult = CASE1; 
 	 }
-      }
+     
    
    }else {
       // All cases in this section 
@@ -1395,20 +1303,15 @@ std::vector<std::pair<std::string,std::string>>
 std::string CodeSynthesis::generateFullCode(std::vector<int>& fuseStmts,
 		int level){
     Computation* comp = generateInspectorComputation();
-    std::cout << "=======IR Before Opt======\n";
-    comp->printInfo();
-    std::cout << "=======IR-END====\n";
+    //std::cout << "=======IR Before Opt======\n";
+    //comp->printInfo();
+   // std::cout << "=======IR-END====\n";
     ReadReductionFusionOptimization(comp,fuseStmts,level);
-    std::cout << "=======IR After Opt======\n";
-    comp->printInfo();
-    std::cout << "=======IR-END====\n";
+   // std::cout << "=======IR After Opt======\n";
+  //  comp->printInfo();
+   // std::cout << "=======IR-END====\n";
     std::stringstream ss;
     ss << getSupportingMacros();
-    for(auto spec : specialUFs){
-        if (spec.second == GROUP){
-	    ss << "GROUP <int> * "<< spec.first << " = new GROUP<int>();\n";
-	}
-    }
     for(auto permute : permutes ){
         auto mergeIT = std::find_if(mergedPermutes.begin(),
 		       mergedPermutes.end(), 
@@ -1416,28 +1319,30 @@ std::string CodeSynthesis::generateFullCode(std::vector<int>& fuseStmts,
 				return val.first == permute;
 			});
         if (mergeIT != mergedPermutes.end()){
-           ss << "Permutation<int> * " << permute <<
-	        " = new Permutation<int>("<<mergeIT->second <<");\n";
+           ss << "PermuteSimp<int> * " << permute <<
+	        " = new PermuteSimp<int>("<<mergeIT->second <<");\n";
 	   continue;
 	}	
-	std::string permInit = "Permutation<int> * "+permute +
-	        " = new Permutation<int>();\n";
+	std::string permInit = "PermuteSimp<int> * "+permute +
+	        " = new PermuteSimp<int>();\n";
 	auto it = std::find_if(selfRefs.begin(),
 			selfRefs.end(),
 			[&permute](std::pair<std::string,iegenlib::Exp*>& val){
 				return val.first == permute;
 			});
-	// For now take out self referential 
-	// and fully depend on UQ
+	if (it!=selfRefs.end()){
+	   std::cerr << "Self Referential "<< it->first << " " << it->second->toString() << "\n";
+           ss << getSelfReferentialComparator(it->second, it->first);
+	   continue;
+	}
         std::string comp = GetPermuteComparator(permute,
 			    composeRel,ufQuants);
 	ss << "Comparator "<< permute << "Comp = "<<
 		    comp << "; \n";
-        ss << "Permutation<int,decltype("<< permute 
+        ss << "PermuteSimp<int,decltype("<< permute 
 		    << "Comp)>* "<< permute
-		    << " = new Permutation <int,decltype(" <<
+		    << " = new PermuteSimp <int,decltype(" <<
 		    permute << "Comp)>("<<permute <<"Comp);\n";
-	}
     }
     // Add Datamacros for Source and Destination
     // #define <sourceDataName>(i) <sourceDataName>[i]
@@ -1821,3 +1726,47 @@ void CodeSynthesis::ConstraintSimplification(Computation* comp){
   
 }
 
+std::string CodeSynthesis::getSelfReferentialComparator(Exp* e, std::string& permute){
+	    UFCallTerm* ut = findCallTerm(e,permute);
+            Term* cloneUT = ut->clone();
+	    cloneUT->setCoefficient(1);
+ 	    Exp* solveE = e->solveForFactor(cloneUT);
+	    UFCallTerm* ut2 = findCallTerm(solveE,permute);;
+	    if (ut2 == NULL) return "";
+            std::stringstream ssP;
+	    ssP << "Comparator "<< permute << "Comp = "<<"[]("
+		   << " std::vector<int>& a, std::vector<int>& b){\n"; 
+            for(int k = 0; k < ut->numArgs(); k++){
+	       Exp* kLHSExp = ut->getParamExp(k);
+	       Exp* kRHSExp = ut2->getParamExp(k);
+	       // Get the difference between lhs and rhs 
+	       // to see which is bigger.
+	       Exp* diff = new Exp();
+	       diff->addExp(kLHSExp);
+	       diff->multiplyBy(-1);
+	       diff->addExp(kRHSExp);
+               int coeff = 0;
+               Term * t = diff->getTerm();
+	       if (t!=NULL){
+                   coeff = t->coefficient();
+               }
+               if (coeff ==0) return "";
+	       ssP << "if (a[" << k  << "] ";
+	       if (coeff < 0 ){
+	          ssP << (ut->coefficient() < 0 ? "<": ">");   	  
+	       }else if( coeff > 0){
+
+	          ssP << (ut->coefficient() < 0 ? ">": "<");   	  
+	       }
+	       ssP << " b[" << k  << "] )";
+	       ssP << "    return true;\n";
+	    }
+	    ssP << "return false;\n";
+	    ssP << "};\n";
+            ssP << "PermuteSimp<int,decltype("<< permute 
+		    << "Comp)>* "<< permute
+		    << " = new PermuteSimp <int,decltype(" <<
+		    permute << "Comp)>("<<permute <<"Comp);\n";
+	    delete solveE;
+	    return ssP.str();
+}

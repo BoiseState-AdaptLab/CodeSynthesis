@@ -275,7 +275,8 @@ TEST_F(CodeSynthesisUnitTest, CASE_TEST){
     SynthExpressionCase caseR = 
 	    CodeSynthesis::GetUFExpressionSynthCase(e1,"UF",2,3);
     EXPECT_EQ(caseR,CASE1);
-
+    delete e1;
+    
     //{[ii,kk,jj,hr,hc] -> [k]}
     //rowptr(5 * ii + hr) = k
     e1 = new Exp();
@@ -289,7 +290,7 @@ TEST_F(CodeSynthesisUnitTest, CASE_TEST){
     e1->setEquality();
     caseR = CodeSynthesis::GetUFExpressionSynthCase(e1,"rowptr",5,6);
     EXPECT_EQ(caseR,CASE1);
-    
+    delete e1;
 
 
     // col(colinv(5ii+hr,5jj+hc)) = 5jj + hc // case 2
@@ -375,6 +376,20 @@ TEST_F(CodeSynthesisUnitTest, CASE_TEST){
     EXPECT_EQ(caseR, CASE4);
     delete e1;
 
+    // UF(n) = y
+    // {[x,y] -> [n]}
+    e1 = new Exp();
+    uf = new UFCallTerm("UF",1);
+    eArg1 = new Exp();
+    eArg1->addTerm(new TupleVarTerm(1,2));
+    uf->setParamExp(0,eArg1);
+    e1->addTerm(uf);
+    e1->addTerm(new TupleVarTerm(-1,1));
+    e1->setEquality();
+    std::cerr << e1->toString() << "\n";
+    caseR = CodeSynthesis::GetUFExpressionSynthCase(e1,"UF",2,3);
+    EXPECT_EQ(caseR,CASE5);
+    delete e1;
 }
 
 

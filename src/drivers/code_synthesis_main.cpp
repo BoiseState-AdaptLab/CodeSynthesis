@@ -93,13 +93,12 @@ int main(int argc, char**argv) {
     SparseFormat * dia = new SparseFormat();
     dia->mapToDense = "{[id,dd,jj,kd] -> [ii,j]: jj = j && id = ii && 0 <= id"
 	    " < NR &&  0 <= id < NR && 0<= ii < NR &&"
-	    " 0 <= dd < ND && dd = pos(-ii + j)"
-	    " && j = id + off(dd) && 0 <= j < NC && "
+	    " 0 <= dd < ND "
+	    " && j = ii + off(dd) && 0 <= j < NC && "
 	    "kd = 99 * id + dd }";
     // 99 is ND, direct replacement is required.
-    dia->dataAccess = "{[id,dd,kd] -> [kd]}";
+    dia->dataAccess = "{[id,dd, jd,kd] -> [kd]}";
     dia->knowns = { "NR","NC","NNZ"};
-    dia->specialUFs = {{"pos",GROUP}};
     // TODO: represent that there exists some non zero for 
     // every zero that exists in the same plane as the diagonal.
     dia->dataConstraint = "∃i′, j′, x|"

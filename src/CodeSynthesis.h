@@ -104,7 +104,7 @@ namespace code_synthesis {
 
   class CodeSynthesis {
   private:
-    
+   
       // Special UFs
       std::vector<std::pair<std::string,SpecialUF>> specialUFs;
       
@@ -162,8 +162,14 @@ namespace code_synthesis {
       /// Generates inspector computation.
       /// \return Computation object, representing the synthesis.
       Computation*  generateInspectorComputation ();
-
-
+      
+      /// Generates a comparator based on self referential 
+      /// constraint.
+      /// \param e       self refrential expression
+      /// \param permute UF been considered 
+      std::string getSelfReferentialComparator(iegenlib::Exp* e,
+		      std::string& permute); 
+     
      // Vector of pairs holds pairs of ufs and self
      // referential constraints. These are interesting constraints
      // for generating monotonicity code later on and getting 
