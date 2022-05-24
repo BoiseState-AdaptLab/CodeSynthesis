@@ -1750,7 +1750,7 @@ std::string CodeSynthesis::getSelfReferentialComparator(Exp* e, std::string& per
 	       if (t!=NULL){
                    coeff = t->coefficient();
                }
-               if (coeff ==0) return "";
+               if (coeff ==0) continue;
 	       ssP << "if (a[" << k  << "] ";
 	       if (coeff < 0 ){
 	          ssP << (ut->coefficient() < 0 ? "<": ">");   	  
@@ -1767,6 +1767,6 @@ std::string CodeSynthesis::getSelfReferentialComparator(Exp* e, std::string& per
 		    << "Comp)>* "<< permute
 		    << " = new PermuteSimp <int,decltype(" <<
 		    permute << "Comp)>("<<permute <<"Comp);\n";
-	    delete solveE;
+	    // Fix delete bug.
 	    return ssP.str();
 }
