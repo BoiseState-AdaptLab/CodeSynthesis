@@ -309,85 +309,88 @@ Computation* CodeSynthesis::generateInspectorComputation() {
 		  permutes.end(),permute);
 	    if (it != permutes.end())
 		 permutes.erase(it);
+     
      }
-     for (auto currentUF : unknowns){
-        // skip UF for P since it has already been 
-	// synthesized at this point.
-        std::list<iegenlib::Exp*> expUfs;
-	std::list<std::string> expStmts;
+     auto unknownsCopy = unknowns;
+     // TryCount for halting the infinite loop 
+     // when an unknown UF cant be solved.
+     int tryCount = 0 ;
+     while(unknownsCopy.size() != 0){
+	if (tryCount >= MAX_TRIES){
+	    throw assert_exception("Synthesis Failed!");
+	}
+	std::string currentUF = unknownsCopy.back();
+        // Get all the list of viable candidates
+	// for the current UF
+	std::list<std::pair<iegenlib::Exp*,SynthExpressionCase>> expUfs;
 	for(auto e : expList){
 	   if(findCallTerm(e,currentUF)!=NULL){
-
-
 	     // Get case a uf in a constraint falls into.	   
 	     auto ufCase = 
 		     GetUFExpressionSynthCase(e,
 		   currentUF,transRel->inArity(),transRel->arity());
-	     if (ufCase ==SELF_REF){ 
-	         // Store self referential constraints. Should help
-	         // with generating code for montonicity later on.             
-	        selfRefs.push_back({currentUF,e->clone()});
-	        // skip this loop iteration
-		continue;
-	     }
 	     // IF UF satisifies synthesis case
-	     if(ufCase !=UNDEFINED ){
-	         std::string expStmt = 
-	             constraintToStatement(e,
-		       currentUF,transRel->getTupleDecl(),ufCase);
-		 Set* ufDomain = GetCaseDomain(
-				 currentUF,transSet,e,ufCase);
-                 
-                // Remove all self referential references to PERMUTE_NAME 
-                // from the ufDomain. This information is only important for 
-                // memory allocation. It looks like this code was already 
-		// called earlier, however projectOut introduces self referential 
-		// on Permutation everytime so we have to repeat the constraint 
-		// removal everytime a GetCaseDomain is called.
-                
-		for(auto selfRef : selfRefs){
-		    // If self referential is on one of 
-		    // the generated permutes, remove constraint
-		    auto it = std::find(permutes.begin(), permutes.end(),
-				    selfRef.first);
-                    if (it != permutes.end()){
-	                RemoveConstraint(ufDomain,selfRef.second);
-	            }
-                }
-                 // remove constraints involving unknown UFs
-                 
-	        RemoveSymbolicConstraints(unknowns,ufDomain);
-                 
-		 // Get reads and writes.
-                 auto ufWrites = 
-	                 GetWrites(currentUF,e,ufCase,ufDomain->arity()); 
-
-                 
-		 auto ufReads = 
-	                 GetReads(currentUF,e,ufCase,ufDomain->arity()); 
-                 
-		 // add data spaces for reads and writes to 
-		 // IR
-	         addToDataSpace((*inspector),
-				ufReads, "double");
-                  
-	         addToDataSpace((*inspector),
-				ufWrites, "double");
-                 
-		 // Get execution schedule
-                 iegenlib::Relation* ufExecSched = 
-	                 getExecutionSchedule(
-			    ufDomain,executionScheduleIndex++);
-
-		 inspector->addStmt(new Stmt(expStmt,ufDomain->prettyPrintString(),
-					 ufExecSched->prettyPrintString(),
-					 ufReads,ufWrites));
-                 delete ufDomain;
-		 delete ufExecSched;
+	     if(ufCase !=UNDEFINED){
+                expUfs.push_back({e,ufCase});
 	     }
 	   }
 	}
-	// Synthesize statements 
+	std::cerr << currentUF <<" -> " << expUfs.size() << "\n";
+	if (expUfs.size() == 0 ){
+	   tryCount++;
+	   // Pop and put to the front of the list
+	   unknownsCopy.pop_back();
+	   unknownsCopy.insert(unknownsCopy.begin(),currentUF);
+	   continue;
+	}
+        // Check for prefered conditions among candidate
+	// If equality & rhs is a function of known, we 
+	// care about such conditions and ignore other candidates
+	auto it  = std::find_if(expUfs.begin(),expUfs.end(),
+			[&](std::pair<iegenlib::Exp*,SynthExpressionCase> a){
+			    if (a.second == CASE3 || a.second == CASE4)
+			        return false;
+			    Exp* constr = a.first;
+ 			    Term* term = findCallTerm(constr,currentUF);
+			    Term* tClone = term->clone();
+			    tClone->setCoefficient(1);
+			    Exp* solvedFor = constr->solveForFactor(tClone);
+			    if (solvedFor== NULL)
+			        return false;
+			    // Contains unknownsCopy
+			    bool containsUnknown = false;
+			    for(auto unknown: unknownsCopy){
+				if (findCallTerm(solvedFor,unknown) != NULL)
+			           containsUnknown = true; 	
+			    }
+			    // This candidate is only viable if the current UF Term
+			    // domain is bounded by unknownsCopy.
+			    return containsUnknown && 
+			    IsDomainBoundedByUnknown(term,unknownsCopy,composeRel);
+			});
+   	
+        if ( it != expUfs.end()){
+	   if (it->second == CASE5){ 
+              permutes.push_back(currentUF);
+	   }
+	   CreateIRComponent(currentUF,inspector,executionScheduleIndex++, it->second,
+			   it->first,unknownsCopy,transSet);
+	   // Remove from unknown list since this has been solved.
+	   unknownsCopy.pop_back();  
+	   continue;
+	}
+	for(auto ufExpPair: expUfs){
+	   // Avoid Generating code for Case5 that is bounded by
+	   if (ufExpPair.second == CASE5 && 
+		!IsDomainBoundedByUnknown(findCallTerm(ufExpPair.first,currentUF),
+			unknownsCopy,composeRel)){
+	      continue;
+	   }
+	   CreateIRComponent(currentUF,inspector,executionScheduleIndex++, ufExpPair.second,
+			   ufExpPair.first,unknownsCopy,transSet);
+	}
+	
+	unknownsCopy.pop_back();  
     }
     // Generate code to ensure universal constraint
     for(auto uf : unknowns){
@@ -460,11 +463,14 @@ std::string CodeSynthesis::getAllocationStmt(Term *unknownTerm) {
   return allocationString.str() ;
 }
 
-UFCallTerm* CodeSynthesis::findCallTerm(Exp* exp, std::string ufName){
-   UFCallTerm* res = nullptr;
+Term* CodeSynthesis::findCallTerm(Exp* exp, std::string ufName){
+   Term* res = nullptr;
    for(auto t : exp->getTermList()){
-      if (t->isUFCall() && ((UFCallTerm*)t)->name() == ufName){
-         res = (UFCallTerm*)t;
+      if ((t->isUFCall() && ((UFCallTerm*)t)->name() == ufName)
+		  ||
+		(t->type() == "VarTerm" &&((VarTerm*)t)->symbol() 
+		 == ufName)){
+         res = t;
 	 break;
       }
    }
@@ -475,18 +481,20 @@ std::string CodeSynthesis::
 constraintToStatement(Exp* constraint, 
 		std::string unknownUF, const TupleDecl& 
 		tupDecl, SynthExpressionCase expCase){
-   UFCallTerm* ufTerm = findCallTerm(constraint,unknownUF);
-   if (ufTerm == NULL){
+   Term* term = findCallTerm(constraint,unknownUF);
+   if (term == NULL){
       throw assert_exception("UFCallTerm must exist in expression");
    }
+   
    int tupleSize = tupDecl.size();
    // Solve for UF term.
-   Term* ufClone = ufTerm->clone();
+   Term* ufClone = term->clone();
    ufClone->setCoefficient(1);
    Exp* solvedUFConst = constraint->solveForFactor(ufClone);
    
    std::stringstream ss;
    if(expCase == CASE1){
+      UFCallTerm* ufTerm = (UFCallTerm*)term;
       ss << unknownUF << "->insert({";
       bool firstArg = true;
       for (int i = 0;i <ufTerm->numArgs(); ++i) {
@@ -497,19 +505,19 @@ constraintToStatement(Exp* constraint,
        }
        ss << "})";
     }else if (expCase == CASE2){
-       ss << ufTerm->prettyPrintString(tupDecl,true) << "=" 
+       ss << term->prettyPrintString(tupDecl,true) << "=" 
 		    << solvedUFConst->prettyPrintString(tupDecl);
        
     }else if (expCase == CASE3){
-	    ss << ufTerm->prettyPrintString(tupDecl,true) << " = " 
-	    << "min(" << ufTerm->prettyPrintString(tupDecl,true)<< "," 
+	    ss << term->prettyPrintString(tupDecl,true) << " = " 
+	    << "min(" << term->prettyPrintString(tupDecl,true)<< "," 
 	    << solvedUFConst->prettyPrintString(tupDecl)
 	    << ")";
        
     }else if (expCase == CASE4){
 	
-        ss << ufTerm->prettyPrintString(tupDecl,true) << " = " 
-		    << "max(" << ufTerm->prettyPrintString(tupDecl,true)<< ","
+        ss << term->prettyPrintString(tupDecl,true) << " = " 
+		    << "max(" << term->prettyPrintString(tupDecl,true)<< ","
 		    <<solvedUFConst->prettyPrintString(tupDecl)
 		    << ")";
     } else if (expCase == CASE5){
@@ -518,6 +526,7 @@ constraintToStatement(Exp* constraint,
 	ss << "})";
     }
     else if(expCase == MERGECASE){
+      UFCallTerm* ufTerm = (UFCallTerm*)term;
       ss << unknownUF << "->insert({";
       bool firstArg = true;
       for (int i = 0;i <ufTerm->numArgs(); ++i) {
@@ -563,12 +572,21 @@ iegenlib::Set* CodeSynthesis::GetCaseDomain(std::string ufName,Set* s,
     }else {
 	// Get the maximum tuple variable 
 	// present in this expression.
-	
+	Exp * constr = constraint->clone();
+	// if this is CASE 5 evaluate the RHS instead.
+	if (expCase == CASE5){
+	   Term* t = findCallTerm(constr,ufName);
+	   if (t!= NULL){
+	      Term* tClone = t->clone();
+	      tClone->setCoefficient(1);
+	      constr  = constraint->solveForFactor(tClone);
+	   }
+	}
 	res = new Set(*s);
 	int maxTup = -1;
         for(int i = 0; i < s->arity(); i++){
 	    TupleVarTerm t(1,i);
-            if(constraint->dependsOn(t)){
+            if(constr->dependsOn(t)){
 	       maxTup =  std::max(i,maxTup);
 	    }
 	}
@@ -584,6 +602,7 @@ iegenlib::Set* CodeSynthesis::GetCaseDomain(std::string ufName,Set* s,
 	    delete res;
 	    res = temp;
 	}
+	delete constr;
     }
     return res;
 }
@@ -798,6 +817,8 @@ void DataAccessVisitor::preVisitVarTerm(VarTerm* t){
    e->setEquality();
    e->addTerm(tupTerm);
    conj->addEquality(e);
+   // Fix this issue
+   // TODO
    std::string relString = rel->prettyPrintString();
    delete rel;
    dAccess.push_back({dataName,relString});
@@ -833,15 +854,14 @@ std::vector<std::pair<std::string,std::string>> CodeSynthesis::GetWrites(
      std::string uf, iegenlib::Exp* constraint,
      SynthExpressionCase expCase,int arity){
     std::vector<std::pair<std::string,std::string>> result;
-    UFCallTerm* ufTerm = findCallTerm(constraint,uf);
-    if (ufTerm == NULL){
+    Term* term = findCallTerm(constraint,uf);
+    if (term == NULL){
        throw assert_exception("UFCallTerm must exist in expression");
     }
     // Solve for UF term.
-    Term* ufClone = ufTerm->clone();
+    Term* ufClone = term->clone();
     ufClone->setCoefficient(1);
-    Exp* solvedUFConst = constraint->solveForFactor(ufClone);
-    if (expCase == CASE1 || expCase == MERGECASE){
+    if (expCase == CASE1 || expCase == CASE5 || expCase == MERGECASE){
         // This is for case 1 where 
 	// we have an insert abstraction
 	TupleDecl tdl(arity);
@@ -851,7 +871,7 @@ std::vector<std::pair<std::string,std::string>> CodeSynthesis::GetWrites(
 		   expCase == CASE3 ||
 		   expCase == CASE4|| expCase == SELF_REF ){
 	DataAccessVisitor dV(arity);
-	ufTerm->acceptVisitor(&dV);
+	term->acceptVisitor(&dV);
 	// We know there is only one UF write,
 	// so we only pick up data accesses 
 	// that involves UF on LHS
@@ -869,13 +889,13 @@ std::vector<std::pair<std::string,std::string>> CodeSynthesis::GetWrites(
 std::vector<std::pair<std::string,std::string>> CodeSynthesis::GetReads(
         std::string uf,iegenlib::Exp* constraint,SynthExpressionCase expCase,
 	int arity){
-    UFCallTerm* ufTerm = findCallTerm(constraint,uf);
-    if (ufTerm == NULL){
+    Term* term = findCallTerm(constraint,uf);
+    if (term == NULL){
        throw assert_exception("UFCallTerm must exist in expression");
     }
     
     // Solve for UF term.
-    Term* ufClone = ufTerm->clone();
+    Term* ufClone = term->clone();
     ufClone->setCoefficient(1);
     Exp* solvedUFConst = constraint->solveForFactor(ufClone);
     DataAccessVisitor dV(arity);
@@ -883,8 +903,14 @@ std::vector<std::pair<std::string,std::string>> CodeSynthesis::GetReads(
     auto result = dV.getDataAccess();
     dV.clearDataAccesses();
     // There might be some read accesses inside of the
-    // ufTerm. 
-    ufTerm->acceptVisitor(&dV);
+    // ufTerm.
+    // Do not check reads on the term if this
+    // is CASE1 or CASE5. This is because
+    // these cases use insert abstraction 
+    // and are not termed as reads
+    if (expCase != CASE5 && expCase != CASE1){ 
+       term->acceptVisitor(&dV);
+    }
     auto ufTermDataAccesses = dV.getDataAccess();
     for(auto dataAccess : ufTermDataAccesses){
         if(dataAccess.first != uf){ 
@@ -900,12 +926,12 @@ std::vector<std::pair<std::string,std::string>> CodeSynthesis::GetReads(
 SynthExpressionCase CodeSynthesis::GetUFExpressionSynthCase(Exp* constraint,
       std::string unknownUF, int inputArity, int tupleSize){
    SynthExpressionCase caseResult = UNDEFINED;
-   UFCallTerm* ufTerm = findCallTerm(constraint,unknownUF);
-   if (ufTerm == NULL){
+   Term* term = findCallTerm(constraint,unknownUF);
+   if (term == NULL){
       throw assert_exception("UFCallTerm must exist in expression");
    }
    // Solve for UF term.
-   Term* ufClone = ufTerm->clone();
+   Term* ufClone = term->clone();
    ufClone->setCoefficient(1);
    Exp* solvedUFConst = constraint->solveForFactor(ufClone);
    
@@ -918,7 +944,7 @@ SynthExpressionCase CodeSynthesis::GetUFExpressionSynthCase(Exp* constraint,
    }
    std::stringstream ss;
    if (constraint->isEquality()){
-      //Case 1
+	 //Case 1
 	 // Case 1
 	 // UF(x) = F(y)
 	 //
@@ -939,14 +965,16 @@ SynthExpressionCase CodeSynthesis::GetUFExpressionSynthCase(Exp* constraint,
 	 }
 	 bool UFDependsOnOutput = false;
 
-	 for(int i = inputArity; i < tupleSize; i++){
-            TupleVarTerm t(1,i);
-	    for(int arg = 0; arg < ufTerm->numArgs(); arg++){
-	        if (ufTerm->getParamExp(arg)->dependsOn(t)){
-	           UFDependsOnOutput = true;
-	           break;
-	        }
-	        
+         if (term->isUFCall()){
+	    UFCallTerm* ufTerm = (UFCallTerm*)term;
+	    for(int i = inputArity; i < tupleSize; i++){
+               TupleVarTerm t(1,i);
+	       for(int arg = 0; arg < ufTerm->numArgs(); arg++){
+	           if (ufTerm->getParamExp(arg)->dependsOn(t)){
+	              UFDependsOnOutput = true;
+	              break;
+	           }
+	       }
 	    }
 	 }
 	 if (!FdependsOnOutput && !UFDependsOnOutput){
@@ -956,8 +984,6 @@ SynthExpressionCase CodeSynthesis::GetUFExpressionSynthCase(Exp* constraint,
 	 } else if (!UFDependsOnOutput && FdependsOnOutput) {
             caseResult = CASE1; 
 	 }
-     
-   
    }else {
       // All cases in this section 
       // arity(y) > arity(x)
@@ -967,13 +993,20 @@ SynthExpressionCase CodeSynthesis::GetUFExpressionSynthCase(Exp* constraint,
       bool y_dependsOnTuple = false;
       for(int i = 0 ; i < inputArity; i++){
          TupleVarTerm t(1,i);
-         for(int k = 0; k < ufTerm->numArgs(); k++){
-	    if(ufTerm->getParamExp(k)->
-			    dependsOn(t)){
-	       x_arity++;
-	       x_dependsOnTuple = true;
-	       break; 
-	    }
+         if (term->isUFCall()){
+	    UFCallTerm* ufTerm = (UFCallTerm*)term;
+            for(int k = 0; k < ufTerm->numArgs(); k++){
+	       if(ufTerm->getParamExp(k)->
+	   	       dependsOn(t)){
+	          x_arity++;
+	          x_dependsOnTuple = true;
+	          break; 
+	       }
+	     } 
+	 } else{
+            // x dependsOnTuple to true if term is 
+	    // not a UF.
+            x_dependsOnTuple = true;
 	 }
          if(solvedUFConst->dependsOn(t)){
 	    y_arity++;
@@ -981,12 +1014,12 @@ SynthExpressionCase CodeSynthesis::GetUFExpressionSynthCase(Exp* constraint,
 	 }
       }
       // Relax y_arity >= x_arity constraints
-      if (y_arity >= x_arity && x_dependsOnTuple && y_dependsOnTuple){
+      if (x_dependsOnTuple && y_dependsOnTuple){
          // Case 3
          // UF(x) <= F(y) 
-         if (ufTerm->coefficient() < 0){
+         if (term->coefficient() < 0){
 	     caseResult = CASE3; 
-	 }else if (ufTerm->coefficient() > 0){
+	 }else if (term->coefficient() > 0){
 	     caseResult = CASE4;
 	 }
       }
@@ -1190,7 +1223,7 @@ Set* CodeSynthesis::GetMonotonicDomain(std::string uf, MonotonicType type,
 
 Exp* CodeSynthesis::getMonotonicDiff(std::string uf,Exp* ex){
    // TODO: revisit this.
-   UFCallTerm* ufTerm = findCallTerm(ex,uf);
+   UFCallTerm* ufTerm = (UFCallTerm*)findCallTerm(ex,uf);
    if (ufTerm == NULL){
       throw assert_exception("getMonotonicDiff:"
 		      " UFCallTerm must exist in expression");
@@ -1199,7 +1232,7 @@ Exp* CodeSynthesis::getMonotonicDiff(std::string uf,Exp* ex){
    Term* ufClone = ufTerm->clone();
    ufClone->setCoefficient(1);
    Exp* solvedUFConst = ex->solveForFactor(ufClone);
-   UFCallTerm* ufTerm2 = findCallTerm(solvedUFConst,uf);
+   UFCallTerm* ufTerm2 = (UFCallTerm*)findCallTerm(solvedUFConst,uf);
 
    if (ufTerm2 == NULL){
       throw assert_exception("getMonotonicDiff: Expression"
@@ -1304,7 +1337,7 @@ std::string CodeSynthesis::generateFullCode(std::vector<int>& fuseStmts,
 		int level){
     Computation* comp = generateInspectorComputation();
     //std::cout << "=======IR Before Opt======\n";
-    //comp->printInfo();
+    comp->printInfo();
    // std::cout << "=======IR-END====\n";
     ReadReductionFusionOptimization(comp,fuseStmts,level);
    // std::cout << "=======IR After Opt======\n";
@@ -1615,7 +1648,7 @@ std::string CodeSynthesis::GetPermuteComparator(std::string& permute,Relation* c
     Conjunction* c = *composeRel->conjunctionBegin();
     for(auto e : c->equalities()){
         UFCallTerm *permTerm = NULL;
-	if (permTerm = findCallTerm(e,permute)){
+	if (permTerm = (UFCallTerm*) findCallTerm(e,permute)){
 	  
 	  auto ufCase = 
 		     GetUFExpressionSynthCase(e,
@@ -1727,11 +1760,11 @@ void CodeSynthesis::ConstraintSimplification(Computation* comp){
 }
 
 std::string CodeSynthesis::getSelfReferentialComparator(Exp* e, std::string& permute){
-	    UFCallTerm* ut = findCallTerm(e,permute);
+	    UFCallTerm* ut =(UFCallTerm*) findCallTerm(e,permute);
             Term* cloneUT = ut->clone();
 	    cloneUT->setCoefficient(1);
  	    Exp* solveE = e->solveForFactor(cloneUT);
-	    UFCallTerm* ut2 = findCallTerm(solveE,permute);;
+	    UFCallTerm* ut2 = (UFCallTerm*)findCallTerm(solveE,permute);;
 	    if (ut2 == NULL) return "";
             std::stringstream ssP;
 	    ssP << "Comparator "<< permute << "Comp = "<<"[]("
@@ -1769,4 +1802,116 @@ std::string CodeSynthesis::getSelfReferentialComparator(Exp* e, std::string& per
 		    permute << "Comp)>("<<permute <<"Comp);\n";
 	    // Fix delete bug.
 	    return ssP.str();
+}
+
+
+
+// Create IR component generates an IR specification 
+// for an unknown.
+void CodeSynthesis::CreateIRComponent(std::string currentUF,
+		Computation* comp, int executionScheduleIndex,
+		      SynthExpressionCase ufCase, Exp* exp,
+		      std::vector<std::string>& unknowns,
+		    iegenlib::Set* transSet){
+         std::string expStmt = 
+             constraintToStatement(exp,
+	       currentUF,transSet->getTupleDecl(),ufCase);
+	 Set* ufDomain = GetCaseDomain(
+			 currentUF,transSet,exp,ufCase);
+                 
+         // Remove all self referential references to PERMUTE_NAME 
+         // from the ufDomain. This information is only important for 
+         // memory allocation. It looks like this code was already 
+         // called earlier, however projectOut introduces self referential 
+         // on Permutation everytime so we have to repeat the constraint 
+         // removal everytime a GetCaseDomain is called.
+                
+	for(auto selfRef : selfRefs){
+	    // If self referential is on one of 
+	    // the generated permutes, remove constraint
+	    auto it = std::find(permutes.begin(), permutes.end(),
+			    selfRef.first);
+            if (it != permutes.end()){
+                RemoveConstraint(ufDomain,selfRef.second);
+            }
+        }
+        // remove constraints involving unknown UFs
+               
+        RemoveSymbolicConstraints(unknowns,ufDomain);
+                 
+	// Get reads and writes.
+        auto ufWrites = 
+                 GetWrites(currentUF,exp,ufCase,ufDomain->arity()); 
+
+                
+        auto ufReads = 
+                 GetReads(currentUF,exp,ufCase,ufDomain->arity()); 
+                 
+		 // add data spaces for reads and writes to 
+		 // IR
+         addToDataSpace((*comp),
+			ufReads, "double");
+                 
+         addToDataSpace((*comp),
+				ufWrites, "double");
+                 
+	 // Get execution schedule
+         iegenlib::Relation* ufExecSched = 
+                 getExecutionSchedule(
+		    ufDomain,executionScheduleIndex);
+
+	 comp->addStmt(new Stmt(expStmt,ufDomain->prettyPrintString(),
+					 ufExecSched->prettyPrintString(),
+					 ufReads,ufWrites));
+        delete ufDomain;
+        delete ufExecSched;
+}
+
+bool CodeSynthesis::IsDomainBoundedByUnknown(Term* term,
+		const std::vector<std::string>& unknowns,iegenlib::Relation* rel ){
+   if (term->isUFCall()){
+      UFCallTerm* ufTerm = (UFCallTerm*) term;
+      for(int i = 0; i < ufTerm->numArgs(); i++){
+         Exp* argExp = ufTerm->getParamExp(i);
+	 for(int j =0; j < rel->arity(); j++){
+            TupleVarTerm tuple(1,j);
+	    if (argExp->solveForFactor(tuple.clone())!=NULL){
+	        auto upperBounds = rel->GetUpperBounds(tuple);
+		auto lowerBounds = rel->GetLowerBounds(tuple);
+		for (auto unknown: unknowns){
+		   for(Exp* exp: upperBounds){
+	              if (findCallTerm(exp,unknown)!=NULL){
+		         return true;
+		      }
+		   }
+		   
+		   for(Exp* exp: lowerBounds){
+	              if (findCallTerm(exp,unknown)!=NULL){
+		         return true;
+		      }
+		   }
+		}
+	    }
+	 }
+      }
+   }else if (term->type() == "TupleVarTerm"){
+            TupleVarTerm* tupTerm = (TupleVarTerm*) term;
+	        auto upperBounds = rel->GetUpperBounds(*tupTerm);
+		auto lowerBounds = rel->GetLowerBounds(*tupTerm);
+		for (auto unknown: unknowns){
+		   for(Exp* exp: upperBounds){
+	              if (findCallTerm(exp,unknown)!=NULL){
+		         return true;
+		      }
+		   }
+		   
+		   for(Exp* exp: lowerBounds){
+	              if (findCallTerm(exp,unknown)!=NULL){
+		         return true;
+		      }
+		   }
+		}
+      
+   }
+   return false; 
 }

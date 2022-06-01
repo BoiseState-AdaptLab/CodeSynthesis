@@ -13,6 +13,9 @@
 #include <iegenlib/set_relation/UninterpFunc.h>
 namespace code_synthesis {
   #define PERMUTE_NAME "P"
+  // Number of times to retry synthesis 
+  // before failing.
+  #define MAX_TRIES 200 
   /// Class contains functionality to generate SPF Computation
   /// from a Relation and a Set. The relation is a mapping from
   /// a previous space to a new space.
@@ -104,7 +107,7 @@ namespace code_synthesis {
 
   class CodeSynthesis {
   private:
-   
+      
       // Special UFs
       std::vector<std::pair<std::string,SpecialUF>> specialUFs;
       
@@ -176,6 +179,25 @@ namespace code_synthesis {
      // constraint describing sorting for P. Expressions stored
      // here are expected to be a clone
      std::vector<std::pair<std::string,iegenlib::Exp*>> selfRefs; 
+     
+     // Create IR component generates an IR specification 
+     // for an unknown.
+     // \param currentUF         Current UF being considered.
+     // \param comp              The computationa the IR Component will be added to
+     // \param executionSchedule The execution schedule or position of the IR component
+     // \param synthCase         Case of the current uf
+     // \param exp               expression/constraint involving uf
+     // \param unknowns          List of unknowns.
+     void CreateIRComponent(std::string currentUF,Computation* comp, 
+		     int executionSchedule, SynthExpressionCase ufCase, 
+		     iegenlib::Exp* exp,std::vector<std::string>& unknowns,
+		    iegenlib::Set* transSet );
+     // Function checks if the domain is bounded by unkowns
+     // \param term   term being investigated.
+     // \param unknowns List of unknowns
+     // \param relation Relation being considered.
+     static bool IsDomainBoundedByUnknown(Term* term,
+		     const std::vector<std::string>& unknowns,iegenlib::Relation* rel ); 
   public: 
       CodeSynthesis(SparseFormat* source, SparseFormat* dest);
       
@@ -216,7 +238,7 @@ namespace code_synthesis {
 		      std::string unknownUF, const TupleDecl& tupDecl,
 		      SynthExpressionCase expCase);
 
-      static UFCallTerm*
+      static Term*
 	      findCallTerm(Exp* exp, std::string ufName);
 
       /// Returns supporting macros and 
@@ -473,7 +495,7 @@ namespace code_synthesis {
       // involving such constraints.
       static void ConstraintSimplification(Computation* comp);
 
-  
+      
   };
 }
 
