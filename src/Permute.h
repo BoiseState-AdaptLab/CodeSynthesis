@@ -14,6 +14,11 @@
 #include <math.h>
 #include <time.h>
 #include <stdlib.h>
+
+template <typename T>
+using Comparator = std::function<bool (std::vector<T>&,std::vector<T>&)>;
+
+
 template < typename C>
 class PermuteSimp {
    C comp;
@@ -28,10 +33,13 @@ public:
           pos.push_back(val);
       }
    }
-
+   uint32_t getSize() { 
+      return pos.size(); 
+   }
    void sort(){
       std::sort(pos.begin(),pos.end(),comp);   
    }
+
    const std::vector<int>& getInv(uint32_t i){
       return pos[i];
    }

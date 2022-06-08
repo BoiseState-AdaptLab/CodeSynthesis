@@ -3,7 +3,7 @@
 // Which is part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // These sections have been marked.
-
+#include <climits>  
 #include <cctype>
 #include <cinttypes>
 #include <cstdio>
@@ -69,9 +69,9 @@ static void readMMEHeader(FILE *file, char *filename, char *line,
     *isSymmetric = (strcmp(toLower(symmetry), "symmetric") == 0);
     // Make sure this is a general sparse matrix.
     if (strcmp(toLower(header), "%%matrixmarket") ||
-        strcmp(toLower(object), "matrix") ||
-        strcmp(toLower(format), "coordinate") || strcmp(toLower(field), "real") ||
-        (strcmp(toLower(symmetry), "general") && !(*isSymmetric))) {
+            strcmp(toLower(object), "matrix") ||
+            strcmp(toLower(format), "coordinate") || strcmp(toLower(field), "real") ||
+            (strcmp(toLower(symmetry), "general") && !(*isSymmetric))) {
         fprintf(stderr,
                 "Cannot find a general sparse matrix with type real in %s\n",
                 filename);
@@ -158,6 +158,9 @@ struct DIA {
     DIA(int nd, int nr, int nc) {
         off = std::vector<int>(nd);
         values = std::vector<double>((nr < nc ? nr : nc) * nd);
+    }
+    DIA() {
+	values = std::vector<double>(INT_MAX);
     }
 
 public:
@@ -273,15 +276,15 @@ std::pair<COO *, double> COOToSortedCOO(uint64_t nnz, uint64_t rank,
 
     // sort indexes based row
     std::sort(idx.begin(), idx.end(),
-              [&coo](size_t i1, size_t i2) {
-                  auto row1 = coo.coord[0][i1];
-                  auto row2 = coo.coord[0][i2];
-                  if (row1 == row2) {
-                      // Sort based on col
-                      return coo.coord[1][i1] < coo.coord[1][i2];
-                  }
-                  return row1 < row2;
-              });
+    [&coo](size_t i1, size_t i2) {
+        auto row1 = coo.coord[0][i1];
+        auto row2 = coo.coord[0][i2];
+        if (row1 == row2) {
+            // Sort based on col
+            return coo.coord[1][i1] < coo.coord[1][i2];
+        }
+        return row1 < row2;
+    });
 
     // load data into new COO matrix based on row index
     for (int k = 0; k < nnz; k++) {
@@ -381,10 +384,54 @@ std::pair<CSC *, double> COOToCSC(uint64_t nnz, uint64_t rank,
 
     return {csc, fp_ms.count()};
 }
+
+
+std::pair<DIA*,double> COOToDIA(uint64_t nnz, uint64_t rank,
+                                  const std::vector<uint64_t> &dims,
+                                  const COO &coo) {
+    int nr = dims[0];
+    int nc = dims[1];
+    
+    auto start = std::chrono::high_resolution_clock::now();
+    DIA * dia = new DIA();
+    std::vector<int>& offset    = dia->off;
+    std::vector<double>& values = dia->values;
+    int nd = 0; 
+    const std::vector<std::vector<uint64_t>> &coord = coo.coord;
+    const std::vector<double> &cooValues = coo.values;
+
+#define EX_ROW1(n)  coord[0][n]
+#define EX_COL1(n)  coord[1][n]
+#define EX_ACOO(n)  cooValues[n]
+#define EX_ADIA(kd) values[kd] 
+#define NR nr
+#define NC nc
+#define NNZ nnz
+#define ND nd
+
+#include <coo_dia2.h>
+
+#undef EX_ROW1
+#undef EX_COL1
+#undef EX_ACOO
+#undef EX_ADIA
+     // Copy out the values from off array
+     for(int h = 0; h < off->getSize(); h++){
+          offset.push_back(off->getInv(h)[0]);
+     }	
+
+
+    auto stop = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> fp_ms = stop - start;
+
+    return {dia, fp_ms.count()};
+
+}
+
 int main(int argc, char *argv[]) {
     if (argc != 4) {
         fprintf(stderr, "Usage: %s <filename (should be in matrix market exchange format)> "
-                        "<type of conversion to run options: csr,sort,coo_mcoo,csr_csc> <validate: t/f>\n", argv[0]);
+                "<type of conversion to run options: csr,sort,coo_mcoo,csr_csc> <validate: t/f>\n", argv[0]);
         exit(1);
     }
     char *filename = argv[1];
@@ -433,7 +480,7 @@ int main(int argc, char *argv[]) {
     }
 
     auto output = [validate, &coord, &values, conversion, filename](
-            std::function<double(const std::vector<uint64_t> &)> &&check, double milliseconds) {
+    std::function<double(const std::vector<uint64_t> &)> &&check, double milliseconds) {
         if (validate) {
             if (verify(coord, values, check)) {
                 printf("[PASS] coo->%s %s, time: %f milliseconds, \n", conversion, filename, milliseconds);
@@ -564,8 +611,8 @@ int main(int argc, char *argv[]) {
             return 0;
         }, milliseconds);
         delete (csc);
-	delete (csr);
-    }else if (strcmp(conversion, "coo_csc") == 0) {
+        delete (csr);
+    } else if (strcmp(conversion, "coo_csc") == 0) {
         auto p1 = COOToSortedCOO(nnz, rank, coo);
         auto sortedCoo = p1.first;
 
@@ -573,7 +620,7 @@ int main(int argc, char *argv[]) {
         CSC *csc;
         double milliseconds = 0;
         for (int i = 0; i < n; i++) {
-            auto p = COOToCSC(nnz, rank, dims, coo);
+            auto p = COOToCSC(nnz, rank, dims, *sortedCoo);
             csc = p.first;
             milliseconds += p.second;
             if (i != n - 1) {
@@ -597,7 +644,37 @@ int main(int argc, char *argv[]) {
             return 0;
         }, milliseconds);
         delete (csc);
-    } 
+	delete (sortedCoo);
+    } else if (strcmp(conversion, "coo_dia") == 0) {
+        DIA *dia;
+        double milliseconds = 0;
+        for (int i = 0; i < n; i++) {
+            auto p = COOToDIA(nnz, rank, dims, coo);
+            dia = p.first;
+            milliseconds += p.second;
+            if (i != n - 1) {
+                delete (dia);
+            }
+        }
+        milliseconds /= n;
+
+        output([&dia, dims](const std::vector<uint64_t> &cord) -> double {
+            uint64_t inI = cord[0];
+            uint64_t inJ = cord[1];
+            uint64_t nr = dims[0];
+            for (uint64_t i = 0; i < nr; i++) {
+                for (uint64_t d = 0; d < dia->off.size(); d++) {
+                    int j = dia->off[d] + i;
+                    if (i == inI && j == inJ) {
+		        int k = dia->off.size() * i  + d;
+                        return dia->values[k];
+                    }
+                }
+            }
+            return 0;
+        }, milliseconds);
+        delete (dia);
+    }
     else {
         printf("unknown conversion: %s\n", conversion);
         exit(1);

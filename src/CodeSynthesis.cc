@@ -13,6 +13,9 @@
 #include <assert.h>
 #include <sstream>
 #include <list>
+
+// TODO: Work on memory management.
+
 using namespace code_synthesis;
 using iegenlib::Exp;
 /// Function flattens a sparse constraint : set, relation
@@ -183,6 +186,8 @@ Computation* CodeSynthesis::generateInspectorComputation() {
         // Merged Permute
         // P0 = Permute(2);
         // p0->insert({t1,t2,t3})
+        //
+        bool permuteSelfRef = false;
         for(auto e : expList) {
             if (findCallTerm(e,permute)!=NULL) {
                 auto caseP =
@@ -190,7 +195,7 @@ Computation* CodeSynthesis::generateInspectorComputation() {
                                              transRel->inArity(),transRel->arity());
                 if (caseP == SELF_REF) {
                     selfRefs.push_back({permute,e});
-                    std::cerr << "SELF_REF: "<< permute << "\n";
+                    permuteSelfRef = true;
                 }
             }
         }
@@ -224,8 +229,25 @@ Computation* CodeSynthesis::generateInspectorComputation() {
         if (permuteExpCandidate.size() == 1) {
             auto caseP = permuteExpCandidate[0].second;
             auto pExp = permuteExpCandidate[0].first;
+
+
             // Check if this permutation will affect reordering
-            // if it will
+            if (!permuteSelfRef &&
+                    GeneratePermuteConditions(permute,composeRel,ufQuants).empty()) {
+                // Remove every instance of this permute as
+                // it does not affect ordering and should not
+                // be used in synthesis processs
+                RemoveSymbolicConstraints({permute},transSet);
+                RemoveSymbolicConstraints({permute},transRelExpanded);
+                RemoveSymbolicConstraints({permute},composeRel);
+                //Referesh expression list in case some
+                //redundant permutes have been removed.
+                conj = *transRelExpanded->conjunctionBegin();
+                expList = getExprs(conj);
+                removedPermutes.push_back(permute);
+                continue;
+            }
+
             std::string pStmt =
                 constraintToStatement(pExp,
                                       permute,composeRel->getTupleDecl(),
@@ -317,7 +339,8 @@ Computation* CodeSynthesis::generateInspectorComputation() {
     int tryCount = 0 ;
     while(unknownsCopy.size() != 0) {
         if (tryCount >= MAX_TRIES) {
-            throw assert_exception("Synthesis Failed!");
+	    break;
+            //throw assert_exception("Synthesis Failed!");
         }
         std::string currentUF = unknownsCopy.back();
         // Get all the list of viable candidates
@@ -335,7 +358,7 @@ Computation* CodeSynthesis::generateInspectorComputation() {
                 }
             }
         }
-        std::cerr << currentUF <<" -> " << expUfs.size() << "\n";
+
         if (expUfs.size() == 0 ) {
             tryCount++;
             // Pop and put to the front of the list
@@ -363,9 +386,11 @@ Computation* CodeSynthesis::generateInspectorComputation() {
                 if (findCallTerm(solvedFor,unknown) != NULL)
                     containsUnknown = true;
             }
+            delete solvedFor;
+
             // This candidate is only viable if the current UF Term
             // domain is bounded by unknownsCopy.
-            return containsUnknown &&
+            return !containsUnknown &&
                    IsDomainBoundedByUnknown(term,unknownsCopy,composeRel);
         });
 
@@ -381,9 +406,7 @@ Computation* CodeSynthesis::generateInspectorComputation() {
         }
         for(auto ufExpPair: expUfs) {
             // Avoid Generating code for Case5 that is bounded by
-            if (ufExpPair.second == CASE5 &&
-                    !IsDomainBoundedByUnknown(findCallTerm(ufExpPair.first,currentUF),
-                                              unknownsCopy,composeRel)) {
+            if (ufExpPair.second == CASE5 ) {
                 continue;
             }
             CreateIRComponent(currentUF,inspector,executionScheduleIndex++, ufExpPair.second,
@@ -1375,15 +1398,15 @@ std::string CodeSynthesis::generateFullCode(std::vector<int>& fuseStmts,
         [&permute](std::pair<std::string,iegenlib::Exp*>& val) {
             return val.first == permute;
         });
+        // Generate Comparator code.
+        ss << "Comparator "<< permute <<"Comp = ";
+        ss << "[&](std::vector<int>& a,std::vector<int>& b){\n";
         if (it!=selfRefs.end()) {
-            std::cerr << "Self Referential "<< it->first << " " << it->second->toString() << "\n";
-            ss << getSelfReferentialComparator(it->second, it->first);
-            continue;
+            ss << GenerateSelfRefPermuteConditions(it->second, it->first);
         }
-        std::string comp = GetPermuteComparator(permute,
-                                                composeRel,ufQuants);
-        ss << "Comparator "<< permute << "Comp = "<<
-           comp << "; \n";
+        ss << GeneratePermuteConditions(permute,composeRel,ufQuants);
+        ss << "return false;\n";
+        ss << "}; \n";
         ss << "PermuteSimp<int,decltype("<< permute
            << "Comp)>* "<< permute
            << " = new PermuteSimp <int,decltype(" <<
@@ -1651,9 +1674,9 @@ public:
 
 };
 
-std::string CodeSynthesis::GetPermuteComparator(std::string& permute,Relation* composeRel,std::vector<UFQuant>& ufQuants) {
+std::string CodeSynthesis::GeneratePermuteConditions(std::string& permute,
+        Relation* composeRel,std::vector<UFQuant>& ufQuants) {
     std::stringstream ss;
-    ss << "[&](std::vector<int>& a,std::vector<int>& b){\n";
     // Discover the range of the permute in
     // the relation. If equivalent to one of the UFs
     // enforce constraints from that UF
@@ -1743,8 +1766,6 @@ std::string CodeSynthesis::GetPermuteComparator(std::string& permute,Relation* c
             }
         }
     }
-    ss << "    return false;\n";
-    ss << "}";
     return ss.str();
 }
 
@@ -1773,7 +1794,7 @@ void CodeSynthesis::ConstraintSimplification(Computation* comp) {
 
 }
 
-std::string CodeSynthesis::getSelfReferentialComparator(Exp* e, std::string& permute) {
+std::string CodeSynthesis::GenerateSelfRefPermuteConditions(Exp* e, std::string& permute) {
     UFCallTerm* ut =(UFCallTerm*) findCallTerm(e,permute);
     Term* cloneUT = ut->clone();
     cloneUT->setCoefficient(1);
@@ -1781,8 +1802,6 @@ std::string CodeSynthesis::getSelfReferentialComparator(Exp* e, std::string& per
     UFCallTerm* ut2 = (UFCallTerm*)findCallTerm(solveE,permute);;
     if (ut2 == NULL) return "";
     std::stringstream ssP;
-    ssP << "Comparator "<< permute << "Comp = "<<"[]("
-        << " std::vector<int>& a, std::vector<int>& b){\n";
     for(int k = 0; k < ut->numArgs(); k++) {
         Exp* kLHSExp = ut->getParamExp(k);
         Exp* kRHSExp = ut2->getParamExp(k);
@@ -1808,13 +1827,6 @@ std::string CodeSynthesis::getSelfReferentialComparator(Exp* e, std::string& per
         ssP << " b[" << k  << "] )";
         ssP << "    return true;\n";
     }
-    ssP << "return false;\n";
-    ssP << "};\n";
-    ssP << "PermuteSimp<int,decltype("<< permute
-        << "Comp)>* "<< permute
-        << " = new PermuteSimp <int,decltype(" <<
-        permute << "Comp)>("<<permute <<"Comp);\n";
-    // Fix delete bug.
     return ssP.str();
 }
 

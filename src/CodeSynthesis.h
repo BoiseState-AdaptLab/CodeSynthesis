@@ -170,7 +170,7 @@ private:
     /// constraint.
     /// \param e       self refrential expression
     /// \param permute UF been considered
-    std::string getSelfReferentialComparator(iegenlib::Exp* e,
+    std::string GenerateSelfRefPermuteConditions(iegenlib::Exp* e,
             std::string& permute);
 
     // Vector of pairs holds pairs of ufs and self
@@ -479,7 +479,7 @@ public:
     // \param Permute    permute string been considered.
     // \param composeRel composed relation
     // \param ufQuants   all uf quantifiers
-    static std::string GetPermuteComparator(std::string& permute,
+    static std::string GeneratePermuteConditions(std::string& permute,
                                             iegenlib::Relation* composeRel,
                                             std::vector<UFQuant>& ufQuants);
 
