@@ -392,10 +392,10 @@ std::pair<DIA*,double> COOToDIA(uint64_t nnz, uint64_t rank,
     int nr = dims[0];
     int nc = dims[1];
     
-    auto start = std::chrono::high_resolution_clock::now();
     DIA * dia = new DIA();
     std::vector<int>& offset    = dia->off;
     std::vector<double>& values = dia->values;
+    auto start = std::chrono::high_resolution_clock::now();
     int nd = 0; 
     const std::vector<std::vector<uint64_t>> &coord = coo.coord;
     const std::vector<double> &cooValues = coo.values;
