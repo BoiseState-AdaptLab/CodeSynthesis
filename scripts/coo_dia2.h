@@ -54,7 +54,7 @@ if (NR >= 1 && NC >= 1) {
   
   // Added this
   off->sort();
-
+  values.resize(ND * NR);
   if (ND >= 1) {
     for(t2 = 0; t2 <= NNZ-1; t2++) {
       if (col1_0(t1,t2) >= 0 && NR >= row1_1(t1,t2)+1 && row1_1(t1,t2) >= 0 && NC >= col1_0(t1,t2)+1) {

@@ -160,7 +160,6 @@ struct DIA {
         values = std::vector<double>((nr < nc ? nr : nc) * nd);
     }
     DIA() {
-	values = std::vector<double>(INT_MAX);
     }
 
 public:
@@ -416,12 +415,12 @@ std::pair<DIA*,double> COOToDIA(uint64_t nnz, uint64_t rank,
 #undef EX_ACOO
 #undef EX_ADIA
      // Copy out the values from off array
+    auto stop = std::chrono::high_resolution_clock::now();
      for(int h = 0; h < off->getSize(); h++){
           offset.push_back(off->getInv(h)[0]);
      }	
 
 
-    auto stop = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> fp_ms = stop - start;
 
     return {dia, fp_ms.count()};

@@ -25,7 +25,7 @@ set_target_properties(make_fake_mtx_files
 set_target_properties(bench_harness
 		PROPERTIES
 		RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/scripts"
-		COMPILE_FLAGS "-g -Wall -Wextra "
+		COMPILE_FLAGS "-g -O3 -Wall -Wextra "
 		)
 
 	#set_target_properties(coo_dia_trial
