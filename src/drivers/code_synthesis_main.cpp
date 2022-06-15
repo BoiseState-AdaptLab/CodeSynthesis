@@ -103,6 +103,8 @@ int main(int argc, char**argv) {
     // 99 is ND, direct replacement is required.
     dia->dataAccess = "{[id,dd, jd,kd] -> [kd]}";
     dia->knowns = { "NR","NC","NNZ"};
+    dia->ufQuants = { UFQuant( "{[i]: 0 <= i < ND}","{[x]:0 <= x < NNZ}",
+                               "off",true, Monotonic_Increasing)};
     // TODO: represent that there exists some non zero for
     // every zero that exists in the same plane as the diagonal.
     dia->dataConstraint = "∃i′, j′, x|"
