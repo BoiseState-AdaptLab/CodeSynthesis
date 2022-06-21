@@ -285,27 +285,11 @@ Computation* CodeSynthesis::generateInspectorComputation() {
             inspector->addStmt(new Stmt(pStmt,pDomain->
                                         prettyPrintString(),pExecutionSchedule->
                                         prettyPrintString(),reads,writes));
-            // Add sort statement after
-            iegenlib::Set* sortDomain = new iegenlib::Set("{[0]}");
-
-
-
-            // Get execution schedule
-            iegenlib::Relation* sortExecutionSchedule =
-                getExecutionSchedule(
-                    sortDomain,executionScheduleIndex++);
-
-
-            // Get reads and writes.
-            auto sortRndW =
-                GetWrites(permute,pExp,caseP,pDomain->arity());
-
-
-
-            inspector->addStmt(new Stmt(permute+ "->sort()",sortDomain->
-                                        prettyPrintString(),sortExecutionSchedule->
-                                        prettyPrintString(),sortRndW,sortRndW));
-
+	    
+	    UFCallTerm* pTerm = dynamic_cast<UFCallTerm*>(findCallTerm(pExp,permute));
+	    if(pTerm!=NULL){
+	        CreateSortIRComponent(pTerm,inspector,executionScheduleIndex++);   
+	    }
         } else {
             //Remove all instances of permutes that also
             //fall into CASE 2 and references input tuple
@@ -395,14 +379,21 @@ Computation* CodeSynthesis::generateInspectorComputation() {
         });
 
         if ( it != expUfs.end()) {
-            if (it->second == CASE5) {
-                permutes.push_back(currentUF);
-            }
             CreateIRComponent(currentUF,inspector,executionScheduleIndex++, it->second,
                               it->first,unknownsCopy,transSet);
             // Remove from unknown list since this has been solved.
             unknownsCopy.pop_back();
-            continue;
+            if (it->second == CASE5) {
+                permutes.push_back(currentUF);
+	        UFCallTerm* ut = dynamic_cast<UFCallTerm*>(
+				findCallTerm(it->first,currentUF));
+	        if(ut!=NULL){
+	            CreateSortIRComponent(ut,inspector,executionScheduleIndex++);   
+	        }
+	    }
+             
+	    
+	    continue;
         }
         for(auto ufExpPair: expUfs) {
             // Avoid Generating code for Case5 that is bounded by
@@ -1831,6 +1822,24 @@ std::string CodeSynthesis::GenerateSelfRefPermuteConditions(Exp* e, std::string&
 }
 
 
+void CodeSynthesis::CreateSortIRComponent(UFCallTerm* currentUF,Computation* comp,
+                           int executionScheduleIndex){
+    // Add sort statement after
+    iegenlib::Set* sortDomain = new iegenlib::Set("{[0]}");
+
+    // Get execution schedule
+    iegenlib::Relation* sortExecutionSchedule =
+            getExecutionSchedule(
+                sortDomain,executionScheduleIndex);
+    TupleDecl tdl(currentUF->numArgs());
+    std::pair<string,string> dataAccess = {currentUF->name(),"{"+tdl.toString(true)+
+                          "->[0]}"};
+    comp->addStmt(new Stmt(currentUF->name()+ "->sort()",sortDomain->
+                                        prettyPrintString(),sortExecutionSchedule->
+                                        prettyPrintString(),{dataAccess},{dataAccess}));
+    delete sortExecutionSchedule;
+    delete sortDomain;
+}
 
 // Create IR component generates an IR specification
 // for an unknown.
