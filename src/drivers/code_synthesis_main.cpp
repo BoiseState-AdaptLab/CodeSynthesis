@@ -37,12 +37,11 @@ int main(int argc, char**argv) {
     supportedFormats["COO"] = coo;
 
     SparseFormat * bcsr = new SparseFormat();
-    bcsr->mapToDense = "{[hr,hc,ii,jj,kk,p]->[i,j] : 0<= ii < NR_BR &&"
+    bcsr->mapToDense = "{[ii,jj,kk,hr,hc]->[i,j] : 0<= ii < NR_BR &&"
                        " browptr(ii) <= kk < browptr(ii+ 1) && jj= bcol(kk) && 0 <= hr"
                        " < BR && 0 <= hc < BC && i = ii * 99 + hr &&"
-                       " j= jj * 999 + hc && p= kk * 9999 + hr * 999"
-                       " + hc }";
-    bcsr->dataAccess = "{[hr,hc,ii,jj,kk,p] -> [p]}";
+                       " j= jj * 999 + hc }";
+    bcsr->dataAccess = "{[hr,hc,ii,jj,kk] -> [p]: p= kk * 9999 + hr * 999 + hc }";
 
     bcsr->knowns = { "BR","BC","NR", "NC", "NC_BC","NR_BR","BRBC"};
     bcsr->ufQuants = { UFQuant( "{[ii]: 0 <= ii <= NR_BR}",
@@ -95,13 +94,13 @@ int main(int argc, char**argv) {
 
 
     SparseFormat * dia = new SparseFormat();
-    dia->mapToDense = "{[id,dd,jj,kd] -> [ii,j]: jj = j && id = ii && 0 <= id"
+    dia->mapToDense = "{[id,dd,jj] -> [ii,j]: jj = j && id = ii && 0 <= id"
                       " < NR &&  0 <= id < NR && 0<= ii < NR &&"
                       " 0 <= dd < ND "
-                      " && j = ii + off(dd) && 0 <= j < NC && "
-                      "kd = 99 * id + dd }";
+                      " && j = ii + off(dd) && 0 <= j < NC"
+                      "}";
     // 99 is ND, direct replacement is required.
-    dia->dataAccess = "{[id,dd, jd,kd] -> [kd]}";
+    dia->dataAccess = "{[id,dd, jd] -> [kd]: kd = 99 * id + dd}";
     dia->knowns = { "NR","NC","NNZ"};
     dia->ufQuants = { UFQuant( "{[i]: 0 <= i < ND}","{[x]:0 <= x < NNZ}",
                                "off",true, Monotonic_Increasing)};

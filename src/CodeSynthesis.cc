@@ -285,11 +285,11 @@ Computation* CodeSynthesis::generateInspectorComputation() {
             inspector->addStmt(new Stmt(pStmt,pDomain->
                                         prettyPrintString(),pExecutionSchedule->
                                         prettyPrintString(),reads,writes));
-	    
-	    UFCallTerm* pTerm = dynamic_cast<UFCallTerm*>(findCallTerm(pExp,permute));
-	    if(pTerm!=NULL){
-	        CreateSortIRComponent(pTerm,inspector,executionScheduleIndex++);   
-	    }
+
+            UFCallTerm* pTerm = dynamic_cast<UFCallTerm*>(findCallTerm(pExp,permute));
+            if(pTerm!=NULL) {
+                CreateSortIRComponent(pTerm,inspector,executionScheduleIndex++);
+            }
         } else {
             //Remove all instances of permutes that also
             //fall into CASE 2 and references input tuple
@@ -323,7 +323,7 @@ Computation* CodeSynthesis::generateInspectorComputation() {
     int tryCount = 0 ;
     while(unknownsCopy.size() != 0) {
         if (tryCount >= MAX_TRIES) {
-	    break;
+            break;
             //throw assert_exception("Synthesis Failed!");
         }
         std::string currentUF = unknownsCopy.back();
@@ -385,15 +385,15 @@ Computation* CodeSynthesis::generateInspectorComputation() {
             unknownsCopy.pop_back();
             if (it->second == CASE5) {
                 permutes.push_back(currentUF);
-	        UFCallTerm* ut = dynamic_cast<UFCallTerm*>(
-				findCallTerm(it->first,currentUF));
-	        if(ut!=NULL){
-	            CreateSortIRComponent(ut,inspector,executionScheduleIndex++);   
-	        }
-	    }
-             
-	    
-	    continue;
+                UFCallTerm* ut = dynamic_cast<UFCallTerm*>(
+                                     findCallTerm(it->first,currentUF));
+                if(ut!=NULL) {
+                    CreateSortIRComponent(ut,inspector,executionScheduleIndex++);
+                }
+            }
+
+
+            continue;
         }
         for(auto ufExpPair: expUfs) {
             // Avoid Generating code for Case5 that is bounded by
@@ -1668,6 +1668,37 @@ public:
 std::string CodeSynthesis::GeneratePermuteConditions(std::string& permute,
         Relation* composeRel,std::vector<UFQuant>& ufQuants) {
     std::stringstream ss;
+    // Check if this uf already has a ufquantifier
+    auto ufIt = std::find_if(ufQuants.begin(),ufQuants.end(),
+    [&](const UFQuant& a) {
+        return a.name == permute;
+    });
+    // This only supports single parameter
+    // UFs. should break if this is not a single
+    // parameter UF.
+    if (ufIt != ufQuants.end()) {
+        iegenlib::Set* domain = iegenlib::queryDomainCurrEnv(permute);
+	if (domain == NULL) return "";
+
+	if (domain->arity() != 1){
+	    delete domain;
+	    throw iegenlib::assert_exception("arity greater than"
+			    " 1 is not courrently supported");
+	}
+	delete domain;
+        ss << "if(";
+        MonotonicType type = ufIt->type;
+
+        if (type == Monotonic_Increasing 
+			|| type == Monotonic_Nondecreasing) {
+	    ss << "a[0] < b[0]";
+        }else if (type == Monotonic_Decreasing 
+			|| type == Monotonic_Nonincreasing) {
+	    ss << "a[0] > b[0]";
+        }
+	ss << ")\n return true ; \n";
+    }
+
     // Discover the range of the permute in
     // the relation. If equivalent to one of the UFs
     // enforce constraints from that UF
@@ -1764,8 +1795,7 @@ std::string CodeSynthesis::GeneratePermuteConditions(std::string& permute,
 // This function agressively fuses loops with true dependency
 // in order.
 void CodeSynthesis::ReadReductionFusionOptimization(Computation* comp,
-        std::vector<int>& fuseStmts, int level
-                                                   ) {
+        std::vector<int>& fuseStmts, int level) {
     if (fuseStmts.size() == 0) return;
     // Statements with the same domain and does not write
     int fuseStart = *fuseStmts.begin();
@@ -1823,20 +1853,21 @@ std::string CodeSynthesis::GenerateSelfRefPermuteConditions(Exp* e, std::string&
 
 
 void CodeSynthesis::CreateSortIRComponent(UFCallTerm* currentUF,Computation* comp,
-                           int executionScheduleIndex){
+        int executionScheduleIndex) {
     // Add sort statement after
     iegenlib::Set* sortDomain = new iegenlib::Set("{[0]}");
 
     // Get execution schedule
     iegenlib::Relation* sortExecutionSchedule =
-            getExecutionSchedule(
-                sortDomain,executionScheduleIndex);
+        getExecutionSchedule(
+            sortDomain,executionScheduleIndex);
     TupleDecl tdl(currentUF->numArgs());
     std::pair<string,string> dataAccess = {currentUF->name(),"{"+tdl.toString(true)+
-                          "->[0]}"};
+                                           "->[0]}"
+                                          };
     comp->addStmt(new Stmt(currentUF->name()+ "->sort()",sortDomain->
-                                        prettyPrintString(),sortExecutionSchedule->
-                                        prettyPrintString(),{dataAccess},{dataAccess}));
+                           prettyPrintString(),sortExecutionSchedule->
+                           prettyPrintString(), {dataAccess}, {dataAccess}));
     delete sortExecutionSchedule;
     delete sortDomain;
 }

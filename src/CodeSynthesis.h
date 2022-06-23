@@ -192,14 +192,14 @@ private:
                            int executionSchedule, SynthExpressionCase ufCase,
                            iegenlib::Exp* exp,std::vector<std::string>& unknowns,
                            iegenlib::Set* transSet );
-    
-    // Create IR component for sort and adds to the computation 
+
+    // Create IR component for sort and adds to the computation
     // \param current UF        Current UF being considered.
     // \param comp		The computation the IR component will be added to
     // \param executionSchedule The execution schedule or position of the IR component.
     void CreateSortIRComponent(UFCallTerm* currentUF,Computation* comp,
-                           int executionScheduleIndex);
-    
+                               int executionScheduleIndex);
+
     // Function checks if the domain is bounded by unkowns
     // \param term   term being investigated.
     // \param unknowns List of unknowns
@@ -488,8 +488,8 @@ public:
     // \param composeRel composed relation
     // \param ufQuants   all uf quantifiers
     static std::string GeneratePermuteConditions(std::string& permute,
-                                            iegenlib::Relation* composeRel,
-                                            std::vector<UFQuant>& ufQuants);
+            iegenlib::Relation* composeRel,
+            std::vector<UFQuant>& ufQuants);
 
     // This function agressively fuses loops with true dependency
     // in order.
