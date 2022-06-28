@@ -22,9 +22,10 @@ int main(int argc, char**argv) {
     //Load preset formats
     std::map<std::string,SparseFormat*> supportedFormats;
     SparseFormat * coo = new SparseFormat();
-    coo->mapToDense = "{[n] -> [i,j]:"
-                      " row1(n) = i and 0 <= n and n < NNZ "
-                      "and col1(n) = j and  i >= 0 and "
+    coo->mapToDense = "{[n,ii ,jj] -> [i,j]:"
+                      " row1(n) = ii and 0 <= n and n < NNZ "
+                      "and col1(n) = jj and i = ii and"
+		      " j = jj and i >= 0 and "
                       " i < NR and j >= 0 and j < NC}";
     coo->knowns = { "NR","NC","NNZ"};
     coo->ufQuants = { UFQuant( "{[x]:0 <= x < NNZ}","{[i]: 0 <= i <= NC}",
@@ -33,17 +34,19 @@ int main(int argc, char**argv) {
                                "row1",false, Monotonic_NONE)
                     };
     coo->dataConstraint = "A[n]!=0";
-    coo->dataAccess = "{[n] -> [n]}";
+    coo->dataAccess = "{[n,ii,jj] -> [n]}";
     supportedFormats["COO"] = coo;
 
     SparseFormat * bcsr = new SparseFormat();
-    bcsr->mapToDense = "{[ii,jj,kk,hr,hc]->[i,j] : 0<= ii < NR_BR &&"
+    bcsr->mapToDense = "{[ii,kk,jj,hr,hc, is, js]->[i,j] : 0<= ii < NR_BR &&"
                        " browptr(ii) <= kk < browptr(ii+ 1) && jj= bcol(kk) && 0 <= hr"
-                       " < BR && 0 <= hc < BC && i = ii * 99 + hr &&"
-                       " j= jj * 999 + hc }";
-    bcsr->dataAccess = "{[hr,hc,ii,jj,kk] -> [p]: p= kk * 9999 + hr * 999 + hc }";
+                       " < BR && 0 <= hc < BC && ii = int_div(i - hr,BR)"
+		       " && jj = int_div(j - hc, BC)  && i = ii * 99 + hr &&"
+                       " j = jj * 999 + hc && i = is && j = js && 0 <= i < NR"
+		       " && 0 <= j < NC }";
+    bcsr->dataAccess = "{[hr,hc,ii,jj,kk, is , js] -> [p]: p= kk * 9999 + hr * 999 + hc }";
 
-    bcsr->knowns = { "BR","BC","NR", "NC", "NC_BC","NR_BR","BRBC"};
+    bcsr->knowns = { "BR","BC","NR", "NC", "NC_BC","NR_BR","BRBC","int_div"};
     bcsr->ufQuants = { UFQuant( "{[ii]: 0 <= ii <= NR_BR}",
                                 "{[ii]:0 <= ii < NR_BR}",
                                 "browptr",false, Monotonic_Nondecreasing),
@@ -59,10 +62,10 @@ int main(int argc, char**argv) {
 
 
     SparseFormat * csr = new SparseFormat();
-    csr->mapToDense = "{[i,k]->[i,j]: i >= 0 and i < NR and"
-                      " j >= 0 and j < NC and rowptr(i) <= k < rowptr(i+1)"
-                      " and j = col2(k)}";
-    csr->dataAccess = "{[i,k] -> [k]}";
+    csr->mapToDense = "{[ii,k, jj]->[i,j]: jj = j and ii= i and i >= 0 and i < NR and"
+                      " j >= 0 and j < NC and rowptr(ii) <= k < rowptr(ii+1)"
+                      " and jj = col2(k)}";
+    csr->dataAccess = "{[ii,k,jj] -> [k]}";
     csr->knowns = { "NR","NC","NNZ"};
     csr->dataConstraint = "A[k]!=0";
     csr->ufQuants = { UFQuant( "{[i]: 0 <= i <= NR}","{[x]:0 <= x < NNZ}",
@@ -77,10 +80,10 @@ int main(int argc, char**argv) {
 
 
     SparseFormat * csc = new SparseFormat();
-    csc->mapToDense = "{[j,k]->[i,j]: i >= 0 and i < NR and"
-                      " j >= 0 and j < NC and colptr(j) <= k < colptr(j+1)"
-                      " and i = row4(k)}";
-    csc->dataAccess = "{[i,k] -> [k]}";
+    csc->mapToDense = "{[jj,k,ii]->[i,j]: j = jj and  i = ii and  i >= 0 and i < NR and"
+                      " j >= 0 and j < NC and colptr(jj) <= k < colptr(jj+1)"
+                      " and ii = row4(k) and 0 <= jj < NC}";
+    csc->dataAccess = "{[jj,k,ii] -> [k]}";
     csc->knowns = { "NR","NC","NNZ"};
     csc->dataConstraint = "A[k]!=0";
     csc->ufQuants = { UFQuant( "{[i]: 0 <= i <= NR}","{[x]:0 <= x < NNZ}",
@@ -100,7 +103,7 @@ int main(int argc, char**argv) {
                       " && j = ii + off(dd) && 0 <= j < NC"
                       "}";
     // 99 is ND, direct replacement is required.
-    dia->dataAccess = "{[id,dd, jd] -> [kd]: kd = 99 * id + dd}";
+    dia->dataAccess = "{[id,dd, jj] -> [kd]: kd = 99 * id + dd}";
     dia->knowns = { "NR","NC","NNZ"};
     dia->ufQuants = { UFQuant( "{[i]: 0 <= i < ND}","{[x]:0 <= x < NNZ}",
                                "off",true, Monotonic_Increasing)};
@@ -113,7 +116,7 @@ int main(int argc, char**argv) {
     supportedFormats["DIA"] = dia;
 
     SparseFormat * mortonCoo = new SparseFormat();
-    mortonCoo->mapToDense = "{[n1] -> [i,j]:"
+    mortonCoo->mapToDense = "{[n1, i , j] -> [i,j]:"
                             " row3(n1) = i and 0 <= n1 and n1 < NNZ "
                             "and col3(n1) = j and  i >= 0 and "
                             " i < NR and j >= 0 and j < NC}";
@@ -130,7 +133,7 @@ int main(int argc, char**argv) {
                           };
 
     mortonCoo->dataConstraint = "A[n]!=0";
-    mortonCoo->dataAccess = "{[n] -> [n]}";
+    mortonCoo->dataAccess = "{[n1, i, j] -> [n1]}";
     supportedFormats["MCOO"] = mortonCoo;
     // Parse command line
     int currIndex = 1;

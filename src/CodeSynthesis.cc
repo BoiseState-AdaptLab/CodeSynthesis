@@ -162,6 +162,10 @@ Computation* CodeSynthesis::generateInspectorComputation() {
 
     // Convert trans relation to a set
     Set* transSet = transRel->ToSet();
+    
+    Set* noPermuteSet = new Set(*composeSet);
+
+    RemoveSymbolicConstraints(permutes,noPermuteSet);
 
 
     std::vector<std::string> unknowns;
@@ -224,6 +228,7 @@ Computation* CodeSynthesis::generateInspectorComputation() {
 
             }
         }
+
         // If there is just a single candidate. use
         // the generic case insert.
         if (permuteExpCandidate.size() == 1) {
@@ -254,7 +259,7 @@ Computation* CodeSynthesis::generateInspectorComputation() {
                                       caseP);
             // Get Domain for P
             iegenlib::Set* pDomain =
-                GetCaseDomain(permute,composeSet,pExp,caseP);
+                GetCaseDomain(permute,noPermuteSet,pExp,caseP);
 
             // remove constraints involving unknown UFs
             RemoveSymbolicConstraints(unknowns,pDomain);
@@ -336,8 +341,10 @@ Computation* CodeSynthesis::generateInspectorComputation() {
                 auto ufCase =
                     GetUFExpressionSynthCase(e,
                                              currentUF,transRel->inArity(),transRel->arity());
-                // IF UF satisifies synthesis case
-                if(ufCase !=UNDEFINED) {
+		std::cerr << "UF: "<< currentUF<< " Case:" << ufCase
+		       	<< " Exp: "<< e->prettyPrintString(transRel->getTupleDecl()) << "\n";
+		// IF UF satisifies synthesis case
+                if(ufCase !=UNDEFINED && ufCase != SELF_REF) {
                     expUfs.push_back({e,ufCase});
                 }
             }
@@ -446,7 +453,7 @@ Computation* CodeSynthesis::generateInspectorComputation() {
         delete stmtDomain;
         delete execSched;
     }
-
+    // Skip copy code for now
     // CodeGen (RS2->S1(I)) - Data copy Code
     iegenlib::Set* copyDomain = composeRel->ToSet();
     std::string copyStmt = GetCopyStmt(sourceDataName,destDataName,destMapR,
@@ -587,44 +594,55 @@ iegenlib::Set* CodeSynthesis::GetCaseDomain(std::string ufName,Set* s,
         Exp * constraint, SynthExpressionCase expCase) {
 
     Set * res;
-    if (expCase == CASE1) {
-        res = s->GetDomain(ufName);
-    } else {
-        // Get the maximum tuple variable
-        // present in this expression.
-        Exp * constr = constraint->clone();
-        // if this is CASE 5 evaluate the RHS instead.
-        if (expCase == CASE5) {
-            Term* t = findCallTerm(constr,ufName);
-            if (t!= NULL) {
-                Term* tClone = t->clone();
-                tClone->setCoefficient(1);
-                constr  = constraint->solveForFactor(tClone);
-            }
+    // Get the maximum tuple variable
+    // present in this expression.
+    Exp * constr = constraint->clone();
+    // if this is CASE 5 evaluate the RHS instead.
+    if (expCase == CASE5) {
+        Term* t = findCallTerm(constr,ufName);
+        if (t!= NULL) {
+            Term* tClone = t->clone();
+            tClone->setCoefficient(1);
+            // No longer needed.
+            delete constr;
+            constr  = constraint->solveForFactor(tClone);
         }
-        res = new Set(*s);
-        int maxTup = -1;
-        for(int i = 0; i < s->arity(); i++) {
-            TupleVarTerm t(1,i);
-            if(constr->dependsOn(t)) {
-                maxTup =  std::max(i,maxTup);
-            }
-        }
-
-        if (maxTup == -1) {
-            throw assert_exception("GetCaseDomain: no domain"
-                                   " available for expression");
-        }
-        // Project out tuple variables after
-        // maxTuple.
-        while(res->arity() - 1> maxTup ) {
-            Set * temp = res->projectOut(res->arity() - 1);
-            delete res;
-            res = temp;
-        }
+    } else if (expCase == CASE1) {
+        // For this case the domain
+        // is the domain of u in UF(u)
         delete constr;
+        // Create a constraint that contains
+        // the current UF.
+        constr = new Exp();
+        Term* t = findCallTerm(constraint,ufName);
+        constr->addTerm(t->clone());
+        constr->setEquality();
     }
+    res = new Set(*s);
+    int maxTup = -1;
+    for(int i = 0; i < s->arity(); i++) {
+        TupleVarTerm t(1,i);
+        if(constr->dependsOn(t)) {
+            maxTup =  std::max(i,maxTup);
+        }
+    }
+
+    if (maxTup == -1) {
+        throw assert_exception("GetCaseDomain: no domain"
+                               " available for expression");
+    }
+    // Project out tuple variables after
+    // maxTuple.
+    while(res->arity() - 1> maxTup ) {
+        Set * temp = res->projectOut(res->arity() - 1);
+        delete res;
+        res = temp;
+    }
+    std::cerr << "UF: "<< ufName << "\n set: " << s->prettyPrintString() 
+	    <<  "\n dom: "<< res->prettyPrintString() << " \n";
+    delete constr;
     return res;
+
 }
 
 CodeSynthesis::CodeSynthesis(SparseFormat* source,
@@ -640,7 +658,8 @@ CodeSynthesis::CodeSynthesis(SparseFormat* source,
     permutes = AddPermutationConstraint(invDestMap);
 
     composeRel = invDestMap->Compose(sourceMapR);
-
+    
+    std::cerr << "Compose Rel: "<< composeRel->prettyPrintString() << "\n"; 
 
 
 
@@ -648,9 +667,6 @@ CodeSynthesis::CodeSynthesis(SparseFormat* source,
 
     // Expanded candidates for statement selections.
     transRelExpanded = substituteDirectEqualities(transRel);
-    std::cout << "Statment Candidates: ";
-    std::cout << "\n " << transRelExpanded->prettyPrintString()
-              << " \n";
 
     sourceDataName = source->dataName;
     destDataName = dest->dataName;
@@ -1678,25 +1694,25 @@ std::string CodeSynthesis::GeneratePermuteConditions(std::string& permute,
     // parameter UF.
     if (ufIt != ufQuants.end()) {
         iegenlib::Set* domain = iegenlib::queryDomainCurrEnv(permute);
-	if (domain == NULL) return "";
+        if (domain == NULL) return "";
 
-	if (domain->arity() != 1){
-	    delete domain;
-	    throw iegenlib::assert_exception("arity greater than"
-			    " 1 is not courrently supported");
-	}
-	delete domain;
+        if (domain->arity() != 1) {
+            delete domain;
+            throw iegenlib::assert_exception("arity greater than"
+                                             " 1 is not courrently supported");
+        }
+        delete domain;
         ss << "if(";
         MonotonicType type = ufIt->type;
 
-        if (type == Monotonic_Increasing 
-			|| type == Monotonic_Nondecreasing) {
-	    ss << "a[0] < b[0]";
-        }else if (type == Monotonic_Decreasing 
-			|| type == Monotonic_Nonincreasing) {
-	    ss << "a[0] > b[0]";
+        if (type == Monotonic_Increasing
+                || type == Monotonic_Nondecreasing) {
+            ss << "a[0] < b[0]";
+        } else if (type == Monotonic_Decreasing
+                   || type == Monotonic_Nonincreasing) {
+            ss << "a[0] > b[0]";
         }
-	ss << ")\n return true ; \n";
+        ss << ")\n return true ; \n";
     }
 
     // Discover the range of the permute in
@@ -1879,9 +1895,11 @@ void CodeSynthesis::CreateIRComponent(std::string currentUF,
                                       SynthExpressionCase ufCase, Exp* exp,
                                       std::vector<std::string>& unknowns,
                                       iegenlib::Set* transSet) {
+    
     std::string expStmt =
         constraintToStatement(exp,
                               currentUF,transSet->getTupleDecl(),ufCase);
+    
     Set* ufDomain = GetCaseDomain(
                         currentUF,transSet,exp,ufCase);
 
