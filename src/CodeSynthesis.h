@@ -107,15 +107,21 @@ struct UFQuant {
 
 class CodeSynthesis {
 private:
-
+    
+    // Ignore not currently in use 
     // Special UFs
     std::vector<std::pair<std::string,SpecialUF>> specialUFs;
-
+    
+    // Ignore not currently in use.
     // Special UFs Arity
     std::map<std::string,int> specialUFArity;
 
+    // Contains permute and other growing functions.
     std::vector<std::string> permutes;
 
+    // Contains unknown functions
+    std::vector<std::string> unknowns;
+    
     // Permutes exhibiting merge attributes
     // TODO: Mege permutes with CASE1 and CASE2
     // CASE1, p0->insert({t1,t2})
@@ -461,14 +467,12 @@ public:
     static std::string GetCopyStmt(std::string sourceDataName, std::string destDataName,
                                    Relation* destMapR, Relation* sourceMap);
 
-    static  std::vector<std::pair<std::string,std::string>>
-            getCopyWriteAccess(Relation* destMapR, std::string destDataName,
-                               Set* domain);
+    std::vector<std::pair<std::string,std::string>>
+            getCopyWriteAccess();
 
 
-    static  std::vector<std::pair<std::string,std::string>>
-            getCopyReadAccess(Relation* sourceMapR, std::string sourceDataName,
-                              Set* domain);
+    std::vector<std::pair<std::string,std::string>>
+            getCopyReadAccess();
     // Function removes an expression from a constraint
     static void RemoveConstraint(SparseConstraints* sp, Exp* e);
 

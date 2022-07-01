@@ -168,17 +168,7 @@ Computation* CodeSynthesis::generateInspectorComputation() {
     RemoveSymbolicConstraints(permutes,noPermuteSet);
 
 
-    std::vector<std::string> unknowns;
 
-    iegenlib::StringIterator* iter = destMapR->getSymbolIterator();
-    while (iter->hasNext()) {
-        std::string symb = iter->next();
-        // Exclude symbols that have already been specified to be
-        // known.
-        if (std::find(knowns.begin(),knowns.end(),symb) == knowns.end()) {
-            unknowns.push_back( symb );
-        }
-    }
     int executionScheduleIndex  = 0;
     std::vector<std::string> removedPermutes;
     auto permIt = permutes.begin();
@@ -394,7 +384,8 @@ Computation* CodeSynthesis::generateInspectorComputation() {
                 permutes.push_back(currentUF);
                 UFCallTerm* ut = dynamic_cast<UFCallTerm*>(
                                      findCallTerm(it->first,currentUF));
-                if(ut!=NULL) {
+                
+		if(ut!=NULL && queryMonoTypeEnv(currentUF)!= Monotonic_NONE) {
                     CreateSortIRComponent(ut,inspector,executionScheduleIndex++);
                 }
             }
@@ -461,8 +452,8 @@ Computation* CodeSynthesis::generateInspectorComputation() {
     iegenlib::Relation* execSchedule =
         getExecutionSchedule(
             copyDomain,executionScheduleIndex++);
-    auto copyReads = getCopyReadAccess(sourceMapR,sourceDataName,copyDomain);
-    auto copyWrites = getCopyWriteAccess(destMapR,destDataName,copyDomain);
+    auto copyReads = getCopyReadAccess();
+    auto copyWrites = getCopyWriteAccess();
     inspector->addStmt(new Stmt(copyStmt,copyDomain->prettyPrintString(),
                                 execSchedule->prettyPrintString(),copyReads,
                                 copyWrites));
@@ -706,6 +697,18 @@ CodeSynthesis::CodeSynthesis(SparseFormat* source,
 
     for(auto known : source->knowns) {
         knowns.push_back(known);
+    }
+
+    // Setup unknowns.
+    
+    iegenlib::StringIterator* iter = destMapR->getSymbolIterator();
+    while (iter->hasNext()) {
+        std::string symb = iter->next();
+        // Exclude symbols that have already been specified to be
+        // known.
+        if (std::find(knowns.begin(),knowns.end(),symb) == knowns.end()) {
+            unknowns.push_back( symb );
+        }
     }
 }
 
@@ -1331,46 +1334,18 @@ std::string CodeSynthesis::GetCopyStmt(std::string sourceDataName, std::string d
 }
 
 std::vector<std::pair<std::string,std::string>>
-        CodeSynthesis::getCopyWriteAccess(Relation* destMap, std::string destDataName,
-Set* domain) {
-    std::stringstream ss;
-    bool isFirst = true;
-    ss <<"[";
-    for(int i =0; i < destMap->inArity(); i++) {
-        if(isFirst) {
-            ss << destMap->getTupleDecl().elemVarString(i);
-            isFirst = false;
-        } else {
-            ss << "," <<  destMap->getTupleDecl().elemVarString(i);
-        }
-    }
-    ss << "]";
+        CodeSynthesis::getCopyWriteAccess() {
     std::vector<std::pair<std::string,std::string>>res;
-    res.push_back({destDataName,"{"+domain->getTupleDecl().
-                   toString(true)+" -> "+ss.str()+"}"});
+    res.push_back({destDataName,destDataAccessMap->prettyPrintString()});
     return res;
 }
 
 
 std::vector<std::pair<std::string,std::string>>
-        CodeSynthesis::getCopyReadAccess(Relation* sourceMap,
-                std::string sourceDataName,
-Set* domain) {
-    bool isFirst = true;
-    std::stringstream ss;
-    ss <<"[";
-    for(int i =0; i < sourceMap->inArity(); i++) {
-        if(isFirst) {
-            ss << sourceMap->getTupleDecl().elemVarString(i);
-            isFirst = false;
-        } else {
-            ss << "," <<  sourceMap->getTupleDecl().elemVarString(i);
-        }
-    }
-    ss << "]";
+        CodeSynthesis::getCopyReadAccess() {
+    // This is now the source data access
     std::vector<std::pair<std::string,std::string>>res;
-    res.push_back({sourceDataName,"{"+domain->getTupleDecl().
-                   toString(true)+" -> "+ss.str()+"}"});
+    res.push_back({sourceDataName,sourceDataAccessMap->prettyPrintString()});
     return res;
 }
 
@@ -1518,13 +1493,12 @@ std::string CodeSynthesis::generateFullCode(std::vector<int>& fuseStmts,
     ss <<code;
 
     for(auto permute: permutes) {
+        // Dont delete functions that are 
+	// part of unknowns.
+	
         ss << "delete "<< permute << "; \n";
     }
 
-
-    for(auto spec : specialUFs) {
-        ss << "delete "<< spec.first << "; \n";
-    }
     delete comp;
     return ss.str();
 }

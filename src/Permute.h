@@ -22,9 +22,11 @@ using Comparator = std::function<bool (std::vector<T>&,std::vector<T>&)>;
 template < typename C>
 class PermuteSimp {
    C comp;
+   int originalPos;
    std::vector<std::vector<int>> pos;
 public:
    PermuteSimp(C comp): comp(comp){
+      originalPos = 0;
    }
    void insert(std::vector<int> val){
       //ensure this is a function

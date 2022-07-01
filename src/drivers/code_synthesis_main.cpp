@@ -40,8 +40,8 @@ int main(int argc, char**argv) {
     SparseFormat * bcsr = new SparseFormat();
     bcsr->mapToDense = "{[ii,kk,jj,hr,hc, is, js]->[i,j] : 0<= ii < NR_BR &&"
                        " browptr(ii) <= kk < browptr(ii+ 1) && jj= bcol(kk) && 0 <= hr"
-                       " < BR && 0 <= hc < BC && ii = int_div(i - hr,BR)"
-		       " && jj = int_div(j - hc, BC)  && i = ii * 99 + hr &&"
+                       " < BR && 0 <= hc < BC && ii = int_div(i ,BR)"
+		       " && jj = int_div(j , BC)  && i = ii * 99 + hr &&"
                        " j = jj * 999 + hc && i = is && j = js && 0 <= i < NR"
 		       " && 0 <= j < NC }";
     bcsr->dataAccess = "{[hr,hc,ii,jj,kk, is , js] -> [p]: p= kk * 9999 + hr * 999 + hc }";
