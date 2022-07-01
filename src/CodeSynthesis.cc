@@ -162,7 +162,7 @@ Computation* CodeSynthesis::generateInspectorComputation() {
 
     // Convert trans relation to a set
     Set* transSet = transRel->ToSet();
-    
+
     Set* noPermuteSet = new Set(*composeSet);
 
     RemoveSymbolicConstraints(permutes,noPermuteSet);
@@ -331,9 +331,7 @@ Computation* CodeSynthesis::generateInspectorComputation() {
                 auto ufCase =
                     GetUFExpressionSynthCase(e,
                                              currentUF,transRel->inArity(),transRel->arity());
-		std::cerr << "UF: "<< currentUF<< " Case:" << ufCase
-		       	<< " Exp: "<< e->prettyPrintString(transRel->getTupleDecl()) << "\n";
-		// IF UF satisifies synthesis case
+                // IF UF satisifies synthesis case
                 if(ufCase !=UNDEFINED && ufCase != SELF_REF) {
                     expUfs.push_back({e,ufCase});
                 }
@@ -384,8 +382,8 @@ Computation* CodeSynthesis::generateInspectorComputation() {
                 permutes.push_back(currentUF);
                 UFCallTerm* ut = dynamic_cast<UFCallTerm*>(
                                      findCallTerm(it->first,currentUF));
-                
-		if(ut!=NULL && queryMonoTypeEnv(currentUF)!= Monotonic_NONE) {
+
+                if(ut!=NULL && queryMonoTypeEnv(currentUF)!= Monotonic_NONE) {
                     CreateSortIRComponent(ut,inspector,executionScheduleIndex++);
                 }
             }
@@ -629,8 +627,6 @@ iegenlib::Set* CodeSynthesis::GetCaseDomain(std::string ufName,Set* s,
         delete res;
         res = temp;
     }
-    std::cerr << "UF: "<< ufName << "\n set: " << s->prettyPrintString() 
-	    <<  "\n dom: "<< res->prettyPrintString() << " \n";
     delete constr;
     return res;
 
@@ -649,8 +645,7 @@ CodeSynthesis::CodeSynthesis(SparseFormat* source,
     permutes = AddPermutationConstraint(invDestMap);
 
     composeRel = invDestMap->Compose(sourceMapR);
-    
-    std::cerr << "Compose Rel: "<< composeRel->prettyPrintString() << "\n"; 
+
 
 
 
@@ -697,7 +692,7 @@ CodeSynthesis::CodeSynthesis(SparseFormat* source,
     }
 
     // Setup unknowns.
-    
+
     iegenlib::StringIterator* iter = destMapR->getSymbolIterator();
     while (iter->hasNext()) {
         std::string symb = iter->next();
@@ -1331,7 +1326,7 @@ std::string CodeSynthesis::GetCopyStmt(std::string sourceDataName, std::string d
 }
 
 std::vector<std::pair<std::string,std::string>>
-        CodeSynthesis::getCopyWriteAccess() {
+CodeSynthesis::getCopyWriteAccess() {
     std::vector<std::pair<std::string,std::string>>res;
     res.push_back({destDataName,destDataAccessMap->prettyPrintString()});
     return res;
@@ -1339,7 +1334,7 @@ std::vector<std::pair<std::string,std::string>>
 
 
 std::vector<std::pair<std::string,std::string>>
-        CodeSynthesis::getCopyReadAccess() {
+CodeSynthesis::getCopyReadAccess() {
     // This is now the source data access
     std::vector<std::pair<std::string,std::string>>res;
     res.push_back({sourceDataName,sourceDataAccessMap->prettyPrintString()});
@@ -1395,42 +1390,51 @@ std::string CodeSynthesis::generateFullCode(std::vector<int>& fuseStmts,
     // #define <sourceDataName>(i) <sourceDataName>[i]
     // #define <destDataName>(i) <destDataName>[
     bool isFirst = true;
-    std::string srcD1 = sourceDataName+ "(";
-    for(int i =0; i < sourceMapR->inArity(); i++) {
+    ss << "#define ";
+    ss << sourceDataName << "(";
+    for(int i =0; i < sourceDataAccessMap->inArity(); i++) {
         if(isFirst) {
-            srcD1+= sourceMapR->getTupleDecl().elemVarString(i);
+            ss <<  sourceDataAccessMap->getTupleDecl().elemVarString(i);
             isFirst = false;
         } else {
-            srcD1 += ","  + sourceMapR->getTupleDecl().elemVarString(i);
+            ss << ","  <<  sourceDataAccessMap->getTupleDecl().elemVarString(i);
         }
     }
-    srcD1 += ")";
+    ss << ")";
 
-    std::string srcD2 = sourceDataName;
-    for(int i=0; i < sourceDataAccessMap->outArity(); i++) {
-        srcD2 += "[" + sourceDataAccessMap->getTupleDecl().
-                 elemVarString(i+sourceDataAccessMap->inArity()) + "]";
+    ss << " " << sourceDataName;
+    for(int i=sourceDataAccessMap->inArity(); i < sourceDataAccessMap->arity(); i++) {
+        TupleVarTerm tv (i);
+        auto resolvedExp = getEqualExpr(sourceDataAccessMap,&tv);
+
+        ss << "[" << (resolvedExp!=NULL? resolvedExp->prettyPrintString
+                      (sourceDataAccessMap->getTupleDecl()):
+                      sourceDataAccessMap->getTupleDecl().elemVarString(i))   << "]";
     }
-
-    ss << "#define " << srcD1 << " "<< srcD2 << "\n";
+    ss << "\n";
     isFirst = true;
-    std::string destD1 = destDataName+ "(";
-    for(int i =0; i < destMapR->inArity(); i++) {
+    ss << "#define ";
+    ss << destDataName << "(";
+    for(int i =0; i < destDataAccessMap->inArity(); i++) {
         if(isFirst) {
-            destD1+= destMapR->getTupleDecl().elemVarString(i);
+            ss <<  destDataAccessMap->getTupleDecl().elemVarString(i);
             isFirst = false;
         } else {
-            destD1 += ","  + destMapR->getTupleDecl().elemVarString(i);
+            ss << ","  <<  destDataAccessMap->getTupleDecl().elemVarString(i);
         }
     }
-    destD1 += ")";
+    ss << ")";
 
-    std::string destD2 = destDataName;
-    for(int i=0; i < destDataAccessMap->outArity(); i++) {
-        destD2 += "[" + destDataAccessMap->getTupleDecl().
-                  elemVarString(i+destDataAccessMap->inArity()) + "]";
+    ss << " " << destDataName;
+    for(int i=destDataAccessMap->inArity(); i < destDataAccessMap->arity(); i++) {
+        TupleVarTerm tv (i);
+        auto resolvedExp = getEqualExpr(destDataAccessMap,&tv);
+
+        ss << "[" << (resolvedExp!=NULL? resolvedExp->prettyPrintString
+                      (destDataAccessMap->getTupleDecl()):
+                      destDataAccessMap->getTupleDecl().elemVarString(i))   << "]";
     }
-    ss << "#define " << destD1 << " "<< destD2 << "\n";
+    ss << "\n";
     std::string code = comp->codeGen();
 
     for(auto permute : permutes) {
@@ -1461,19 +1465,19 @@ std::string CodeSynthesis::generateFullCode(std::vector<int>& fuseStmts,
     ss <<code;
 
     for(auto permute: permutes) {
-        // Dont delete functions that are 
-	// part of unknowns.
+        // Dont delete functions that are
+        // part of unknowns.
         if (std::find(unknowns.begin(),unknowns.end(),permute)
-			== unknowns.end()){
+                == unknowns.end()) {
 
             ss << "delete "<< permute << "; \n";
-	}	
+        }
     }
 
     delete comp;
     return ss.str();
 }
-
+// This header is depricated. and Perumte.h is used
 std::string CodeSynthesis::GetSupportHeader() {
     std::stringstream ss;
     ss << "#ifndef SYNTH_HEADER\n";
@@ -1593,6 +1597,22 @@ bool CodeSynthesis::IsTupleBoundedByUnknown(TupleVarTerm& t,
         std::vector<std::string>& unknowns) {
     return false;
 }
+
+Exp* CodeSynthesis::getEqualExpr(SparseConstraints* sc, const Term* t) {
+    Exp * res = NULL;
+    for(auto conj =  sc->conjunctionBegin();
+            conj!= sc->conjunctionEnd(); conj++) {
+        for( auto exp: (*conj)->equalities()) {
+            if (exp->dependsOn(*t)) {
+                res = exp->solveForFactor(t->clone());
+                break;
+
+            }
+        }
+    }
+    return res;
+}
+
 
 // class ExpComparatorVisitor generates expression
 // for comparator.
@@ -1840,11 +1860,11 @@ void CodeSynthesis::CreateIRComponent(std::string currentUF,
                                       SynthExpressionCase ufCase, Exp* exp,
                                       std::vector<std::string>& unknowns,
                                       iegenlib::Set* transSet) {
-    
+
     std::string expStmt =
         constraintToStatement(exp,
                               currentUF,transSet->getTupleDecl(),ufCase);
-    
+
     Set* ufDomain = GetCaseDomain(
                         currentUF,transSet,exp,ufCase);
 

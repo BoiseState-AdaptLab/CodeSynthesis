@@ -219,7 +219,12 @@ public:
     /// \return true if abs(a) is equal to abs(b)
     static bool compareAbsTerms(const Term * a, const Term* b);
 
-
+    
+    // Function returns the expression the term is equal to.
+    // \param  sc sparse constraint. not adopted
+    // \param  t  term being serched for. adopted
+    // \return expresssion is owned by the caller
+    static Exp* getEqualExpr(SparseConstraints* sc, const Term * t);
 
 
     static std::string constraintToStatement(Exp* constraint,
