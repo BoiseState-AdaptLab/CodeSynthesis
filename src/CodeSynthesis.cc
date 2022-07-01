@@ -687,9 +687,6 @@ CodeSynthesis::CodeSynthesis(SparseFormat* source,
         ufQuants.push_back(uf);
     }
 
-    for(auto specialUf: dest->specialUFs) {
-        specialUFs.push_back(specialUf);
-    }
 
     for(auto known : dest->knowns) {
         knowns.push_back(known);
@@ -1435,35 +1432,6 @@ std::string CodeSynthesis::generateFullCode(std::vector<int>& fuseStmts,
     }
     ss << "#define " << destD1 << " "<< destD2 << "\n";
     std::string code = comp->codeGen();
-    // Hack: Add special ufs to permutes
-    // so they act the same way for macro
-    // replaceemnt
-    for(auto spec : specialUFs) {
-        std::string specUF = spec.first;
-        // Replace spec[][] access to spec->get({});
-        // #define spec(i,j) spec[i][j] becomes:
-        // #define spec(i,j) spec->get({i,j})
-        std::string p1 = specUF+ "(";
-        std::string p2 = specUF;
-        std::string p3 = specUF+ "->get({";
-        isFirst = true;
-        for (int i =0 ; i < specialUFArity[specUF]; i++) {
-            if(isFirst) {
-                p1+="t" + std::to_string(i);
-                p3+="t" + std::to_string(i);
-                isFirst = false;
-            } else {
-                p1+=",t"+ std::to_string(i);
-                p3+=",t"+ std::to_string(i);
-            }
-            p2+="[t" + std::to_string(i)+ "]";
-        }
-        p1 += ")";
-        p3 += "})";
-        std::string toReplace  = "#define "+ p1 + " "+ p2;
-        std::string replacement = "#define "+ p1 + " "+ p3;
-        Utils::replaceAllString(code, toReplace,replacement);
-    }
 
     for(auto permute : permutes) {
         // Replace P[][] access to P->get({});
@@ -1495,8 +1463,11 @@ std::string CodeSynthesis::generateFullCode(std::vector<int>& fuseStmts,
     for(auto permute: permutes) {
         // Dont delete functions that are 
 	// part of unknowns.
-	
-        ss << "delete "<< permute << "; \n";
+        if (std::find(unknowns.begin(),unknowns.end(),permute)
+			== unknowns.end()){
+
+            ss << "delete "<< permute << "; \n";
+	}	
     }
 
     delete comp;
