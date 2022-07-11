@@ -212,7 +212,22 @@ Computation* CodeSynthesis::generateInspectorComputationCathie() {
 		std::cerr << "UF: "<< currentUF<< " Case:" << ufCase
 		       	<< " Exp: "<< e->prettyPrintString(transRel->getTupleDecl()) << "\n";
 		// IF UF satisifies synthesis case
-                if(ufCase !=UNDEFINED && ufCase != SELF_REF) {
+	    iegenlib::Set* pDomain=GetCaseDomain(currentUF,transSet, e, ufCase);
+      std::cerr << "SET: " << pDomain->prettyPrintString() << std::endl;
+      // Look through the expression list of this set and see if there
+      // are any unknowns, if there are we can't use it (set a flag)
+      int usesUK = 0;
+      Conjunction * conj1 = *pDomain->conjunctionBegin();
+      std::list<iegenlib::Exp*> expList1 = getExprs(conj1);
+      for(auto e1 : expList1 ){
+         for(auto uk : unknownsCopy){ 
+           if(findCallTerm(e1,uk)){
+             usesUK = 1;
+           }
+        }
+      }
+		
+                if(ufCase !=UNDEFINED && ufCase != SELF_REF && !usesUK) {
     std::cerr << "CANDIDATE!\n";
                     expUfs.push_back({e,ufCase});
                 }
