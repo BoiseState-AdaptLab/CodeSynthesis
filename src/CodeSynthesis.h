@@ -127,6 +127,7 @@ private:
 
     Relation* sourceMapR;
     Relation* destMapR;
+    Relation* invDestMap;
 
     // Source and destination
     std::string sourceDataName;
@@ -164,6 +165,7 @@ private:
 
     /// Generates inspector computation.
     /// \return Computation object, representing the synthesis.
+    Computation*  generateInspectorComputationCathie();
     Computation*  generateInspectorComputation ();
 
     /// Generates a comparator based on self referential

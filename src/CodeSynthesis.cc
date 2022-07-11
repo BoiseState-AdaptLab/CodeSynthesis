@@ -150,6 +150,147 @@ CodeSynthesis::~CodeSynthesis() {
     delete transRelExpanded;
 }
 
+Computation* CodeSynthesis::generateInspectorComputationCathie() {
+
+   // Before beginning take a look at the relation after transitive closure
+   std::cerr << "Compose Rel Transitive Closure: "<< transRelExpanded->prettyPrintString() << "\n"; 
+
+
+    Computation* inspector = new Computation();
+    // Convert trans relation to a set
+    Set* transSet = transRel->ToSet();
+    int executionScheduleIndex  = 0;
+
+    // This is the composed relation after transitive closure.
+    // conj is the list of constraints (conjuctions)
+    // exprList is an easier way to deal with constraints.
+    Conjunction * conj = *transRelExpanded->conjunctionBegin();
+    std::list<iegenlib::Exp*> expList = getExprs(conj);
+
+    std::vector<std::string> unknowns;
+
+    // from the relation - make a list of all unknown symbols
+    //iegenlib::StringIterator* iter = destMapR->getSymbolIterator();
+    iegenlib::StringIterator* iter = invDestMap->getSymbolIterator();
+    std::cerr << "destMapR "<< destMapR->prettyPrintString() << "\n"; 
+    
+    while (iter->hasNext()) {
+        std::string symb = iter->next();
+        // Exclude symbols that have already been specified to be
+        // known.
+        if (std::find(knowns.begin(),knowns.end(),symb) == knowns.end()) {
+            unknowns.push_back( symb );
+        }
+    }
+    std::cerr << "Debugging: knowns: " << std::endl;
+    for (auto i : knowns){
+       std::cerr << i << std::endl;
+    }
+    std::cerr << "Debugging: unknowns: " << std::endl;
+    for (auto i : unknowns){
+       std::cerr << i << std::endl;
+    }
+
+    auto unknownsCopy = unknowns;
+    int tryCount = 0 ;
+    while(unknownsCopy.size() != 0) {
+        tryCount++;
+        if (tryCount >= MAX_TRIES) {
+            break;
+            //throw assert_exception("Synthesis Failed!");
+        }
+        std::string currentUF = unknownsCopy.back();
+        // Get all the list of viable candidates
+        // for the current UF
+        std::list<std::pair<iegenlib::Exp*,SynthExpressionCase>> expUfs;
+        for(auto e : expList) {
+            if(findCallTerm(e,currentUF)!=NULL) {
+                // Get case a uf in a constraint falls into.
+                auto ufCase =
+                    GetUFExpressionSynthCase(e,
+                                             currentUF,transRel->inArity(),transRel->arity());
+		std::cerr << "UF: "<< currentUF<< " Case:" << ufCase
+		       	<< " Exp: "<< e->prettyPrintString(transRel->getTupleDecl()) << "\n";
+		// IF UF satisifies synthesis case
+                if(ufCase !=UNDEFINED && ufCase != SELF_REF) {
+    std::cerr << "CANDIDATE!\n";
+                    expUfs.push_back({e,ufCase});
+                }
+            }
+        }
+
+        // found no candidates for this UF
+        if (expUfs.size() == 0 ) {
+            tryCount++;
+            // Pop and put to the front of the list
+            unknownsCopy.pop_back();
+            unknownsCopy.insert(unknownsCopy.begin(),currentUF);
+            continue;
+        }
+        // Check for prefered conditions among candidate
+        // If equality & rhs is a function of known, we
+        // care about such conditions and ignore other candidates
+        auto it  = std::find_if(expUfs.begin(),expUfs.end(),
+        [&](std::pair<iegenlib::Exp*,SynthExpressionCase> a) {
+            if (a.second == CASE3 || a.second == CASE4)
+                return false;
+            Exp* constr = a.first;
+            Term* term = findCallTerm(constr,currentUF);
+            Term* tClone = term->clone();
+            tClone->setCoefficient(1);
+            Exp* solvedFor = constr->solveForFactor(tClone);
+            if (solvedFor== NULL)
+                return false;
+            // Contains unknownsCopy
+            bool containsUnknown = false;
+            for(auto unknown: unknownsCopy) {
+                if (findCallTerm(solvedFor,unknown) != NULL)
+                    containsUnknown = true;
+            }
+            delete solvedFor;
+
+            // This candidate is only viable if the current UF Term
+            // domain is bounded by unknownsCopy.
+            return !containsUnknown &&
+                   IsDomainBoundedByUnknown(term,unknownsCopy,composeRel);
+        });
+
+        if ( it != expUfs.end()) {
+      std::cerr << "adding statement to IR";
+            CreateIRComponent(currentUF,inspector,executionScheduleIndex++, it->second,
+                              it->first,unknownsCopy,transSet);
+            // Remove from unknown list since this has been solved.
+            unknownsCopy.pop_back();
+            if (it->second == CASE5) {
+                permutes.push_back(currentUF);
+                UFCallTerm* ut = dynamic_cast<UFCallTerm*>(
+                                     findCallTerm(it->first,currentUF));
+                if(ut!=NULL) {
+                    CreateSortIRComponent(ut,inspector,executionScheduleIndex++);
+                }
+            }
+
+
+            continue;
+        }
+        //for(auto ufExpPair: expUfs) {
+      //std::cerr << "adding statement to IR2\n";
+            // Avoid Generating code for Case5 that is bounded by
+            //if (ufExpPair.second == CASE5 ) {
+                //continue;
+            //}
+            //CreateIRComponent(currentUF,inspector,executionScheduleIndex++, ufExpPair.second,
+                              //ufExpPair.first,unknownsCopy,transSet);
+        //}
+
+        unknownsCopy.pop_back();
+    }
+
+
+
+    return inspector;
+}
+
 Computation* CodeSynthesis::generateInspectorComputation() {
     Computation* inspector = new Computation();
     // transRelExpanded contains more constraints
@@ -162,6 +303,7 @@ Computation* CodeSynthesis::generateInspectorComputation() {
 
     // Convert trans relation to a set
     Set* transSet = transRel->ToSet();
+    int executionScheduleIndex  = 0;
     
     Set* noPermuteSet = new Set(*composeSet);
 
@@ -179,7 +321,6 @@ Computation* CodeSynthesis::generateInspectorComputation() {
             unknowns.push_back( symb );
         }
     }
-    int executionScheduleIndex  = 0;
     std::vector<std::string> removedPermutes;
     auto permIt = permutes.begin();
     while (permIt != permutes.end()) {
@@ -281,7 +422,7 @@ Computation* CodeSynthesis::generateInspectorComputation() {
                 GetReads(permute,pExp,caseP,pDomain->arity());
 
 
-            addToDataSpace(*inspector,reads, "double");
+            addToDataSpace(*inspector,reads, "int");
             // Writes to P is considered a single data space
             // but read from P is a 2d data space
             //addToDataSpace((*inspector),
@@ -653,7 +794,8 @@ CodeSynthesis::CodeSynthesis(SparseFormat* source,
         throw assert_exception("CodeSynthesis:: Format Descriptor map must"
                                " have the same output arity");
     }
-    auto invDestMap = destMapR->Inverse();
+    //auto invDestMap = destMapR->Inverse();
+    invDestMap = destMapR->Inverse();
     // Add the Permutation constraint.
     permutes = AddPermutationConstraint(invDestMap);
 
@@ -901,16 +1043,17 @@ SynthExpressionCase expCase,int arity) {
     }
     // Solve for UF term.
     Term* ufClone = term->clone();
-    ufClone->setCoefficient(1);
-    if (expCase == CASE1 || expCase == CASE5 || expCase == MERGECASE) {
+    //ufClone->setCoefficient(1);
+    //if (expCase == CASE1 || expCase == CASE5 || expCase == MERGECASE) {
         // This is for case 1 where
         // we have an insert abstraction
-        TupleDecl tdl(arity);
-        result.push_back({uf,"{"+tdl.toString(true)+
-                          "->[0]}"});
-    } else if (expCase ==  CASE2 ||
-               expCase == CASE3 ||
-               expCase == CASE4|| expCase == SELF_REF ) {
+        //TupleDecl tdl(arity);
+//std::cerr << "Arity is: " << arity << std::endl;
+        //result.push_back({uf,"{"+tdl.toString(true)+
+                          //"->"+tdl.toString(true)+"}"});
+    //} else if (expCase ==  CASE2 ||
+               //expCase == CASE3 ||
+               //expCase == CASE4|| expCase == SELF_REF ) {
         DataAccessVisitor dV(arity);
         term->acceptVisitor(&dV);
         // We know there is only one UF write,
@@ -921,7 +1064,7 @@ SynthExpressionCase expCase,int arity) {
                 result.push_back(dAccess);
             }
         }
-    }
+    //}
     return result;
 }
 
@@ -1377,7 +1520,7 @@ Set* domain) {
 
 std::string CodeSynthesis::generateFullCode(std::vector<int>& fuseStmts,
         int level) {
-    Computation* comp = generateInspectorComputation();
+    Computation* comp = generateInspectorComputationCathie();
     //std::cout << "=======IR Before Opt======\n";
     comp->printInfo();
     // std::cout << "=======IR-END====\n";
@@ -1899,6 +2042,7 @@ void CodeSynthesis::CreateIRComponent(std::string currentUF,
     std::string expStmt =
         constraintToStatement(exp,
                               currentUF,transSet->getTupleDecl(),ufCase);
+std::cerr << "Statement: " << expStmt << std::endl;
     
     Set* ufDomain = GetCaseDomain(
                         currentUF,transSet,exp,ufCase);
@@ -1923,6 +2067,9 @@ void CodeSynthesis::CreateIRComponent(std::string currentUF,
 
     RemoveSymbolicConstraints(unknowns,ufDomain);
 
+    std::cerr << "ufDomain: " << ufDomain->prettyPrintString() << std::endl;
+    std::cerr << "ufDomain Arity: " << ufDomain->arity() << std::endl;
+
     // Get reads and writes.
     auto ufWrites =
         GetWrites(currentUF,exp,ufCase,ufDomain->arity());
@@ -1931,13 +2078,14 @@ void CodeSynthesis::CreateIRComponent(std::string currentUF,
     auto ufReads =
         GetReads(currentUF,exp,ufCase,ufDomain->arity());
 
+
     // add data spaces for reads and writes to
     // IR
     addToDataSpace((*comp),
-                   ufReads, "double");
+                   ufReads, "int");
 
     addToDataSpace((*comp),
-                   ufWrites, "double");
+                   ufWrites, "int");
 
     // Get execution schedule
     iegenlib::Relation* ufExecSched =
