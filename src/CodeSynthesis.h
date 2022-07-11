@@ -15,7 +15,7 @@ namespace code_synthesis {
 #define PERMUTE_NAME "P"
 // Number of times to retry synthesis
 // before failing.
-#define MAX_TRIES 200
+#define MAX_TRIES 20
 /// Class contains functionality to generate SPF Computation
 /// from a Relation and a Set. The relation is a mapping from
 /// a previous space to a new space.

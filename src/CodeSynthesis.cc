@@ -200,6 +200,7 @@ Computation* CodeSynthesis::generateInspectorComputationCathie() {
             //throw assert_exception("Synthesis Failed!");
         }
         std::string currentUF = unknownsCopy.back();
+        unknownsCopy.pop_back();
         // Get all the list of viable candidates
         // for the current UF
         std::list<std::pair<iegenlib::Exp*,SynthExpressionCase>> expUfs;
@@ -211,22 +212,24 @@ Computation* CodeSynthesis::generateInspectorComputationCathie() {
                                              currentUF,transRel->inArity(),transRel->arity());
 		std::cerr << "UF: "<< currentUF<< " Case:" << ufCase
 		       	<< " Exp: "<< e->prettyPrintString(transRel->getTupleDecl()) << "\n";
-		// IF UF satisifies synthesis case
-	    iegenlib::Set* pDomain=GetCaseDomain(currentUF,transSet, e, ufCase);
-      std::cerr << "SET: " << pDomain->prettyPrintString() << std::endl;
-      // Look through the expression list of this set and see if there
-      // are any unknowns, if there are we can't use it (set a flag)
-      int usesUK = 0;
-      Conjunction * conj1 = *pDomain->conjunctionBegin();
-      std::list<iegenlib::Exp*> expList1 = getExprs(conj1);
-      for(auto e1 : expList1 ){
-         for(auto uk : unknownsCopy){ 
-           if(findCallTerm(e1,uk)){
-             usesUK = 1;
-           }
-        }
-      }
+
+
+	              iegenlib::Set* pDomain=GetCaseDomain(currentUF,transSet, e, ufCase);
+                std::cerr << "SET: " << pDomain->prettyPrintString() << std::endl;
+                // Look through the expression list of this set and see if there
+                // are any unknowns, if there are we can't use it (set a flag)
+                int usesUK = 0;
+                Conjunction * conj1 = *pDomain->conjunctionBegin();
+                std::list<iegenlib::Exp*> expList1 = getExprs(conj1);
+                for(auto e1 : expList1 ){
+                   for(auto uk : unknownsCopy){ 
+                     if(findCallTerm(e1,uk)){
+                       usesUK = 1;
+                     }
+                  }
+                }
 		
+		            // IF UF satisifies synthesis case
                 if(ufCase !=UNDEFINED && ufCase != SELF_REF && !usesUK) {
     std::cerr << "CANDIDATE!\n";
                     expUfs.push_back({e,ufCase});
@@ -238,10 +241,11 @@ Computation* CodeSynthesis::generateInspectorComputationCathie() {
         if (expUfs.size() == 0 ) {
             tryCount++;
             // Pop and put to the front of the list
-            unknownsCopy.pop_back();
             unknownsCopy.insert(unknownsCopy.begin(),currentUF);
             continue;
         }
+        std::cerr << "WE HAVE A CANDIDATE!!\n";
+
         // Check for prefered conditions among candidate
         // If equality & rhs is a function of known, we
         // care about such conditions and ignore other candidates
@@ -754,7 +758,7 @@ iegenlib::Set* CodeSynthesis::GetCaseDomain(std::string ufName,Set* s,
     // present in this expression.
     Exp * constr = constraint->clone();
     // if this is CASE 5 evaluate the RHS instead.
-    if (expCase == CASE5) {
+    /*if (expCase == CASE5) {
         Term* t = findCallTerm(constr,ufName);
         if (t!= NULL) {
             Term* tClone = t->clone();
@@ -773,7 +777,7 @@ iegenlib::Set* CodeSynthesis::GetCaseDomain(std::string ufName,Set* s,
         Term* t = findCallTerm(constraint,ufName);
         constr->addTerm(t->clone());
         constr->setEquality();
-    }
+    }*/
     res = new Set(*s);
     int maxTup = -1;
     for(int i = 0; i < s->arity(); i++) {
@@ -782,6 +786,7 @@ iegenlib::Set* CodeSynthesis::GetCaseDomain(std::string ufName,Set* s,
             maxTup =  std::max(i,maxTup);
         }
     }
+    std::cerr << "Projecting through " << maxTup << std::endl;
 
     if (maxTup == -1) {
         throw assert_exception("GetCaseDomain: no domain"
