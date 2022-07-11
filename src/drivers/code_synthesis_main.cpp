@@ -62,7 +62,8 @@ int main(int argc, char**argv) {
 
 
     SparseFormat * csr = new SparseFormat();
-    csr->mapToDense = "{[ii,k, jj]->[i,j]: jj = j and ii= i and i >= 0 and i < NR and"
+    csr->mapToDense = "{[ii,k, jj]->[i,j]: ii >= 0 and ii < NR  and jj = j"
+	    	      " and ii= i and i >= 0 and i < NR and"
                       " j >= 0 and j < NC and rowptr(ii) <= k < rowptr(ii+1)"
                       " and jj = col2(k)}";
     csr->dataAccess = "{[ii,k,jj] -> [k]}";
@@ -73,16 +74,17 @@ int main(int argc, char**argv) {
                       UFQuant( "{[x]:0 <= x < NNZ}","{[i]: 0 <= i <= NC}",
                                "col2",false, Monotonic_NONE,
                                "{[e1,e2]: e1 < e2}",
-                               "{[e1,e2]: i * NR + e1 < j * NC + e2 ")
+                               "{[e1,e2]: i * NR + col2(e1) < j * NC + col2(e2) ")
                     };
     supportedFormats["CSR"] = csr;
 
 
 
     SparseFormat * csc = new SparseFormat();
-    csc->mapToDense = "{[jj,k,ii]->[i,j]: j = jj and  i = ii and  i >= 0 and i < NR and"
+    csc->mapToDense = "{[jj,k,ii]->[i,j]: jj = j and 0 <= jj < NC and"
+	    	      "  ii = i and  i >= 0 and i < NR and"
                       " j >= 0 and j < NC and colptr(jj) <= k < colptr(jj+1)"
-                      " and ii = row4(k) and 0 <= jj < NC}";
+                      " and ii = row4(k) }";
     csc->dataAccess = "{[jj,k,ii] -> [k]}";
     csc->knowns = { "NR","NC","NNZ"};
     csc->dataConstraint = "A[k]!=0";
@@ -91,7 +93,7 @@ int main(int argc, char**argv) {
                       UFQuant( "{[x]:0 <= x < NNZ}","{[i]: 0 <= i <= NR}",
                                "row4",false, Monotonic_NONE,
                                "{[e1,e2]: e1 < e2}",
-                               "{[e1,e2]: j * NC + e1 < j * NC + e2 ")
+                               "{[e1,e2]: j * NC + row(e1) < j * NC + row(e2) ")
                     };
     supportedFormats["CSC"] = csc;
 

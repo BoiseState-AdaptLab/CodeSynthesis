@@ -50,7 +50,11 @@ int t8 = 0;
 int t9 = 0; 
 
 auto P0Comp = [&](std::vector<int>& e1, std::vector<int>& e2){
-return MORTON(e1[0], e1[1]) < MORTON(e2[0],e2[1]);
+//MORTON(row(e1),col(e1)) < MORTON(row(e2),col(e2)) <=> e1 < e2
+//i * NR + col(e1) <  i* NR + col(e2)   <=> e1 < e2
+//j * NC + row(e1) <  j * NC + row(e2)  <=> e1 < e2
+//e1[0] * NR + e1[1] < e2[0]
+	return MORTON(e1[0], e1[1]) < MORTON(e2[0],e2[1]);
 };
 PermuteSimp<decltype(P0Comp)>* P0 = new PermuteSimp<decltype(P0Comp)>(P0Comp);
 if (NR >= 1 && NC >= 1) {

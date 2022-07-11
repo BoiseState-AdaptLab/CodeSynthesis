@@ -324,7 +324,8 @@ Computation* CodeSynthesis::generateInspectorComputation() {
         std::string currentUF = unknownsCopy.back();
         // Get all the list of viable candidates
         // for the current UF
-        std::list<std::pair<iegenlib::Exp*,SynthExpressionCase>> expUfs;
+	typedef std::pair<iegenlib::Exp*,SynthExpressionCase> ExpCasePair;
+        std::list<ExpCasePair> expUfs;
         for(auto e : expList) {
             if(findCallTerm(e,currentUF)!=NULL) {
                 // Get case a uf in a constraint falls into.
@@ -337,7 +338,6 @@ Computation* CodeSynthesis::generateInspectorComputation() {
                 }
             }
         }
-
         if (expUfs.size() == 0 ) {
             tryCount++;
             // Pop and put to the front of the list
@@ -366,11 +366,11 @@ Computation* CodeSynthesis::generateInspectorComputation() {
                     containsUnknown = true;
             }
             delete solvedFor;
-
+	    bool domainBounded = IsDomainBoundedByUnknown(term,
+			    unknownsCopy,composeRel);
             // This candidate is only viable if the current UF Term
             // domain is bounded by unknownsCopy.
-            return !containsUnknown &&
-                   IsDomainBoundedByUnknown(term,unknownsCopy,composeRel);
+            return !containsUnknown && domainBounded;
         });
 
         if ( it != expUfs.end()) {
@@ -624,7 +624,11 @@ iegenlib::Set* CodeSynthesis::GetCaseDomain(std::string ufName,Set* s,
     // maxTuple.
     while(res->arity() - 1> maxTup ) {
         Set * temp = res->projectOut(res->arity() - 1);
-        delete res;
+        // We can project out anymore and we sshould just stop here
+	// if temp  is null. This avoids complicated projection situation
+	// and failure. This is a HACK
+	if (temp == nullptr) break;
+	delete res;
         res = temp;
     }
     delete constr;
@@ -646,7 +650,7 @@ CodeSynthesis::CodeSynthesis(SparseFormat* source,
 
     composeRel = invDestMap->Compose(sourceMapR);
 
-
+    std::cout << "ComposeRel: "<< composeRel->prettyPrintString() << "\n";
 
 
     transRel = composeRel->TransitiveClosure();
@@ -1381,10 +1385,24 @@ std::string CodeSynthesis::generateFullCode(std::vector<int>& fuseStmts,
         ss << GeneratePermuteConditions(permute,composeRel,ufQuants);
         ss << "return false;\n";
         ss << "}; \n";
-        ss << "PermuteSimp<int,decltype("<< permute
+        
+	
+	ss << "PermuteSimp<int,decltype("<< permute
            << "Comp)>* "<< permute
            << " = new PermuteSimp <int,decltype(" <<
-           permute << "Comp)>("<<permute <<"Comp);\n";
+           permute << "Comp)>("<<permute <<"Comp";
+	// Only check for abtraction been a function 
+	// if it is not a temporary permute. A temporary
+	// permute is what we add in the algorithm. A 
+	// permanent permute on the under hand is an unknown
+	// that used the permute abstraction at some point
+	// in synthesis. 
+        if (std::find(unknowns.begin(),unknowns.end(),permute)
+                != unknowns.end()) {
+
+            ss << ", true ";
+        }
+	ss << ");\n";
     }
     // Add Datamacros for Source and Destination
     // #define <sourceDataName>(i) <sourceDataName>[i]
@@ -1438,7 +1456,10 @@ std::string CodeSynthesis::generateFullCode(std::vector<int>& fuseStmts,
     std::string code = comp->codeGen();
 
     for(auto permute : permutes) {
-        // Replace P[][] access to P->get({});
+        // This has to be modified to use
+	// P_INV has to be done today.
+	// TODO:
+	// Replace P[][] access to P->get({});
         // #define P(i,j) P[i][j] becomes:
         // #define P(i,j) p->get({i,j})
         std::string p1 = permute+ "(";
