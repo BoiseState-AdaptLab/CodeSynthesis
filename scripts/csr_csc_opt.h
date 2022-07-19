@@ -49,7 +49,7 @@
 #undef rowptr_1
 #define P1_INV(d) P1->getInv(d)
 #define P1(t0,t1) P1->get({t0,t1})
-#define P1_4(__tv0, __tv1, __tv2, __tv3, __tv4) P1_INV(__tv4)[2]
+#define P1_4(__tv0, __tv1, __tv2, __tv3, __tv4) P1_INV(__tv3)[2]
 #define col2(t0) EX_COL(t0)
 #define col2_2(__tv0, __tv1, __tv2, __tv3) col2(__tv3)
 #define colptr(t0) EX_COLPTR(t0)
