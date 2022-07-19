@@ -64,7 +64,7 @@
 #define rowptr_1(__tv0, __tv1) rowptr(__tv1 + 1)
 
 int t1 = 7; 
-int t2 = 0; 
+int t2 = 7; 
 int t3 = 0; 
 int t4 = 0; 
 int t5 = 0; 
@@ -85,8 +85,8 @@ return a[1]*NR + a[0];
 PermuteSimp<decltype(P1Comp)>* P1 = new PermuteSimp <decltype(P1Comp)>
 (P1Comp);
 #pragma omp parallel for collapse (2) 
-for(t2 = 0; t2 <= NR-1; t2++) {
-   for(t4 = rowptr_0(t1,t2); t4 <= rowptr_1(t1,t2)-1; t4++) {
+for( t2 = 0; t2 <= NR-1; t2++) {
+   for( t4 = rowptr_0(t1,t2); t4 <= rowptr_1(t1,t2)-1; t4++) {
       t8=col2_2(t1,t2,t3,t4);
       s1(1,t2,0,t4,0,t2,0,t8,0);
    }
@@ -95,8 +95,8 @@ P1->sort();
 auto start = std::chrono::high_resolution_clock::now();
 // Fused row, colptr and data copy
 #pragma omp parallel for collapse (2) 
-  for(t2 = 0; t2 <= NR-1; t2++) {
-    for(t4 = rowptr_0(t1,t2); t4 <= rowptr_1(t1,t2)-1; t4++) {
+  for( t2 = 0; t2 <= NR-1; t2++) {
+    for( t4 = rowptr_0(t1,t2); t4 <= rowptr_1(t1,t2)-1; t4++) {
       if (NC >= col2_2(t1,t2,t3,t4)+1 && col2_2(t1,t2,t3,t4) >= 0) {
         t5=col2_2(t1,t2,t3,t4);
         t7=t5;
