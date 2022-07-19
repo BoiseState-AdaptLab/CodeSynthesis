@@ -25,7 +25,7 @@ class PermuteSimp {
     int originalPos;
     // Checks if inserted value is a function
     // check will be ignored if false
-    bool checkFunction;
+    bool checkFunction = false;
     std::vector<std::vector<int>> pos;
 public:
     PermuteSimp(C comp): comp(comp) {
