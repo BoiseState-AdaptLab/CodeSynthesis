@@ -84,7 +84,7 @@ return a[1]*NR + a[0];
 };
 PermuteSimp<decltype(P1Comp)>* P1 = new PermuteSimp <decltype(P1Comp)>
 (P1Comp);
-  
+#pragma omp parallel for collapse (2) 
 for(t2 = 0; t2 <= NR-1; t2++) {
    for(t4 = rowptr_0(t1,t2); t4 <= rowptr_1(t1,t2)-1; t4++) {
       t8=col2_2(t1,t2,t3,t4);
@@ -94,6 +94,7 @@ for(t2 = 0; t2 <= NR-1; t2++) {
 P1->sort();
 auto start = std::chrono::high_resolution_clock::now();
 // Fused row, colptr and data copy
+#pragma omp parallel for collapse (2) 
   for(t2 = 0; t2 <= NR-1; t2++) {
     for(t4 = rowptr_0(t1,t2); t4 <= rowptr_1(t1,t2)-1; t4++) {
       if (NC >= col2_2(t1,t2,t3,t4)+1 && col2_2(t1,t2,t3,t4) >= 0) {
