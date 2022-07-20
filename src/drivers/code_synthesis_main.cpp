@@ -36,7 +36,51 @@ int main(int argc, char**argv) {
     coo->dataConstraint = "A[n]!=0";
     coo->dataAccess = "{[n,ii,jj] -> [n]}";
     supportedFormats["COO"] = coo;
+    
 
+
+    SparseFormat * coo3D = new SparseFormat();
+    coo3D->mapToDense = "{[n,ii ,jj,kk] -> [i,j,k]:"
+                      " row3d(n) = ii and 0 <= n and n < NNZ "
+                      "and col3d(n) = jj and z3d(n) = kk and"
+		      "  kk = k and  i = ii and"
+		      " j = jj and i >= 0 and 0 <= k < NZ and "
+                      " i < NR and j >= 0 and j < NC}";
+    coo3D->knowns = { "NR","NC","NNZ", "NZ"};
+    coo3D->ufQuants = { UFQuant( "{[x]:0 <= x < NNZ}","{[i]: 0 <= i <= NC}",
+                               "col3d",false, Monotonic_NONE),
+                      UFQuant( "{[x]:0 <= x < NNZ}","{[i]: 0 <= i <= NC}",
+                               "z3d",false, Monotonic_NONE),
+		      UFQuant( "{[x]:0 <= x < NNZ}","{[i]: 0 <= i <= NR}",
+                               "row3d",false, Monotonic_NONE)
+                    };
+    coo3D->dataConstraint = "A[n]!=0";
+    coo3D->dataAccess = "{[n,ii,jj,kk] -> [n]}";
+    supportedFormats["3DCOO"] = coo3D;
+
+    SparseFormat * mortonCOO3d = new SparseFormat();
+    mortonCOO3d->mapToDense = "{[n1, i , j, k] -> [i,j,k]:"
+                            " mrow3(n1) = i and 0 <= n1 and n1 < NNZ "
+                            "and mcol3(n1) = j and mz3d(n1) = k and  i >= 0 and "
+                            " i < NR and j >= 0 and j < NC and 0 <= k < NZ}";
+    mortonCOO3d->knowns = { "NR","NC","NNZ", "NZ"};
+    mortonCOO3d->ufQuants = { UFQuant( "{[x]:0 <= x < NNZ}","{[i]: 0 <= i <= NC}",
+                                     "mcol3",false, Monotonic_NONE, "{[e1,e2]: e1 < e2}",
+                                     "{[e1,e2]: MORTON(row3(e1),col3(e1),mz3d(e1)) < "
+                                     "MORTON(row3(e2),col3(e2),mz3d(e2))} "),
+
+                            UFQuant( "{[x]:0 <= x < NNZ}","{[i]: 0 <= i <= NR}",
+                                     "mrow3",false, Monotonic_NONE, "{[e1,e2]: e1 < e2}",
+                                     "{[e1,e2]: MORTON(row3(e1),col3(e1),mz3d(e1)) < "
+                                     "MORTON(row3(e2),col3(e2),mz3d(e2))} ")
+                          };
+
+    mortonCOO3d->dataConstraint = "A[n]!=0";
+    mortonCOO3d->dataAccess = "{[n1, i, j,k] -> [n1]}";
+    supportedFormats["3DMCOO"] = mortonCOO3d;
+    
+    
+    
     SparseFormat * bcsr = new SparseFormat();
     bcsr->mapToDense = "{[ii,kk,jj,hr,hc, is, js]->[i,j] : 0<= ii < NR_BR &&"
                        " browptr(ii) <= kk < browptr(ii+ 1) && jj= bcol(kk) && 0 <= hr"

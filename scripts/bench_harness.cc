@@ -3,7 +3,7 @@
 // Which is part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // These sections have been marked.
-#include <climits>  
+#include <climits>
 #include <cctype>
 #include <cinttypes>
 #include <cstdio>
@@ -95,12 +95,13 @@ static void readMMEHeader(FILE *file, char *filename, char *line,
     }
 }
 
+
 // Print COO data in roughly matrix marget exchanged format. The output is not a correct mtx format just close, this
 // function is intended for debugging purposes.
-void printCOOAsMTX(uint64_t nnz,
-                   uint64_t rank,
-                   const std::vector<double> &values,
-                   const std::vector<std::vector<uint64_t>> &coord) {
+    void printCOOAsMTX(uint64_t nnz,
+                       uint64_t rank,
+                       const std::vector<double> &values,
+const std::vector<std::vector<uint64_t>> &coord) {
     for (uint64_t k = 0; k < nnz; k++) {
         for (uint64_t r = 0; r < rank; r++) {
             if (r == rank - 1) {
@@ -172,7 +173,7 @@ struct COO {
         coord = std::vector<std::vector<uint64_t>>(rank, std::vector<uint64_t>(nnz));
         values = std::vector<double>(nnz);
     }
-
+    COO(){}
 public:
     std::vector<std::vector<uint64_t>> coord;
     std::vector<double> values;
@@ -221,6 +222,52 @@ std::pair<CSC *, double> CSRToCSC(uint64_t nnz, uint64_t rank,
     return {csc, fp_ms.count()};
 }
 
+std::pair<COO *, uint64_t> COOToMCOO3D(uint64_t nnz, uint64_t rank,
+                                     const std::vector<uint64_t> &dims,
+                                     const COO &coo) {
+
+    int nr = dims[0];
+    int nc = dims[1];
+    int nz = dims[2];
+    auto start = std::chrono::high_resolution_clock::now();
+    COO *mcoo = new COO(nnz, rank);
+    std::vector<std::vector<uint64_t>> &mCoord = mcoo->coord;
+    std::vector<double> &mCooValues = mcoo->values;
+    const std::vector<std::vector<uint64_t>> &coord = coo.coord;
+    const std::vector<double> &cooValues = coo.values;
+#define EX_ROW3D(n) coord[0][n]
+#define EX_COL3D(n) coord[1][n]
+#define EX_Z3D(n) coord[2][n]
+#define EX_A3DCOO(n) cooValues[n]
+#define EX_MROW3(n) mCoord[0][n]
+#define EX_MCOL3(n) mCoord[1][n]
+#define EX_MZ3D(n) mCoord[2][n]
+#define EX_A3DMCOO(n) mCooValues[n]
+#define NR nr
+#define NC nc
+#define NZ nz
+#define NNZ nnz
+
+#include <coo3d_mcoo3d_opt.h>
+
+#undef EX_ROW3D
+#undef EX_COL3D
+#undef EX_Z3D
+#undef EX_A3DCOO
+#undef EX_MROW3
+#undef EX_MCOL3
+#undef EX_MZ3D
+#undef EX_A3DMCOO
+#undef NR
+#undef NC
+#undef NZ
+#undef NNZ
+
+    auto stop = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> fp_ms = stop - start;
+
+    return {mcoo, fp_ms.count()};
+}
 
 std::pair<COO *, uint64_t> COOToMCOO(uint64_t nnz, uint64_t rank,
                                      const std::vector<uint64_t> &dims,
@@ -386,23 +433,23 @@ std::pair<CSC *, double> COOToCSC(uint64_t nnz, uint64_t rank,
 
 
 std::pair<DIA*,double> COOToDIA(uint64_t nnz, uint64_t rank,
-                                  const std::vector<uint64_t> &dims,
-                                  const COO &coo) {
+                                const std::vector<uint64_t> &dims,
+                                const COO &coo) {
     int nr = dims[0];
     int nc = dims[1];
-    
+
     DIA * dia = new DIA();
     std::vector<int>& offset    = dia->off;
     std::vector<double>& values = dia->values;
     auto start = std::chrono::high_resolution_clock::now();
-    int nd = 0; 
+    int nd = 0;
     const std::vector<std::vector<uint64_t>> &coord = coo.coord;
     const std::vector<double> &cooValues = coo.values;
 
 #define EX_ROW1(n)  coord[0][n]
 #define EX_COL1(n)  coord[1][n]
 #define EX_ACOO(n)  cooValues[n]
-#define EX_ADIA(kd) values[kd] 
+#define EX_ADIA(kd) values[kd]
 #define NR nr
 #define NC nc
 #define NNZ nnz
@@ -414,11 +461,11 @@ std::pair<DIA*,double> COOToDIA(uint64_t nnz, uint64_t rank,
 #undef EX_COL1
 #undef EX_ACOO
 #undef EX_ADIA
-     // Copy out the values from off array
+    // Copy out the values from off array
     auto stop = std::chrono::high_resolution_clock::now();
-     for(int h = 0; h < off->getSize(); h++){
-          offset.push_back(off->getInv(h)[0]);
-     }	
+    for(int h = 0; h < off->getSize(); h++) {
+        offset.push_back(off->getInv(h)[0]);
+    }
 
 
     std::chrono::duration<double, std::milli> fp_ms = stop - start;
@@ -446,42 +493,85 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
     char line[kColWidth];
-    uint64_t idata[512];
-    bool isSymmetric = false;
-    readMMEHeader(file, filename, line, idata, &isSymmetric);
-    uint64_t rank = idata[0];
-    uint64_t nnz = idata[1];
-
-    auto dims = std::vector<uint64_t>(rank);
-    for (int i = 0; i < rank; i++) {
-        dims[i] = idata[i + 2];
-    }
-
-    COO coo = COO(nnz, rank);
-
-    std::vector<std::vector<uint64_t>> &coord = coo.coord;
-    std::vector<double> &values = coo.values;
-
-    // Read file into vectors
-    for (uint64_t k = 0; k < nnz; k++) {
-        if (!fgets(line, kColWidth, file)) {
-            fprintf(stderr, "Cannot find next line of data in %s\n", filename);
-            exit(1);
+    std::string fileNameS = std::string(filename);
+    auto pos = fileNameS.find(".tns");
+    COO coo;
+    uint64_t rank = 0;
+    std::vector<uint64_t> dims;
+    uint64_t nnz= 0;
+    if (pos != std::string::npos) {
+        // Split to see ranks
+        bool first = true;
+	std::vector<double>   values;
+	std::vector<std::vector<uint64_t>> coords;
+        while(fgets(line,kColWidth,file)!=NULL) {
+	    std::string lineStr(line);
+	    int r = 0;
+	    std::size_t spacePos = std::string::npos;
+	    std::vector<uint64_t> coord;
+	    while((spacePos = lineStr.find(' '))!= std::string::npos){
+	        uint64_t val = std::stoi(lineStr.substr(0,spacePos));
+		coord.push_back(val-1);    
+		if (first){
+	            dims.push_back(val);
+		}else{
+		    dims[r] = max(dims[r],val);
+		}
+		lineStr = lineStr.substr(spacePos+1,lineStr.length()-spacePos);
+		r++;
+	    }
+	    rank = dims.size(); 
+            values.push_back(stod(lineStr));
+            first = false;
+	    coords.push_back(coord);
+	    nnz++;
         }
-        char *linePtr = line;
-        for (uint64_t r = 0; r < rank; r++) {
-            uint64_t idx = strtoul(linePtr, &linePtr, 10);
-            coord[r][k] = idx - 1;
+        // rearrange to be consistent with others
+	coo = COO(nnz,rank);
+	coo.values = values;
+	for(int n = 0 ; n < nnz; n++){
+	    for(int rk = 0 ; rk < rank; rk++){
+                coo.coord[rk][n] = coords[n][rk];
+	    }
+	}
+    } else {
+
+        uint64_t idata[512];
+        bool isSymmetric = false;
+        readMMEHeader(file, filename, line, idata, &isSymmetric);
+        uint64_t rank = idata[0];
+        uint64_t nnz = idata[1];
+
+        dims = std::vector<uint64_t>(rank);
+        for (int i = 0; i < rank; i++) {
+            dims[i] = idata[i + 2];
         }
 
-        double value = strtod(linePtr, &linePtr);
-        values[k] = value;
-    }
+        coo = COO(nnz, rank);
 
-    auto output = [validate, &coord, &values, conversion, filename](
+        std::vector<std::vector<uint64_t>> &coord = coo.coord;
+        std::vector<double> &values = coo.values;
+
+        // Read file into vectors
+        for (uint64_t k = 0; k < nnz; k++) {
+            if (!fgets(line, kColWidth, file)) {
+                fprintf(stderr, "Cannot find next line of data in %s\n", filename);
+                exit(1);
+            }
+            char *linePtr = line;
+            for (uint64_t r = 0; r < rank; r++) {
+                uint64_t idx = strtoul(linePtr, &linePtr, 10);
+                coord[r][k] = idx - 1;
+            }
+
+            double value = strtod(linePtr, &linePtr);
+            values[k] = value;
+        }
+    }
+    auto output = [validate, &coo, conversion, filename](
     std::function<double(const std::vector<uint64_t> &)> &&check, double milliseconds) {
         if (validate) {
-            if (verify(coord, values, check)) {
+            if (verify(coo.coord, coo.values, check)) {
                 printf("[PASS] coo->%s %s, time: %f milliseconds, \n", conversion, filename, milliseconds);
             } else {
                 printf("[FAIL] coo->%s %s, time: %f milliseconds, \n", conversion, filename, milliseconds);
@@ -575,7 +665,34 @@ int main(int argc, char *argv[]) {
             return 0;
         }, milliseconds);
         delete (mcoo);
-    } else if (strcmp(conversion, "csr_csc") == 0) {
+    } else if (strcmp(conversion, "coo_mcoo3d") == 0) {
+        assert(dims.size() == 3 && "Dims must be 3D");
+	COO *mcoo;
+        double milliseconds = 0;
+        for (int i = 0; i < n; i++) {
+            auto p = COOToMCOO3D(nnz, rank, dims, coo);
+            mcoo = p.first;
+            milliseconds += p.second;
+            if (i != n - 1) {
+                delete (mcoo);
+            }
+        }
+        milliseconds /= n;
+
+        output([mcoo, nnz](const std::vector<uint64_t> &cord) -> double {
+            uint64_t inI = cord[0];
+            uint64_t inJ = cord[1];
+            uint64_t inK = cord[2];
+            for (int k = 0; k < nnz; k++) {
+                if (mcoo->coord[0][k] == inI && mcoo->coord[1][k] == inJ 
+				&& mcoo->coord[2][k] == inK) {
+                    return mcoo->values[k];
+                }
+            }
+            return 0;
+        }, milliseconds);
+        delete (mcoo);
+    }else if (strcmp(conversion, "csr_csc") == 0) {
         auto p1 = COOToSortedCOO(nnz, rank, coo);
         auto sortedCoo = p1.first;
         // COO to CSR first
@@ -643,7 +760,7 @@ int main(int argc, char *argv[]) {
             return 0;
         }, milliseconds);
         delete (csc);
-	delete (sortedCoo);
+        delete (sortedCoo);
     } else if (strcmp(conversion, "coo_dia") == 0) {
         DIA *dia;
         double milliseconds = 0;
@@ -665,7 +782,7 @@ int main(int argc, char *argv[]) {
                 for (uint64_t d = 0; d < dia->off.size(); d++) {
                     int j = dia->off[d] + i;
                     if (i == inI && j == inJ) {
-		        int k = dia->off.size() * i  + d;
+                        int k = dia->off.size() * i  + d;
                         return dia->values[k];
                     }
                 }

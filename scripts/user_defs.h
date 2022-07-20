@@ -3,6 +3,7 @@
 #include <cstdint>
 
 #define MORTON(a,b) encode(a,b)
+#define MORTON3D(a,b,c) encode(a,b,c)
 uint64_t split(const uint32_t a);
 
 // Compute the 2d Morton code for a pair of indices
@@ -10,6 +11,9 @@ inline uint64_t encode(const uint32_t x, const uint32_t y) {
     return split(x) | split(y) << 1;
 }
 
+inline uint64_t encode(const uint32_t x, const uint32_t y, const uint32_t z) {
+    return split(x) | split(y) << 1 | split(z) << 2;
+}
 
 inline uint64_t split(const uint32_t a) {
     uint64_t x = a;
