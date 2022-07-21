@@ -34,8 +34,8 @@ public:
     PermuteSimp(C comp,bool checkFunction): comp(comp),
         checkFunction(checkFunction),originalPos(0) {}
 
-    inline void insert(std::vector<int> val) {
-        //ensure this is a function
+    void insert(const std::vector<int>& val) {
+	//ensure this is a function
         if(!checkFunction) {
             pos.push_back(val);;
             return;

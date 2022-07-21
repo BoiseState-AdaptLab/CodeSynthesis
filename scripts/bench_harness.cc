@@ -259,7 +259,6 @@ std::pair<COO *, uint64_t> COOToMCOO3D(uint64_t nnz, uint64_t rank,
     int nr = dims[0];
     int nc = dims[1];
     int nz = dims[2];
-    auto start = std::chrono::high_resolution_clock::now();
     COO *mcoo = new COO(nnz, rank);
     std::vector<std::vector<uint64_t>> &mCoord = mcoo->coord;
     std::vector<double> &mCooValues = mcoo->values;
@@ -293,7 +292,6 @@ std::pair<COO *, uint64_t> COOToMCOO3D(uint64_t nnz, uint64_t rank,
 #undef NZ
 #undef NNZ
 
-    auto stop = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> fp_ms = stop - start;
 
     return {mcoo, fp_ms.count()};

@@ -104,8 +104,14 @@ if (NR >= 1 && NZ >= 1 && NC >= 1) {
       s0(0,t2,0,t4,0,t6,0,t8,0,0,0,0,0,0,0,0,0);
     }
   }
+
 }
+
+// time reordering step
+auto start = std::chrono::high_resolution_clock::now();
 s1(1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0);
+
+auto stop = std::chrono::high_resolution_clock::now();
 if (NR >= 1 && NZ >= 1 && NC >= 1) {
   for(t2 = 0; t2 <= NNZ-1; t2++) {
     if (NZ >= z3d_2(t1,t2)+1 && z3d_2(t1,t2) >= 0 && NC >= col3d_1(t1,t2)+1 && NR >= row3d_0(t1,t2)+1 && col3d_1(t1,t2) >= 0 && row3d_0(t1,t2) >= 0) {
