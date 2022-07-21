@@ -54,27 +54,27 @@ bool verify(const std::vector<std::vector<uint64_t>> &coords,
 ///
 /// Read the MME header of a general sparse matrix of type real.
 static void readMMEHeader(FILE *file, char *filename, char *line,
-                          uint64_t *idata, bool *isSymmetric) {
+                          uint64_t *idata, bool *isPattern, bool *isSymmetric) {
     char header[64];
     char object[64];
     char format[64];
     char field[64];
     char symmetry[64];
     // Read header line.
-    if (fscanf(file, "%63s %63s %63s %63s %63s\n", header, object, format, field,
-               symmetry) != 5) {
+    if (fscanf(file, "%63s %63s %63s %63s %63s\n", header, object, format, field, symmetry) != 5) {
         fprintf(stderr, "Corrupt header in %s\n", filename);
         exit(1);
     }
+    // Set properties
+    *isPattern = (strcmp(toLower(field), "pattern") == 0);
     *isSymmetric = (strcmp(toLower(symmetry), "symmetric") == 0);
     // Make sure this is a general sparse matrix.
     if (strcmp(toLower(header), "%%matrixmarket") ||
-            strcmp(toLower(object), "matrix") ||
-            strcmp(toLower(format), "coordinate") || strcmp(toLower(field), "real") ||
-            (strcmp(toLower(symmetry), "general") && !(*isSymmetric))) {
-        fprintf(stderr,
-                "Cannot find a general sparse matrix with type real in %s\n",
-                filename);
+        strcmp(toLower(object), "matrix") ||
+        strcmp(toLower(format), "coordinate") ||
+        (strcmp(toLower(field), "real") && !(*isPattern)) ||
+        (strcmp(toLower(symmetry), "general") && !(*isSymmetric))) {
+        fprintf(stderr, "Cannot find a general sparse matrix in %s\n", filename);
         exit(1);
     }
     // Skip comments.
@@ -88,11 +88,41 @@ static void readMMEHeader(FILE *file, char *filename, char *line,
     }
     // Next line contains M N NNZ.
     idata[0] = 2; // rank
-    if (sscanf(line, "%" PRIu64 "%" PRIu64 "%" PRIu64 "\n", idata + 2, idata + 3,
-               idata + 1) != 3) {
+    if (sscanf(line, "%" PRIu64 "%" PRIu64 "%" PRIu64 "\n", idata + 2, idata + 3, idata + 1) != 3) {
         fprintf(stderr, "Cannot find size in %s\n", filename);
         exit(1);
     }
+}
+
+/// Taken from LLVM SparseTnesorUitls (see top for details).
+///
+/// Read the "extended" FROSTT header. Although not part of the documented
+/// format, we assume that the file starts with optional comments followed
+/// by two lines that define the rank, the number of nonzeros, and the
+/// dimensions sizes (one per rank) of the sparse tensor.
+static void readExtFROSTTHeader(FILE *file, char *filename, char *line,
+                                uint64_t *idata) {
+    // Skip comments.
+    while (true) {
+        if (!fgets(line, kColWidth, file)) {
+            fprintf(stderr, "Cannot find data in %s\n", filename);
+            exit(1);
+        }
+        if (line[0] != '#')
+            break;
+    }
+    // Next line contains RANK and NNZ.
+    if (sscanf(line, "%" PRIu64 "%" PRIu64 "\n", idata, idata + 1) != 2) {
+        fprintf(stderr, "Cannot find metadata in %s\n", filename);
+        exit(1);
+    }
+    // Followed by a line with the dimension sizes (one per rank).
+    for (uint64_t r = 0; r < idata[0]; r++)
+        if (fscanf(file, "%" PRIu64, idata + 2 + r) != 1) {
+            fprintf(stderr, "Cannot find dimension size %s\n", filename);
+            exit(1);
+        }
+    fgets(line, kColWidth, file); // end of line
 }
 
 
@@ -487,87 +517,54 @@ int main(int argc, char *argv[]) {
         validate = true;
     }
 
+    // Read data out of file =====
     FILE *file = fopen(filename, "r");
     if (!file) {
         fprintf(stderr, "Cannot find %s\n", filename);
         exit(1);
     }
     char line[kColWidth];
-    std::string fileNameS = std::string(filename);
-    auto pos = fileNameS.find(".tns");
-    COO coo;
-    uint64_t rank = 0;
-    std::vector<uint64_t> dims;
-    uint64_t nnz= 0;
-    if (pos != std::string::npos) {
-        // Split to see ranks
-        bool first = true;
-	std::vector<double>   values;
-	std::vector<std::vector<uint64_t>> coords;
-        while(fgets(line,kColWidth,file)!=NULL) {
-	    std::string lineStr(line);
-	    int r = 0;
-	    std::size_t spacePos = std::string::npos;
-	    std::vector<uint64_t> coord;
-	    while((spacePos = lineStr.find(' '))!= std::string::npos){
-	        uint64_t val = std::stoi(lineStr.substr(0,spacePos));
-		coord.push_back(val-1);    
-		if (first){
-	            dims.push_back(val);
-		}else{
-		    dims[r] = max(dims[r],val);
-		}
-		lineStr = lineStr.substr(spacePos+1,lineStr.length()-spacePos);
-		r++;
-	    }
-	    rank = dims.size(); 
-            values.push_back(stod(lineStr));
-            first = false;
-	    coords.push_back(coord);
-	    nnz++;
-        }
-        // rearrange to be consistent with others
-	coo = COO(nnz,rank);
-	coo.values = values;
-	for(int n = 0 ; n < nnz; n++){
-	    for(int rk = 0 ; rk < rank; rk++){
-                coo.coord[rk][n] = coords[n][rk];
-	    }
-	}
+    uint64_t idata[512];
+    bool isSymmetric = false;
+    bool isPattern = false;
+    if (strstr(filename, ".mtx")) {
+        readMMEHeader(file, filename, line, idata, &isPattern, &isSymmetric);
+    } else if (strstr(filename, ".tns")) {
+        readExtFROSTTHeader(file, filename, line, idata);
     } else {
-
-        uint64_t idata[512];
-        bool isSymmetric = false;
-        readMMEHeader(file, filename, line, idata, &isSymmetric);
-        uint64_t rank = idata[0];
-        uint64_t nnz = idata[1];
-
-        dims = std::vector<uint64_t>(rank);
-        for (int i = 0; i < rank; i++) {
-            dims[i] = idata[i + 2];
-        }
-
-        coo = COO(nnz, rank);
-
-        std::vector<std::vector<uint64_t>> &coord = coo.coord;
-        std::vector<double> &values = coo.values;
-
-        // Read file into vectors
-        for (uint64_t k = 0; k < nnz; k++) {
-            if (!fgets(line, kColWidth, file)) {
-                fprintf(stderr, "Cannot find next line of data in %s\n", filename);
-                exit(1);
-            }
-            char *linePtr = line;
-            for (uint64_t r = 0; r < rank; r++) {
-                uint64_t idx = strtoul(linePtr, &linePtr, 10);
-                coord[r][k] = idx - 1;
-            }
-
-            double value = strtod(linePtr, &linePtr);
-            values[k] = value;
-        }
+        fprintf(stderr, "Unknown format %s\n", filename);
+        exit(1);
     }
+    uint64_t rank = idata[0];
+    uint64_t nnz = idata[1];
+
+    auto dims = std::vector<uint64_t>(rank);
+    for (uint64_t i = 0; i < rank; i++) {
+        dims[i] = idata[i + 2];
+    }
+
+    COO coo = COO(nnz, rank);
+
+    std::vector<std::vector<uint64_t>> &coord = coo.coord;
+    std::vector<double> &values = coo.values;
+
+    // Read file into vectors
+    for (uint64_t k = 0; k < nnz; k++) {
+        if (!fgets(line, kColWidth, file)) {
+            fprintf(stderr, "Cannot find next line of data in %s\n", filename);
+            exit(1);
+        }
+        char *linePtr = line;
+        for (uint64_t r = 0; r < rank; r++) {
+            uint64_t idx = strtoul(linePtr, &linePtr, 10);
+            coord[r][k] = idx - 1;
+        }
+
+        double value = strtod(linePtr, &linePtr);
+        values[k] = value;
+    }
+
+    // create validation fuction =====
     auto output = [validate, &coo, conversion, filename](
     std::function<double(const std::vector<uint64_t> &)> &&check, double milliseconds) {
         if (validate) {
