@@ -19,6 +19,32 @@ template <typename T>
 using Comparator = std::function<bool (std::vector<T>&,std::vector<T>&)>;
 
 
+
+template < typename C>
+class PermuteSimpSizeOpt {
+    C comp;
+    int originalPos;
+    std::vector<int> pos;
+public:
+    PermuteSimpSizeOpt(C comp,int size): comp(comp),pos(size) {
+        iota(pos.begin(),pos.end(),0);
+    }
+    PermuteSimpSizeOpt(C comp): comp(comp),
+        originalPos(0) {}
+    
+    inline uint32_t getSize() {
+        return pos.size();
+    }
+    inline void sort() {
+	std::sort(pos.begin(),pos.end(),comp);
+    }
+
+    const int  getInv(uint32_t i) {
+        return pos[i];
+    }
+};
+
+
 template < typename C>
 class PermuteSimp {
     C comp;
@@ -33,11 +59,14 @@ public:
     }
     PermuteSimp(C comp,bool checkFunction): comp(comp),
         checkFunction(checkFunction),originalPos(0) {}
-
-    void insert(const std::vector<int>& val) {
+    void reserve(int nnz){
+        pos.reserve(nnz);
+    }
+    void insert(std::vector<int> val) {
+	auto valCp = val;
 	//ensure this is a function
         if(!checkFunction) {
-            pos.push_back(val);;
+            pos.push_back(valCp);
             return;
         }
         auto it = std::find(pos.begin(),pos.end(), val);
