@@ -71,7 +71,7 @@
 #define z3d(t0)   EX_Z3D(t0)
 #define z3d_2(__tv0, __tv1) z3d(__tv1)
 auto P0Comp = [&](int a,int b) -> bool{
-if(-MORTON3D(row3d(a), col3d(a) , z3d(a)) + MORTON3D(row3d(b), col3d(b) , z3d(b)) - 1>= 0)
+if(MORTON3D(row3d(a), col3d(a) , z3d(a)) <  MORTON3D(row3d(b), col3d(b) , z3d(b)))
    return true;
 return false;
 }; 
