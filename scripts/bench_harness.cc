@@ -578,7 +578,7 @@ int main(int argc, char *argv[]) {
 
     // The number of runs to average over
     // TODO: this should apparently be median not average
-    int n = validate ? 1 : 5;
+    int n = validate ? 1 : 10;
 
     if (strcmp(conversion, "csr") == 0) {
         auto p1 = COOToSortedCOO(nnz, rank, coo);

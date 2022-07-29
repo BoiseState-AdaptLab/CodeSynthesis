@@ -1,0 +1,20 @@
+#set OS to Centos
+FROM centos
+
+#install necessary tools for gnu
+RUN yum install -y wget gcc gcc-c++ git autoconf automake cmake make tar
+
+# install automake 115
+RUN wget http://ftp.gnu.org/gnu/automake/automake-1.15.1.tar.gz && tar -xvzf\
+automake-1.15.1.tar.gz && cd automake-1.15.1/ && ./configure && make install 
+
+#clone CodeSynthesis
+RUN  git clone\
+ https://github.com/BoiseState-AdaptLab/CodeSynthesis
+
+# build IEGEN Lib
+RUN cd CodeSynthesis && mkdir -p build && cd build && cmake ../ && make
+
+# run command to start TimeServer 
+# in docker instance
+CMD ./CodeSynthesis/build/test/CodeSynthesis_t
