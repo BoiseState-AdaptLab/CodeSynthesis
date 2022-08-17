@@ -45,12 +45,47 @@ public:
 };
 
 
+// This permute class is only used for the 
+// reordering function. This uses a data layout
+// that supports streaming.
+class PermuteSimpStream {
+    int dim ;
+    int NR; 
+    int NC;
+    int currPos = 0;
+    std::vector<std::vector<int>> pos;
+public:
+    PermuteSimpStream(int dim,int nnz,int NR, int NC):
+	    dim(dim),NR(NR),NC(NC) {
+    
+        pos = std::vector<std::vector<int>>(dim+1,std::vector<int>(nnz));
+        iota(pos[dim].begin(),pos[dim].end(),0);
+    }
+    void insert(std::vector<int> val) {
+        for(int i =0; i < val.size(); i++){
+	   pos[i][currPos] = val[i];
+	}
+        currPos++;	
+    }
+    inline uint32_t getSize() {
+        return pos.size();
+    }
+    inline void sort() {
+        std::sort(pos[dim].begin(),pos[dim].end(),[&]( const int a,
+			const  int b){
+            return pos[1][a]*NR + pos[0][a] < NR*pos[1][b] + pos[0][b];
+        });
+    }
+    // Returns a permuted index.
+    const int getRemap(int originalIndex) {return pos[dim][originalIndex];}
+    const int getDenseDim(int dim, int originalIndex) {return pos[dim][originalIndex];}
+};
+
+
 template < typename C>
 class PermuteSimp {
     C comp;
     int originalPos;
-    // Checks if inserted value is a function
-    // check will be ignored if false
     bool checkFunction = false;
     std::vector<std::vector<int>> pos;
 public:
@@ -64,8 +99,8 @@ public:
     }
     void insert(std::vector<int> val) {
 	auto valCp = val;
-	//ensure this is a function
-        if(!checkFunction) {
+	//ensure this is a function 
+	if(!checkFunction) {
             pos.push_back(valCp);
             return;
         }

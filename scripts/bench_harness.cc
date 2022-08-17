@@ -234,7 +234,7 @@ std::pair<CSC *, double> CSRToCSC(uint64_t nnz, uint64_t rank,
 #define NC nc
 #define NNZ nnz
 
-#include <csr_csc_opt.h>
+#include <csr_csc_opt2.h>
 
 #undef EX_ROW
 #undef EX_COL
