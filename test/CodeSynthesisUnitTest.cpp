@@ -793,3 +793,49 @@ TEST_F(CodeSynthesisUnitTest, TEST_PERMUTESL) {
     }
     delete P0;
 }
+
+TEST_F(CodeSynthesisUnitTest, TEST_INVERSE_ITERATION_SPACE){
+    Set* s = new Set("{[i,k,j,k1]: 0 <= i < NR && rowptr(i) <= k < rowptr(i+1)"
+		    " && j = col(k) && k1 = P1(i,j)}");
+    // P(i,j)
+
+    UFCallTerm* p1Dim = new UFCallTerm(1,"P1",2);
+    Exp* arg1 = new Exp();
+    Exp* arg2 = new Exp();
+    arg1->addTerm(new TupleVarTerm(0));
+    arg2->addTerm(new TupleVarTerm(2));
+    p1Dim->setParamExp(0,arg1);
+    p1Dim->setParamExp(1,arg2);
+    Set* inverseIterSpace = code_synthesis::
+	    CodeSynthesis::GetInverseIterationSpace(s,p1Dim);
+    EXPECT_EQ("{ [_n, _no, i, k, j, k1] : _n - k1 = 0 && _no - k = 0 &&"
+	      " _no - P1MAP(_n) = 0 && i - P1DIM0(_no) = 0 &&"
+	      " j - P1DIM1(_no) = 0 && _n >= 0 && -_n + P1SIZE"
+	      " - 1 >= 0 }",inverseIterSpace->prettyPrintString());  
+    delete s;
+    delete inverseIterSpace;
+    delete p1Dim;
+    s = new Set("{[n,i,j,n1]: 0 <= i < NR && 0 <= j < NC && 0 <= n < NNZ "
+		    " && i = row(n) && j=col(n) && n1 = P1(i,j)}");
+
+    p1Dim = new UFCallTerm(1,"P1",2);
+    arg1 = new Exp();
+    arg2 = new Exp();
+    arg1->addTerm(new TupleVarTerm(1));
+    arg2->addTerm(new TupleVarTerm(2));
+    p1Dim->setParamExp(0,arg1);
+    p1Dim->setParamExp(1,arg2);
+    inverseIterSpace = code_synthesis::
+	    CodeSynthesis::GetInverseIterationSpace(s,p1Dim);
+
+
+    EXPECT_EQ("{ [_n, _no, n, i, j, n1] : _n - n1 = 0 &&"
+	      " _no - n = 0 && _no - P1MAP(_n) = 0 &&"
+	      " i - P1DIM0(_no) = 0 && j - P1DIM1(_no) ="
+	      " 0 && _n >= 0 && -_n + P1SIZE - 1 >= 0 }",
+	      inverseIterSpace->prettyPrintString());  
+
+    delete s;
+    delete inverseIterSpace;
+    delete p1Dim;
+}

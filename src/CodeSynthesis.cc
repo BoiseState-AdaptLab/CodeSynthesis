@@ -13,7 +13,8 @@
 #include <assert.h>
 #include <sstream>
 #include <list>
-
+#include <numeric>
+#include <bitset>
 // TODO: Work on memory management.
 
 using namespace code_synthesis;
@@ -1984,4 +1985,142 @@ bool CodeSynthesis::IsDomainBoundedByUnknown(Term* term,
 
     }
     return false;
+}
+
+// Class finds tuple variable associated with 
+// a uf. This class visits a set and returns 
+// the expression of the rhs of the first UF
+// it finds
+class FindTupleVarTermVisitor: public Visitor{
+private:
+    string ufName;
+    Exp* res = NULL;
+    int arity;    
+    int tvloc;
+public:
+    FindTupleVarTermVisitor(string ufName,int arity): arity(arity),
+	    ufName(ufName){}
+    ~FindTupleVarTermVisitor(){ delete res;}
+    void preVisitExp(Exp* e){
+        if (e->isEquality() && res == NULL){
+	    Term* ufTerm = CodeSynthesis::findCallTerm(e,ufName);
+	    if (ufTerm != NULL){
+	        for(int i = 0; i < arity; i++){
+	            TupleVarTerm tv(i);
+
+		    if (e->dependsOn(tv)){
+		       tvloc = i;
+		       Term* tclone = ufTerm->clone();
+		       tclone->setCoefficient(1);
+		       res = e->solveForFactor(tclone);  
+		    }
+	        }
+	    }
+	} 
+    }
+    // Pointer is owned by the caller and must
+    // be deallocated.
+    Exp* getTupleExpression(){ return res->clone();}
+    int  getFoundTvLoc() { return tvloc; }  
+
+};
+
+Set* CodeSynthesis::GetInverseIterationSpace(Set* set, UFCallTerm* domUF){
+    // remap tuple vars
+    std::vector<int> remap(set->arity());
+    // Shift all maps by 2.
+    std::iota(remap.begin(), remap.end(),2);
+    
+    // Stores all iterations used so far
+    uint32_t bitIter = 0;
+
+    Set * s1 = new Set(set->arity()+2);
+    Conjunction* conj = (*s1->conjunctionBegin());
+    TupleDecl td = conj->getTupleDecl();
+    for(int i = 0; i < set->arity(); i++){
+        td.copyTupleElem(set->getTupleDecl(),i,i+2);
+    }
+    td.setTupleElem(0,"_n");
+    td.setTupleElem(1,"_no");
+    s1->setTupleDecl(td);
+
+
+    // Add the iteration space for the reorder function.
+    Exp* lb = new Exp();
+    // n >= 0
+    lb->setInequality();
+
+    lb->addTerm(new TupleVarTerm(0));
+    bitIter |= (1<<0);
+    conj->addInequality(lb);
+   
+    // n < P1SIZE
+    Exp* ub = new Exp();
+    ub->setInequality();
+    ub->addTerm(new VarTerm(1,domUF->name()+"SIZE"));
+    ub->addTerm(new TupleVarTerm(-1,0));
+    ub->addTerm(new Term(-1));
+    conj->addInequality(ub);
+
+    // no = P1MAP(n)
+    UFCallTerm * pMap = new UFCallTerm(-1,domUF->name()+"MAP",1);
+    Exp * pMapArg = new Exp();
+    pMapArg->addTerm(new TupleVarTerm(0));
+    pMap->setParamExp(0,pMapArg);
+    Exp*  nOrEq = new Exp();
+    nOrEq->addTerm(new TupleVarTerm(1));
+    nOrEq->addTerm(pMap);
+    nOrEq->setEquality();
+    conj->addEquality(nOrEq);
+    bitIter |= (1<<1);
+    
+    for(int i = 0; i < domUF->numArgs(); i++){
+        Exp* arg = domUF->getParamExp(i);
+        TupleVarTerm* t = dynamic_cast<TupleVarTerm*>(arg->getTerm());
+        if (t == NULL) continue;
+	TupleVarTerm* tClone = (TupleVarTerm*)t->clone();
+        tClone->setCoefficient(1);
+        UFCallTerm* p1Dim = new UFCallTerm(-1,
+			domUF->name()+ "DIM" +std::to_string(i),1);
+        tClone->remapLocation(remap);        
+	bitIter|= (1<<tClone->tvloc());
+	Exp* argP = new Exp();
+	argP->addTerm(new TupleVarTerm(1));
+        p1Dim->setParamExp(0,argP);
+	Exp* p1DimEx = new Exp();
+	p1DimEx->addTerm(tClone);
+	p1DimEx->addTerm(p1Dim);
+	p1DimEx->setEquality();
+        conj->addEquality(p1DimEx);
+    }
+    //
+    // k1 = n  new map
+    // Find tuple variable associated with the reordering function
+    // in the set.
+    FindTupleVarTermVisitor ftv(domUF->name(),set->arity());
+    set->acceptVisitor(&ftv);
+    Exp* tupExp = ftv.getTupleExpression();
+    tupExp->remapTupleVars(remap);
+    tupExp->addTerm(new TupleVarTerm(-1,0));
+    conj->addEquality(tupExp);
+    bitIter|=(1<<(ftv.getFoundTvLoc()+2));
+    int n = 0;
+    // Find which tuple variable hasn't been 
+    // used and assume tuple variable is 
+    // original position no. TODO: This is kind of
+    // like a hack and should be fixed.
+    while(n < s1->arity()){
+      if(!(bitIter & (1 << n))){
+           Exp* e = new Exp();
+	   e->addTerm(new TupleVarTerm(-1,n));
+	   e->addTerm(new TupleVarTerm(1));
+	   e->setEquality();
+	   conj->addEquality(e); 
+	   break; 
+       }
+       n++;
+    }
+
+
+    return s1;
 }

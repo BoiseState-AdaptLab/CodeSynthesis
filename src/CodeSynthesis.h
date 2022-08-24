@@ -485,7 +485,11 @@ public:
     // Simplify constraints and also optimizes out statements
     // involving such constraints.
     static void ConstraintSimplification(Computation* comp);
-
+    
+    // Invert Reorder function. Creates an iteration space
+    // that iterates throught the inverse of the reorder
+    // function.
+    static Set* GetInverseIterationSpace(Set* set, UFCallTerm* domUF);
 
 };
 }

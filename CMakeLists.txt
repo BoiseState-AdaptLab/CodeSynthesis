@@ -32,12 +32,12 @@ include_directories(${Threads_INCLUDE_DIR})
 
 
 #ADD EXTERNAL IEGEN LIB
-ExternalProject_Add(iegenlib_in
-        GIT_REPOSITORY "https://github.com/BoiseState-AdaptLab/IEGenLib.git"
-        GIT_TAG "9ece19271e991023000a6693efd46727b6c353f6"
-        SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lib/IEGenLib
-        CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_CURRENT_SOURCE_DIR}/lib/installed
-        BUILD_COMMAND ${MAKE})
+#ExternalProject_Add(iegenlib_in
+#        GIT_REPOSITORY "https://github.com/BoiseState-AdaptLab/IEGenLib.git"
+#        GIT_TAG "9ece19271e991023000a6693efd46727b6c353f6"
+#        SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lib/IEGenLib
+#        CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_CURRENT_SOURCE_DIR}/lib/installed
+#        BUILD_COMMAND ${MAKE})
 
 
 
@@ -69,7 +69,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/lib/IEGenLib/lib/isl/include)
 add_executable(CodeSynthesis_Driver ${CodeSynthesis_SOURCES} src/drivers/code_synthesis_main.cpp)
 
 
-add_dependencies(CodeSynthesis_Driver iegenlib_in)
+#add_dependencies(CodeSynthesis_Driver iegenlib_in)
 target_link_libraries(CodeSynthesis_Driver gtest iegenlib isl codegen omega )
 
 
@@ -85,7 +85,7 @@ set_target_properties(CodeSynthesis_Driver
 
 #ADD KERNEL DRIVER
 add_executable(CodeSynthesis_Kernels ${CodeSynthesis_SOURCES} src/drivers/conversion_kernels.cpp)
-add_dependencies(CodeSynthesis_Kernels iegenlib_in)
+#add_dependencies(CodeSynthesis_Kernels iegenlib_in)
 target_link_libraries(CodeSynthesis_Kernels gtest iegenlib isl codegen omega )
 
 
