@@ -356,8 +356,18 @@ public:
     /// UF(x) >= F(y)
     /// where arity(x) < arity(y) and y is not an output tuple variable.
     /// Assumes that the UF exists in the expression.
+    //
+    //\param constraint constraint under investigation
+    //\param unknownUF  associated unknown uf 
+    //\param inputArity size of the input arity of mapping
+    //\param tupleSize overall tuple size of the mapping
+    //\param resolvedOutputTuples output tuple variables that 
+    //                            resolve to a function of known ufs
+    //                            and tuple variables. 
     static SynthExpressionCase GetUFExpressionSynthCase(Exp* constraint,
-            std::string unknownUF, int inputArity, int tupleSize);
+            std::string unknownUF, int inputArity, int tupleSize,
+	    const std::vector<int> resolvedOutputTuples 
+	    = std::vector<int>());
 
     /// Function removes constraints present in symbNames
     /// from sparse constraints sc
@@ -490,7 +500,27 @@ public:
     // that iterates throught the inverse of the reorder
     // function.
     static Set* GetInverseIterationSpace(Set* set, UFCallTerm* domUF);
-
+    
+    // Function returns a list of output tuple locations that is a 
+    // function of input tuple locations and or known UF.
+    //
+    // Example
+    // [i,j]->[k]: k = i
+    // Tuple var K is added to the list because
+    // k is resolvable by an input tuple variable.
+    //
+    // This helper function is needed to select candidates for 
+    // synthesis that may be overlooked when it involves an output
+    // tuple. That way we can be sure that we are making the right 
+    // choice. Note that transitive closure circumvents this, as 
+    // candidates will still be picked up. However, we will have 
+    // a situation where the iteration space is reduced due to the
+    // direct assignment which would prevent opportunities for 
+    // fusion. Here is an example of such case:
+    //
+    // TODO: Write an example
+    static std::vector<int> GetResolvedOutputTuples(Relation* rel,
+		    std::vector<std::string>& unknownUFs );
 };
 }
 

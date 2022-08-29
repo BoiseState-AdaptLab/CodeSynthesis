@@ -839,3 +839,8 @@ TEST_F(CodeSynthesisUnitTest, TEST_INVERSE_ITERATION_SPACE){
     delete inverseIterSpace;
     delete p1Dim;
 }
+
+
+TEST_F(CodeSynthesisUnitTest, TEST_GET_RESOLVABLE_OUTPUT_TUPLE){
+
+}

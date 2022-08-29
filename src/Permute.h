@@ -58,7 +58,7 @@ public:
     PermuteSimpStream(int dim,int nnz,int NR, int NC):
 	    dim(dim),NR(NR),NC(NC) {
     
-        pos = std::vector<std::vector<int>>(dim+1,std::vector<int>(nnz));
+        pos = std::vector<std::vector<int>>(dim+2,std::vector<int>(nnz));
         iota(pos[dim].begin(),pos[dim].end(),0);
     }
     void insert(std::vector<int> val) {
@@ -75,6 +75,8 @@ public:
 			const  int b){
             return pos[1][a]*NR + pos[0][a] < NR*pos[1][b] + pos[0][b];
         });
+        // Create Remap
+	
     }
     // Returns a permuted index.
     const int getRemap(int originalIndex) {return pos[dim][originalIndex];}

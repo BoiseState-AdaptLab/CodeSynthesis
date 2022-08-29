@@ -96,7 +96,6 @@ for(int i = 0; i < NNZ; i++){
     s2(2,t2,0,t4,t5,t9,0,0,0,0);
     s7(7,t2,0,t4,t5,0,t7,0,t9,0);
     s5(4,t2,0,t4,t5,0,t7,0,t9,0);
-
 }
 // Optimize UQ verification.
 for(t2 = 0; t2 <= NR-1; t2++) {

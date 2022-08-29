@@ -167,8 +167,13 @@ Computation* CodeSynthesis::generateInspectorComputation() {
     Set* noPermuteSet = new Set(*composeSet);
 
     RemoveSymbolicConstraints(permutes,noPermuteSet);
+    
+    // Reorder UF.
+    UFCallTerm* reorderUF = NULL;
 
-
+    // These are tuple terms that are assigned
+    // to some known UFs and input tuple variable.
+    std::vector<int> resolvedOutputTuples;
 
     int executionScheduleIndex  = 0;
     std::vector<std::string> removedPermutes;
@@ -213,7 +218,7 @@ Computation* CodeSynthesis::generateInspectorComputation() {
         for(auto pExp : expList) {
             if (findCallTerm(pExp,permute)!=NULL) {
                 auto caseP = GetUFExpressionSynthCase(pExp,permute,
-                                                      transRel->inArity(),transRel->arity());
+                             transRel->inArity(),transRel->arity());
                 if (caseP == CASE1 || caseP == CASE2)
                     permuteExpCandidate.push_back({pExp,caseP});
 
@@ -285,6 +290,15 @@ Computation* CodeSynthesis::generateInspectorComputation() {
             UFCallTerm* pTerm = dynamic_cast<UFCallTerm*>(findCallTerm(pExp,permute));
             if(pTerm!=NULL) {
                 CreateSortIRComponent(pTerm,inspector,executionScheduleIndex++);
+                reorderUF = pTerm;
+		// Find associated tuple term
+		for(Term* t : pExp->getTermList()){
+		    TupleVarTerm* tupTerm = NULL;
+		    if ( (tupTerm = dynamic_cast<TupleVarTerm*>(t))){
+		        resolvedOutputTuples.push_back(tupTerm->tvloc());
+			std::cout << "Found reserved tuple "<< tupTerm->tvloc() << "\n";
+		    }
+		}
             }
         } else {
             //Remove all instances of permutes that also
@@ -332,8 +346,10 @@ Computation* CodeSynthesis::generateInspectorComputation() {
                 // Get case a uf in a constraint falls into.
                 auto ufCase =
                     GetUFExpressionSynthCase(e,
-                                             currentUF,transRel->inArity(),transRel->arity());
-                // IF UF satisifies synthesis case
+                     currentUF,transRel->inArity(),transRel->arity(),
+		     resolvedOutputTuples);
+		std::cout << "uf: " << currentUF << ", " << e->toString() << ", Case: "<< ufCase << "\n";
+		// IF UF satisifies synthesis case
                 if(ufCase !=UNDEFINED && ufCase != SELF_REF) {
                     expUfs.push_back({e,ufCase});
                 }
@@ -397,7 +413,8 @@ Computation* CodeSynthesis::generateInspectorComputation() {
             if (ufExpPair.second == CASE5 ) {
                 continue;
             }
-            CreateIRComponent(currentUF,inspector,executionScheduleIndex++, ufExpPair.second,
+            CreateIRComponent(currentUF,inspector,executionScheduleIndex++, 
+			    ufExpPair.second,
                               ufExpPair.first,unknownsCopy,transSet);
         }
 
@@ -659,6 +676,7 @@ CodeSynthesis::CodeSynthesis(SparseFormat* source,
     // Expanded candidates for statement selections.
     transRelExpanded = substituteDirectEqualities(transRel);
 
+    std::cout << "TransRel:\n" << transRelExpanded->prettyPrintString() << "\n"; 
     sourceDataName = source->dataName;
     destDataName = dest->dataName;
 
@@ -965,7 +983,8 @@ int arity) {
 
 /// Function returns case of expression as regards a UF.
 SynthExpressionCase CodeSynthesis::GetUFExpressionSynthCase(Exp* constraint,
-        std::string unknownUF, int inputArity, int tupleSize) {
+        std::string unknownUF, int inputArity, int tupleSize,
+	const std::vector<int> resolvedOutputTuples) {
     SynthExpressionCase caseResult = UNDEFINED;
     Term* term = findCallTerm(constraint,unknownUF);
     if (term == NULL) {
@@ -983,26 +1002,26 @@ SynthExpressionCase CodeSynthesis::GetUFExpressionSynthCase(Exp* constraint,
     if (findCallTerm(solvedUFConst,unknownUF)!= NULL) {
         return SELF_REF;
     }
-    std::stringstream ss;
-    if (constraint->isEquality()) {
-        //Case 1
-        // Case 1
-        // UF(x) = F(y)
-        //
-        //Case 2
-        //UF(x) = F(x)
-        //solved for must not depend on output term,
-        //Will need the number of tuple declarations here.
-        //
-        //Case 5
-        //UF(y) = F(x)
-        bool FdependsOnOutput  = false;
-        for(int i = inputArity; i < tupleSize; i++) {
-            TupleVarTerm t(1,i);
-            if (solvedUFConst->dependsOn(t)) {
-                FdependsOnOutput = true;
+    
+    // Compute UF and F dependency on output 
+    // tuple
+    // UF(x) (opp) F(x)
+    bool FdependsOnOutput  = false;
+    for(int i = inputArity; i < tupleSize; i++) {
+       TupleVarTerm t(1,i);
+       // check if this tuple is asigned to something
+       // that solely depends on the input or some constant
+       // then we know thist tuple is resolvable and can 
+       // be assumed not to depend on output. We do this
+       // by checking the resolvable output tuple list.
+       bool outputTupleIsResolvable = std::find(resolvedOutputTuples.begin(),
+		      resolvedOutputTuples.end(),i) !=
+	       resolvedOutputTuples.end(); 
+       if (solvedUFConst->dependsOn(t)
+            && !outputTupleIsResolvable){
+        	FdependsOnOutput = true;
                 break;
-            }
+           }
         }
         bool UFDependsOnOutput = false;
 
@@ -1010,14 +1029,19 @@ SynthExpressionCase CodeSynthesis::GetUFExpressionSynthCase(Exp* constraint,
             UFCallTerm* ufTerm = (UFCallTerm*)term;
             for(int i = inputArity; i < tupleSize; i++) {
                 TupleVarTerm t(1,i);
+                outputTupleIsResolvable = std::find(resolvedOutputTuples.begin(),
+		      resolvedOutputTuples.end(),i) != resolvedOutputTuples.end();
                 for(int arg = 0; arg < ufTerm->numArgs(); arg++) {
-                    if (ufTerm->getParamExp(arg)->dependsOn(t)) {
+                    if (ufTerm->getParamExp(arg)->dependsOn(t) && !outputTupleIsResolvable ) {
                         UFDependsOnOutput = true;
                         break;
                     }
                 }
             }
         }
+    
+    std::stringstream ss;
+    if (constraint->isEquality()) {
         if (!FdependsOnOutput && !UFDependsOnOutput) {
             caseResult = CASE2;
         } else if (UFDependsOnOutput && !FdependsOnOutput) {
@@ -1028,34 +1052,8 @@ SynthExpressionCase CodeSynthesis::GetUFExpressionSynthCase(Exp* constraint,
     } else {
         // All cases in this section
         // arity(y) > arity(x)
-        int x_arity = 0;
-        int y_arity = 0;
-        bool x_dependsOnTuple = false;
-        bool y_dependsOnTuple = false;
-        for(int i = 0 ; i < inputArity; i++) {
-            TupleVarTerm t(1,i);
-            if (term->isUFCall()) {
-                UFCallTerm* ufTerm = (UFCallTerm*)term;
-                for(int k = 0; k < ufTerm->numArgs(); k++) {
-                    if(ufTerm->getParamExp(k)->
-                            dependsOn(t)) {
-                        x_arity++;
-                        x_dependsOnTuple = true;
-                        break;
-                    }
-                }
-            } else {
-                // x dependsOnTuple to true if term is
-                // not a UF.
-                x_dependsOnTuple = true;
-            }
-            if(solvedUFConst->dependsOn(t)) {
-                y_arity++;
-                y_dependsOnTuple = true;
-            }
-        }
         // Relax y_arity >= x_arity constraints
-        if (x_dependsOnTuple && y_dependsOnTuple) {
+        if (!FdependsOnOutput && !UFDependsOnOutput) {
             // Case 3
             // UF(x) <= F(y)
             if (term->coefficient() < 0) {
@@ -2123,4 +2121,56 @@ Set* CodeSynthesis::GetInverseIterationSpace(Set* set, UFCallTerm* domUF){
 
 
     return s1;
+}
+/*
+// Helper class that recursively visits
+// a relation and finds output variables
+// that are equal to or a function of 
+// known UFs or input tuple variables.
+class FindResolvedOutputTuple{
+private:
+    std::vector<int> res;
+    int inputArity = -1;
+    int outArity = -1;
+    std::vector<std::string> unknownUFs;
+    void addToRes(int tvloc){
+        auto it = std::find(res.begin(),res.end(), tvloc);
+	if (it == res.end())
+	    res.push_back(tvloc);
+    }
+public:
+    FindResolvedOutputTuple(const std::vector<std::string>& unknownUFs):
+	    unknownUFs(unknownUFs){}
+    
+    void preVisitRelation(Relation * rel){ 
+        inputArity = rel->inArity();
+	outArity   = rel->outArity();
+    }
+
+    void preVisitExp(Exp * e){
+	if (inputArity == -1 || outArity == -1)
+	    throw assert_exception("unknown outArity and"
+			    " inArity: Was this run on a relation?");
+        if (e->isEquality()){
+	    for(int i =  inputArity; i < inputArity + outArity; i++){
+	        TupleVarTerm t(i);
+	        if (e->dependsOn(t)){
+		    // Check if this has an unknown UF
+		    bool hasUnknownUF = false;
+		    for(auto unknown: unknownUFs){
+		        if (CodeSynthesis::findCallTerm(e,unknown)!= NULL){
+			    hasUnknownUF = true;
+			    break;
+			}
+		    }
+                    
+
+		}	
+	    }
+	}	
+    }
+}*/
+std::vector<int> GetResolvedOutputTuples(Relation* rel,
+		std::vector<std::string>& knownUFs){
+   return {}; 
 }
