@@ -168,10 +168,11 @@ private:
     // \param synthCase         Case of the current uf
     // \param exp               expression/constraint involving uf
     // \param unknowns          List of unknowns.
+    // \param reorderFunction   Reordering function(permute) if any
     void CreateIRComponent(std::string currentUF,Computation* comp,
                            int executionSchedule, SynthExpressionCase ufCase,
                            iegenlib::Exp* exp,std::vector<std::string>& unknowns,
-                           iegenlib::Set* transSet );
+                           iegenlib::Set* transSet, UFCallTerm* reorderUF=NULL );
 
     // Create IR component for sort and adds to the computation
     // \param current UF        Current UF being considered.
@@ -520,7 +521,7 @@ public:
     //
     // TODO: Write an example
     static std::vector<int> GetResolvedOutputTuples(Relation* rel,
-		    std::vector<std::string>& unknownUFs );
+		    const std::vector<std::string>& unknownUFs );
 };
 }
 

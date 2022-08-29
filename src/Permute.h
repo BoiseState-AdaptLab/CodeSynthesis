@@ -68,14 +68,20 @@ public:
         currPos++;	
     }
     inline uint32_t getSize() {
-        return pos.size();
+        return pos[0].size();
     }
     inline void sort() {
         std::sort(pos[dim].begin(),pos[dim].end(),[&]( const int a,
 			const  int b){
             return pos[1][a]*NR + pos[0][a] < NR*pos[1][b] + pos[0][b];
         });
-        // Create Remap
+
+	// Create map at dim+1 that maps from 
+	// P(i,j) to a new position
+	for(int i = 0; i < getSize(); i++){
+	    pos[dim+1][pos[dim][i]] = i;
+	}
+        
 	
     }
     // Returns a permuted index.

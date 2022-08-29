@@ -842,5 +842,14 @@ TEST_F(CodeSynthesisUnitTest, TEST_INVERSE_ITERATION_SPACE){
 
 
 TEST_F(CodeSynthesisUnitTest, TEST_GET_RESOLVABLE_OUTPUT_TUPLE){
-
+    iegenlib::Relation* map1 =
+        new iegenlib::Relation("{[n]->[i,j,k]: i = row1(n) and i >= 0"
+                               " and i < NR and j >= 0 and j < NC and"
+                               " rowptr(i) <= k < rowptr(i+1) and P(i,j) = k"
+			       " and j = col1(k)}");
+    std::vector<int> res = code_synthesis::CodeSynthesis
+	    ::GetResolvedOutputTuples(map1,{"rowptr","P"});
+    ASSERT_EQ(res.size(),2);    
+    EXPECT_EQ(1,res[0]);
+    EXPECT_EQ(2,res[1]);
 }

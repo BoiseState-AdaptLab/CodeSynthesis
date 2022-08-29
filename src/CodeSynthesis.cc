@@ -171,9 +171,6 @@ Computation* CodeSynthesis::generateInspectorComputation() {
     // Reorder UF.
     UFCallTerm* reorderUF = NULL;
 
-    // These are tuple terms that are assigned
-    // to some known UFs and input tuple variable.
-    std::vector<int> resolvedOutputTuples;
 
     int executionScheduleIndex  = 0;
     std::vector<std::string> removedPermutes;
@@ -291,14 +288,6 @@ Computation* CodeSynthesis::generateInspectorComputation() {
             if(pTerm!=NULL) {
                 CreateSortIRComponent(pTerm,inspector,executionScheduleIndex++);
                 reorderUF = pTerm;
-		// Find associated tuple term
-		for(Term* t : pExp->getTermList()){
-		    TupleVarTerm* tupTerm = NULL;
-		    if ( (tupTerm = dynamic_cast<TupleVarTerm*>(t))){
-		        resolvedOutputTuples.push_back(tupTerm->tvloc());
-			std::cout << "Found reserved tuple "<< tupTerm->tvloc() << "\n";
-		    }
-		}
             }
         } else {
             //Remove all instances of permutes that also
@@ -336,6 +325,10 @@ Computation* CodeSynthesis::generateInspectorComputation() {
             break;
             //throw assert_exception("Synthesis Failed!");
         }
+        // These are tuple terms that are assigned
+        // to some known UFs and input tuple variable.
+        std::vector<int> resolvedOutputTuples=
+		GetResolvedOutputTuples(transRel,unknownsCopy);
         std::string currentUF = unknownsCopy.back();
         // Get all the list of viable candidates
         // for the current UF
@@ -391,21 +384,26 @@ Computation* CodeSynthesis::generateInspectorComputation() {
         });
 
         if ( it != expUfs.end()) {
-            CreateIRComponent(currentUF,inspector,executionScheduleIndex++, it->second,
-                              it->first,unknownsCopy,transSet);
-            // Remove from unknown list since this has been solved.
-            unknownsCopy.pop_back();
-            if (it->second == CASE5) {
-                permutes.push_back(currentUF);
-                UFCallTerm* ut = dynamic_cast<UFCallTerm*>(
+            // Ignore and move forward if this fails and keep going
+	    try{
+	        CreateIRComponent(currentUF,inspector,executionScheduleIndex++, it->second,
+                                  it->first,unknownsCopy,transSet,reorderUF);
+            
+	        // Remove from unknown list since this has been solved.
+                unknownsCopy.pop_back();
+                if (it->second == CASE5) {
+                    permutes.push_back(currentUF);
+                    UFCallTerm* ut = dynamic_cast<UFCallTerm*>(
                                      findCallTerm(it->first,currentUF));
 
-                if(ut!=NULL && queryMonoTypeEnv(currentUF)!= Monotonic_NONE) {
-                    CreateSortIRComponent(ut,inspector,executionScheduleIndex++);
+                    if(ut!=NULL && queryMonoTypeEnv(currentUF)!= Monotonic_NONE) {
+                        CreateSortIRComponent(ut,inspector,executionScheduleIndex++);
+                    }
                 }
-            }
-
-
+	    } 
+	    catch(...){
+	    
+	    }
             continue;
         }
         for(auto ufExpPair: expUfs) {
@@ -413,9 +411,15 @@ Computation* CodeSynthesis::generateInspectorComputation() {
             if (ufExpPair.second == CASE5 ) {
                 continue;
             }
+            // Ignore and move forward if this fails and keep going
+	    try{
             CreateIRComponent(currentUF,inspector,executionScheduleIndex++, 
 			    ufExpPair.second,
-                              ufExpPair.first,unknownsCopy,transSet);
+                              ufExpPair.first,unknownsCopy,transSet,reorderUF);
+	    } 
+	    catch(...){
+	    
+	    }
         }
 
         unknownsCopy.pop_back();
@@ -1029,7 +1033,7 @@ SynthExpressionCase CodeSynthesis::GetUFExpressionSynthCase(Exp* constraint,
             UFCallTerm* ufTerm = (UFCallTerm*)term;
             for(int i = inputArity; i < tupleSize; i++) {
                 TupleVarTerm t(1,i);
-                outputTupleIsResolvable = std::find(resolvedOutputTuples.begin(),
+                bool outputTupleIsResolvable = std::find(resolvedOutputTuples.begin(),
 		      resolvedOutputTuples.end(),i) != resolvedOutputTuples.end();
                 for(int arg = 0; arg < ufTerm->numArgs(); arg++) {
                     if (ufTerm->getParamExp(arg)->dependsOn(t) && !outputTupleIsResolvable ) {
@@ -1879,7 +1883,8 @@ void CodeSynthesis::CreateIRComponent(std::string currentUF,
                                       Computation* comp, int executionScheduleIndex,
                                       SynthExpressionCase ufCase, Exp* exp,
                                       std::vector<std::string>& unknowns,
-                                      iegenlib::Set* transSet) {
+                                      iegenlib::Set* transSet,
+				      UFCallTerm* reorderUF) {
 
     std::string expStmt =
         constraintToStatement(exp,
@@ -1907,6 +1912,15 @@ void CodeSynthesis::CreateIRComponent(std::string currentUF,
     // remove constraints involving unknown UFs
 
     RemoveSymbolicConstraints(unknowns,ufDomain);
+    
+    // IF this space is uses a reorder function
+    // change the iteration spaace to loop through
+    // the reorder function
+    if (reorderUF){
+       Set* inv = GetInverseIterationSpace(ufDomain,reorderUF);
+       delete ufDomain;
+       ufDomain = inv; 
+    }
 
     // Get reads and writes.
     auto ufWrites =
@@ -2018,8 +2032,19 @@ public:
     }
     // Pointer is owned by the caller and must
     // be deallocated.
-    Exp* getTupleExpression(){ return res->clone();}
-    int  getFoundTvLoc() { return tvloc; }  
+    Exp* getTupleExpression(){ 
+	if (res == NULL) throw assert_exception(
+	 		"FindTupleVarTermVisitor::getTupleExpression:"
+			" expression not found");
+	return res->clone();
+    }
+    int  getFoundTvLoc() { 
+	
+	if (res == NULL) throw assert_exception(
+	 		"FindTupleVarTermVisitor::getTupleExpression:"
+			" expression not found");
+	return tvloc; 
+    }  
 
 };
 
@@ -2038,21 +2063,20 @@ Set* CodeSynthesis::GetInverseIterationSpace(Set* set, UFCallTerm* domUF){
     for(int i = 0; i < set->arity(); i++){
         td.copyTupleElem(set->getTupleDecl(),i,i+2);
     }
-    td.setTupleElem(0,"_n");
-    td.setTupleElem(1,"_no");
+    td.setTupleElem(0,"_no");
+    td.setTupleElem(1,"_n");
     s1->setTupleDecl(td);
 
 
     // Add the iteration space for the reorder function.
     Exp* lb = new Exp();
-    // n >= 0
+    // _no >= 0
     lb->setInequality();
-
     lb->addTerm(new TupleVarTerm(0));
     bitIter |= (1<<0);
     conj->addInequality(lb);
    
-    // n < P1SIZE
+    // _no < P1SIZE
     Exp* ub = new Exp();
     ub->setInequality();
     ub->addTerm(new VarTerm(1,domUF->name()+"SIZE"));
@@ -2060,7 +2084,7 @@ Set* CodeSynthesis::GetInverseIterationSpace(Set* set, UFCallTerm* domUF){
     ub->addTerm(new Term(-1));
     conj->addInequality(ub);
 
-    // no = P1MAP(n)
+    // _n = P1MAP(_no)
     UFCallTerm * pMap = new UFCallTerm(-1,domUF->name()+"MAP",1);
     Exp * pMapArg = new Exp();
     pMapArg->addTerm(new TupleVarTerm(0));
@@ -2083,7 +2107,7 @@ Set* CodeSynthesis::GetInverseIterationSpace(Set* set, UFCallTerm* domUF){
         tClone->remapLocation(remap);        
 	bitIter|= (1<<tClone->tvloc());
 	Exp* argP = new Exp();
-	argP->addTerm(new TupleVarTerm(1));
+	argP->addTerm(new TupleVarTerm(0));
         p1Dim->setParamExp(0,argP);
 	Exp* p1DimEx = new Exp();
 	p1DimEx->addTerm(tClone);
@@ -2099,7 +2123,7 @@ Set* CodeSynthesis::GetInverseIterationSpace(Set* set, UFCallTerm* domUF){
     set->acceptVisitor(&ftv);
     Exp* tupExp = ftv.getTupleExpression();
     tupExp->remapTupleVars(remap);
-    tupExp->addTerm(new TupleVarTerm(-1,0));
+    tupExp->addTerm(new TupleVarTerm(-1,1));
     conj->addEquality(tupExp);
     bitIter|=(1<<(ftv.getFoundTvLoc()+2));
     int n = 0;
@@ -2111,7 +2135,7 @@ Set* CodeSynthesis::GetInverseIterationSpace(Set* set, UFCallTerm* domUF){
       if(!(bitIter & (1 << n))){
            Exp* e = new Exp();
 	   e->addTerm(new TupleVarTerm(-1,n));
-	   e->addTerm(new TupleVarTerm(1));
+	   e->addTerm(new TupleVarTerm(0));
 	   e->setEquality();
 	   conj->addEquality(e); 
 	   break; 
@@ -2122,26 +2146,33 @@ Set* CodeSynthesis::GetInverseIterationSpace(Set* set, UFCallTerm* domUF){
 
     return s1;
 }
-/*
 // Helper class that recursively visits
 // a relation and finds output variables
 // that are equal to or a function of 
 // known UFs or input tuple variables.
-class FindResolvedOutputTuple{
+class FindResolvedOutputTuple: public Visitor{
 private:
     std::vector<int> res;
     int inputArity = -1;
     int outArity = -1;
     std::vector<std::string> unknownUFs;
+    std::vector<int> resolvedTuples;
     void addToRes(int tvloc){
         auto it = std::find(res.begin(),res.end(), tvloc);
 	if (it == res.end())
 	    res.push_back(tvloc);
     }
 public:
-    FindResolvedOutputTuple(const std::vector<std::string>& unknownUFs):
-	    unknownUFs(unknownUFs){}
-    
+    FindResolvedOutputTuple(const std::vector<std::string>& unknownUFs,
+		    const std::vector<int>& resolvedTuples):
+	    unknownUFs(unknownUFs), resolvedTuples(resolvedTuples){
+        for(int tup : resolvedTuples){
+            addToRes(tup);
+	}		
+    }
+    std::vector<int> getResolvableOutTuples(){
+        return res;
+    } 
     void preVisitRelation(Relation * rel){ 
         inputArity = rel->inArity();
 	outArity   = rel->outArity();
@@ -2152,25 +2183,54 @@ public:
 	    throw assert_exception("unknown outArity and"
 			    " inArity: Was this run on a relation?");
         if (e->isEquality()){
-	    for(int i =  inputArity; i < inputArity + outArity; i++){
-	        TupleVarTerm t(i);
-	        if (e->dependsOn(t)){
-		    // Check if this has an unknown UF
-		    bool hasUnknownUF = false;
-		    for(auto unknown: unknownUFs){
-		        if (CodeSynthesis::findCallTerm(e,unknown)!= NULL){
+	    auto termList = e->getTermList();
+	    for(Term* term:termList){
+	        TupleVarTerm* t = dynamic_cast<TupleVarTerm*>(term);
+		if (t == NULL) continue;
+                int tv_loc= t->tvloc();
+                // Check if this has an unknown UF
+	        bool hasUnknownUF = false;
+	        for(auto unknown: unknownUFs){
+		    if (CodeSynthesis::findCallTerm(e,unknown)!= NULL){
 			    hasUnknownUF = true;
 			    break;
 			}
 		    }
-                    
+                    // Check if it depends on other output tuple
+		    bool hasOtherOutputTuple =false;
+		    for(int j = inputArity; j < inputArity + outArity; j++){
+		        TupleVarTerm t(j);
+		        if(j!=tv_loc  && e->dependsOn(t) && 
+				std::find(resolvedTuples.begin(),
+					resolvedTuples.end(),j) != 
+	            			resolvedTuples.end()){
+		          hasOtherOutputTuple = true;
+			    break;
+			}
+		    }
+		    //std::cout<< e->toString() << "\n";
+		    //std::cout <<hasUnknownUF <<"," << hasOtherOutputTuple << "\n";
+                     
+		    if (!hasUnknownUF  && !hasOtherOutputTuple){
+		        addToRes(tv_loc);
+		    }
 
-		}	
-	    }
+	    }	    
+
 	}	
     }
-}*/
-std::vector<int> GetResolvedOutputTuples(Relation* rel,
-		std::vector<std::string>& knownUFs){
-   return {}; 
+};
+std::vector<int> CodeSynthesis::GetResolvedOutputTuples(Relation* rel,
+		const std::vector<std::string>& unknownUFs){
+   // Fixed point solution
+   int prevSize = 0;
+   std::vector<int> res;
+   while(true){
+       FindResolvedOutputTuple frv(unknownUFs,res);
+       rel->acceptVisitor(&frv);
+       res = frv.getResolvableOutTuples();
+       if (prevSize == res.size()) break;
+       prevSize = res.size();
+   }
+   return res;
 }
