@@ -67,7 +67,8 @@ public:
     void sort(){
         std::sort(pos[dim].begin(),pos[dim].end(),[&]( const int a,
 			const  int b){
-            return pos[1][a]*NR + pos[0][a] < NR*pos[1][b] + pos[0][b];
+             return true;
+	    //return pos[1][a]*NR + pos[0][a] < NR*pos[1][b] + pos[0][b];
         });
 	for(int i = 0; i < getSize(); i++){
 	    pos[dim+1][pos[dim][i]] = i;
