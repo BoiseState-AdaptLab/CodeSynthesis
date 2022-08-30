@@ -220,8 +220,12 @@ int main(int argc, char**argv) {
             while ((pos = s.find(delimiter)) != std::string::npos) {
                 token = s.substr(0, pos);
                 fuseStmts.push_back(std::stoi(token));
+		std::cout <<  token << "\n";
                 s.erase(0, pos + delimiter.length());
             }
+
+            token = s.substr(0, pos);
+            fuseStmts.push_back(std::stoi(token));
         }
 
         if (argString == "-fuselevel") {

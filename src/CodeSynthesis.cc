@@ -1814,7 +1814,7 @@ void CodeSynthesis::ReadReductionFusionOptimization(Computation* comp,
     // Statements with the same domain and does not write
     int fuseStart = *fuseStmts.begin();
     for (auto it = fuseStmts.begin() + 1; it!=fuseStmts.end() ; it++) {
-        comp->fuse(fuseStart,*it,level);
+	comp->fuse(fuseStart,*it,level);
 	fuseStart = *it;
     }
 }

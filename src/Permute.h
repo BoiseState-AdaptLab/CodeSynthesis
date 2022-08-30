@@ -64,8 +64,18 @@ public:
         pos[dim+1].push_back(0);
         currPos++;	
     }
+    void sort(){
+        std::sort(pos[dim].begin(),pos[dim].end(),[&]( const int a,
+			const  int b){
+            return pos[1][a]*NR + pos[0][a] < NR*pos[1][b] + pos[0][b];
+        });
+	for(int i = 0; i < getSize(); i++){
+	    pos[dim+1][pos[dim][i]] = i;
+	}
+    
+    }
     inline uint32_t getSize() { return currPos;}
-    inline int getMap(int idx) {return pos[dim][idx];}
+    inline int getMap(int idx) {return pos[dim+1][idx];}
     inline int getDim(int dimension, int idx) {
         assert(dimension<dim && "Dimension has to be less than dim");
         return pos[dimension][idx];

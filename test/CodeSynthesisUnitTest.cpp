@@ -873,3 +873,6 @@ TEST_F(CodeSynthesisUnitTest, TEST_GET_RESOLVABLE_OUTPUT_TUPLE){
     EXPECT_EQ(1,res[0]);
     EXPECT_EQ(2,res[1]);
 }
+
+TEST_F(CodeSynthesisUnitTest, TEST_REORDER_STREAM){
+}
