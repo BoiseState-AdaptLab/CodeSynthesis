@@ -45,6 +45,34 @@ public:
 };
 
 
+class ReorderStream{
+    int currPos;
+    int dim;
+    std::vector<std::vector<int>> pos;
+public:
+    ReorderStream(int dim): dim(dim),
+	currPos(0),
+	pos(std::vector<std::vector<int>>(dim+2,
+				std::vector<int>()))
+	{
+	}
+    void insert(std::vector<int> val){
+        for(int i =0; i < val.size(); i++){
+	   pos[i].push_back(val[i]);
+	}
+        pos[dim].push_back(currPos);
+        pos[dim+1].push_back(0);
+        currPos++;	
+    }
+    inline uint32_t getSize() { return currPos;}
+    inline int getMap(int idx) {return pos[dim][idx];}
+    inline int getDim(int dimension, int idx) {
+        assert(dimension<dim && "Dimension has to be less than dim");
+        return pos[dimension][idx];
+    } 
+
+};
+
 // This permute class is only used for the 
 // reordering function. This uses a data layout
 // that supports streaming.

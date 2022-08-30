@@ -467,6 +467,15 @@ Computation* CodeSynthesis::generateInspectorComputation() {
     // Skip copy code for now
     // CodeGen (RS2->S1(I)) - Data copy Code
     iegenlib::Set* copyDomain = composeRel->ToSet();
+
+    // IF this space uses a reorder function
+    // change the iteration spaace to loop through
+    // the reorder function
+    if (reorderUF){
+       Set* inv = GetInverseIterationSpace(copyDomain,reorderUF);
+       delete copyDomain;
+       copyDomain = inv; 
+    }
     std::string copyStmt = GetCopyStmt(sourceDataName,destDataName,destMapR,
                                        sourceMapR);
     iegenlib::Relation* execSchedule =
@@ -1352,13 +1361,13 @@ CodeSynthesis::getCopyReadAccess() {
 std::string CodeSynthesis::generateFullCode(std::vector<int>& fuseStmts,
         int level) {
     Computation* comp = generateInspectorComputation();
-    //std::cout << "=======IR Before Opt======\n";
-    comp->printInfo();
-    // std::cout << "=======IR-END====\n";
+    std::cout << "=======IR Before Opt======\n";
+    std::cout << comp->toDotString(); 
+    std::cout << "=======IR-END====\n";
     ReadReductionFusionOptimization(comp,fuseStmts,level);
-    // std::cout << "=======IR After Opt======\n";
-    //  comp->printInfo();
-    // std::cout << "=======IR-END====\n";
+    std::cout << "=======IR After Opt======\n";
+    std::cout << comp->toDotString();
+    std::cout << "=======IR-END====\n";
     std::stringstream ss;
     ss << getSupportingMacros();
     for(auto permute : permutes ) {
@@ -1806,6 +1815,7 @@ void CodeSynthesis::ReadReductionFusionOptimization(Computation* comp,
     int fuseStart = *fuseStmts.begin();
     for (auto it = fuseStmts.begin() + 1; it!=fuseStmts.end() ; it++) {
         comp->fuse(fuseStart,*it,level);
+	fuseStart = *it;
     }
 }
 
@@ -1999,6 +2009,40 @@ bool CodeSynthesis::IsDomainBoundedByUnknown(Term* term,
     return false;
 }
 
+
+// Class returns all aliases for a tuple
+// variable in a sparse constraint.
+// An alias is when some tv(x) = tv(y)
+//
+
+class FindTupleAliases: public Visitor{
+private:
+    int tv;
+    std::vector<int> aliases;
+public:
+    FindTupleAliases(int tv): tv(tv){}
+    void preVisitExp(Exp * e){
+        if (e->isEquality()){
+	    auto termList = e->getTermList();
+	    for(Term* term:termList){
+	        TupleVarTerm* t = dynamic_cast<TupleVarTerm*>(term);
+		if (t == NULL || t->tvloc() != tv) continue;
+		Term* tClone = t->clone();
+		tClone->setCoefficient(1);
+                Exp* rhs = e->solveForFactor(tClone);
+		Term* termA= NULL;
+		TupleVarTerm* tupTerm = NULL;
+		if((termA = rhs->getTerm()) && 
+				(tupTerm=dynamic_cast<TupleVarTerm*>(termA))){
+		    aliases.push_back(tupTerm->tvloc());
+		}
+
+	    }
+	}
+    }
+    std::vector<int> getAliases() { return aliases;}    
+};
+
 // Class finds tuple variable associated with 
 // a uf. This class visits a set and returns 
 // the expression of the rhs of the first UF
@@ -2129,16 +2173,43 @@ Set* CodeSynthesis::GetInverseIterationSpace(Set* set, UFCallTerm* domUF){
     int n = 0;
     // Find which tuple variable hasn't been 
     // used and assume tuple variable is 
-    // original position no. TODO: This is kind of
-    // like a hack and should be fixed.
+    // original position no. First
+    // check if that tuple variable has aliases.
     while(n < s1->arity()){
       if(!(bitIter & (1 << n))){
-           Exp* e = new Exp();
+	   int tuplePos = n-2; // We shifted by 2 before
+	                      // so we need to shift back to 
+			      // get tuple position in the 
+			      // original set.
+           // Check if this tuple variable 
+	   // is directly asigned to some other tuple
+	   // variable. In the Set
+	   
+	   FindTupleAliases fta(tuplePos);
+	   set->acceptVisitor(&fta);
+	   std::vector<int> tupleAliases = fta.getAliases();
+	   if (tupleAliases.size() > 0 ){
+              // If it is add the aliases as part of the 
+	      // constraint
+	      for(auto tupAlias : tupleAliases){
+	          
+	          Exp* e = new Exp();
+	          e->addTerm(new TupleVarTerm(-1,n));
+	          e->addTerm(new TupleVarTerm(tupAlias+2));
+	          e->setEquality();
+	          conj->addEquality(e); 
+	      }
+	      n++;
+	      continue;
+	   }
+	   // If there are no aliases 
+	   // go ahead and make this the original
+	   // position.
+	   Exp* e = new Exp();
 	   e->addTerm(new TupleVarTerm(-1,n));
 	   e->addTerm(new TupleVarTerm(0));
 	   e->setEquality();
 	   conj->addEquality(e); 
-	   break; 
        }
        n++;
     }
@@ -2222,7 +2293,9 @@ public:
 };
 std::vector<int> CodeSynthesis::GetResolvedOutputTuples(Relation* rel,
 		const std::vector<std::string>& unknownUFs){
-   // Fixed point solution
+   // Fixed point solution exit once there 
+   // are no changes in the resolvable tuple variable
+   // results.
    int prevSize = 0;
    std::vector<int> res;
    while(true){
