@@ -18,6 +18,7 @@
 template <typename T>
 using Comparator = std::function<bool (std::vector<T>&,std::vector<T>&)>;
 
+using ComparatorInt = std::function<bool (const int a,const int b)>;
 
 
 template < typename C>
@@ -49,6 +50,7 @@ class ReorderStream{
     int currPos;
     int dim;
     std::vector<std::vector<int>> pos;
+    ComparatorInt comp;
 public:
     ReorderStream(int dim): dim(dim),
 	currPos(0),
@@ -61,18 +63,24 @@ public:
 	   pos[i].push_back(val[i]);
 	}
         pos[dim].push_back(currPos);
-        pos[dim+1].push_back(0);
+        pos[dim+1].push_back(currPos);
         currPos++;	
+    }
+    void setComparator(const ComparatorInt& comp){
+        this->comp = comp;
     }
     void sort(){
         std::sort(pos[dim].begin(),pos[dim].end(),[&]( const int a,
 			const  int b){
-             return true;
-	    //return pos[1][a]*NR + pos[0][a] < NR*pos[1][b] + pos[0][b];
-        });
-	for(int i = 0; i < getSize(); i++){
-	    pos[dim+1][pos[dim][i]] = i;
-	}
+            bool isLess = comp(a,b);
+	    if (isLess){
+	        int temp =      pos[dim+1][a];
+	        pos[dim+1][a] = pos[dim+1][b];
+	        pos[dim+1][b] = temp;
+	    }
+            return isLess;
+             
+	});
     
     }
     inline uint32_t getSize() { return currPos;}

@@ -808,8 +808,8 @@ TEST_F(CodeSynthesisUnitTest, TEST_INVERSE_ITERATION_SPACE){
     p1Dim->setParamExp(1,arg2);
     Set* inverseIterSpace = code_synthesis::
 	    CodeSynthesis::GetInverseIterationSpace(s,p1Dim);
-    EXPECT_EQ("{ [_n, _no, i, k, j, k1] : _n - k1 = 0 && _no - k = 0 &&"
-	      " _no - P1MAP(_n) = 0 && i - P1DIM0(_no) = 0 &&"
+    EXPECT_EQ("{ [_no, _n, i, k, j, k1] : _n - k1 = 0 && _no - k = 0 &&"
+	      " _n - P1MAP(_no) = 0 && i - P1DIM0(_no) = 0 &&"
 	      " j - P1DIM1(_no) = 0 && _n >= 0 && -_n + P1SIZE"
 	      " - 1 >= 0 }",inverseIterSpace->prettyPrintString());  
     delete s;
@@ -829,8 +829,8 @@ TEST_F(CodeSynthesisUnitTest, TEST_INVERSE_ITERATION_SPACE){
 	    CodeSynthesis::GetInverseIterationSpace(s,p1Dim);
 
 
-    EXPECT_EQ("{ [_n, _no, n, i, j, n1] : _n - n1 = 0 &&"
-	      " _no - n = 0 && _no - P1MAP(_n) = 0 &&"
+    EXPECT_EQ("{ [_no, _n, n, i, j, n1] : _n - n1 = 0 &&"
+	      " _no - n = 0 && _n - P1MAP(_no) = 0 &&"
 	      " i - P1DIM0(_no) = 0 && j - P1DIM1(_no) ="
 	      " 0 && _n >= 0 && -_n + P1SIZE - 1 >= 0 }",
 	      inverseIterSpace->prettyPrintString());  
@@ -853,7 +853,7 @@ TEST_F(CodeSynthesisUnitTest, TEST_INVERSE_ITERATION_SPACE){
 	    CodeSynthesis::GetInverseIterationSpace(s,p1Dim);
     EXPECT_EQ("{ [_no, _n, i, k, j, jj, k1] : _no - k = 0 && _n - k1 = 0 &&"
 	      " _n - P1MAP(_no) = 0 && i - P1DIM0(_no) = 0 && j - jj = 0 &&"
-              "j - P1DIM1(_no) = 0 && _no >= 0 && -_no + P1SIZE - 1 >= 0 }",
+              " j - P1DIM1(_no) = 0 && _no >= 0 && -_no + P1SIZE - 1 >= 0 }",
 	      inverseIterSpace->prettyPrintString());  
     delete s;
     delete inverseIterSpace;
@@ -875,4 +875,24 @@ TEST_F(CodeSynthesisUnitTest, TEST_GET_RESOLVABLE_OUTPUT_TUPLE){
 }
 
 TEST_F(CodeSynthesisUnitTest, TEST_REORDER_STREAM){
+    ReorderStream* rs = new ReorderStream(2);
+    int NR= 4;
+    int NC= 4;
+    #define RSDIM0(n) rs->getDim(0,n) 
+    #define RSDIM1(n) rs->getDim(1,n) 
+    ComparatorInt comp = [&](const int a, const int b){
+        return NR*RSDIM1(a) + RSDIM0(a) < NR*RSDIM1(b) + RSDIM0(b);
+    }; 
+    rs->setComparator(comp); 
+    rs->insert({0,1}); 
+    rs->insert({0,0}); 
+    rs->insert({2,1}); 
+    rs->insert({1,0}); 
+    rs->insert({2,2});
+    
+    rs->sort();
+    EXPECT_EQ(2,rs->getMap(0)); 
+    EXPECT_EQ(0,rs->getMap(1)); 
+    EXPECT_EQ(3,rs->getMap(2)); 
+
 }

@@ -1361,13 +1361,9 @@ CodeSynthesis::getCopyReadAccess() {
 std::string CodeSynthesis::generateFullCode(std::vector<int>& fuseStmts,
         int level) {
     Computation* comp = generateInspectorComputation();
-    std::cout << "=======IR Before Opt======\n";
-    std::cout << comp->toDotString(); 
-    std::cout << "=======IR-END====\n";
     ReadReductionFusionOptimization(comp,fuseStmts,level);
-    std::cout << "=======IR After Opt======\n";
-    std::cout << comp->toDotString();
-    std::cout << "=======IR-END====\n";
+     
+    
     std::stringstream ss;
     ss << getSupportingMacros();
     for(auto permute : permutes ) {
@@ -1388,33 +1384,21 @@ std::string CodeSynthesis::generateFullCode(std::vector<int>& fuseStmts,
         [&permute](std::pair<std::string,iegenlib::Exp*>& val) {
             return val.first == permute;
         });
+	//Instantiate reorder stream constructor
+	ss << "ReorderStream* "<< permute <<
+		"= new ReorderStream("<< sourceMapR->outArity()
+		<< ");\n";
         // Generate Comparator code.
-        ss << "Comparator "<< permute <<"Comp = ";
-        ss << "[&](std::vector<int>& a,std::vector<int>& b){\n";
+        ss << "ComparatorInt "<< permute <<"Comp = ";
+        ss << "[&](const int a,const int b){\n";
         if (it!=selfRefs.end()) {
             ss << GenerateSelfRefPermuteConditions(it->second, it->first);
         }
         ss << GeneratePermuteConditions(permute,composeRel,ufQuants);
         ss << "return false;\n";
         ss << "}; \n";
-        
-	
-	ss << "PermuteSimp<int,decltype("<< permute
-           << "Comp)>* "<< permute
-           << " = new PermuteSimp <int,decltype(" <<
-           permute << "Comp)>("<<permute <<"Comp";
-	// Only check for abtraction been a function 
-	// if it is not a temporary permute. A temporary
-	// permute is what we add in the algorithm. A 
-	// permanent permute on the under hand is an unknown
-	// that used the permute abstraction at some point
-	// in synthesis. 
-        if (std::find(unknowns.begin(),unknowns.end(),permute)
-                != unknowns.end()) {
-
-            ss << ", true ";
-        }
-	ss << ");\n";
+        ss << permute << "->setComparator("<<permute<<"Comp);\n";
+        	
     }
     // Add Datamacros for Source and Destination
     // #define <sourceDataName>(i) <sourceDataName>[i]
@@ -1494,6 +1478,30 @@ std::string CodeSynthesis::generateFullCode(std::vector<int>& fuseStmts,
         std::string toReplace  = "#define "+ p1 + " "+ p2;
         std::string replacement = "#define "+ p1 + " "+ p3;
         Utils::replaceAllString(code, toReplace,replacement);
+
+
+	// Replace
+	// #define P1MAP(n) P1MAP[n]
+	// with
+	// #define P1MAP(n) P1->getMap(n)
+	//
+        toReplace   = "#define "+permute+"MAP(t0) "+permute+"MAP[t0]";
+        replacement = "#define "+permute+"MAP(idx) "+permute+"->getMap(idx)";
+        Utils::replaceAllString(code,toReplace,replacement);
+        
+	// Replace 
+	// #define P1DIM0..N(idx) P1DIM0..N(idx) 
+	// with 
+	// #define P1DIM0..N(idx) P1->getDim(0..N,idx)
+	for(int i = 0 ; i < sourceMapR->outArity(); i++){
+ 	    
+            toReplace   = "#define "+permute+"DIM"+std::to_string(i)
+		    +"(t0) "+permute+"DIM"+std::to_string(i)+"[t0]";
+            replacement = "#define "+permute+"DIM"+std::to_string(i)
+		    +"(idx) "+permute+"->getDim("
+		    +std::to_string(i)+",idx)";
+            Utils::replaceAllString(code,toReplace,replacement);
+	}	
     }
     ss <<code;
 
