@@ -43,6 +43,7 @@ P1->setComparator(P1Comp);
 #undef P1MAP_2
 #undef col1_1
 #undef row1_0
+#define P1SIZE P1->getSize()
 #define P1DIM0(idx) P1->getDim(0,idx)
 #define P1DIM0_3(__tv0, __tv1) P1DIM0(__tv1)
 #define P1DIM1(idx) P1->getDim(1,idx)
@@ -91,13 +92,10 @@ for(t2 = 0; t2 <= P1SIZE-1; t2++) {
   t4=P1MAP_2(t1,t2);
   t8=P1DIM0_3(t1,t2);
   t10=P1DIM1_4(t1,t2);
-  t12=P1DIM1_4(t1,t2);
-  t14=P1MAP_2(t1,t2);
-  t16=P1DIM0_3(t1,t2);
-  s2(2,t2,0,t4,0,t2,0,t8,0,t10,0,t12,0,t14,0,0,0);
-  s3(3,t2,0,t4,0,t2,0,t8,0,t10,0,t12,0,t14,0,0,0);
-  s4(6,t2,0,t4,0,t2,0,t8,0,t10,0,t12,0,t14,0,0,0);
-  s6(10,t2,0,t4,0,t2,0,t8,0,t10,0,t12,0,t14,0,t16,0);
+  s2(2,t2,0,t4,0,t2,0,t8,0,t10,0,t10,0,t4,0,0,0);
+  s3(3,t2,0,t4,0,t2,0,t8,0,t10,0,t10,0,t4,0,0,0);
+  s4(6,t2,0,t4,0,t2,0,t8,0,t10,0,t10,0,t4,0,0,0);
+  s6(10,t2,0,t4,0,t2,0,t8,0,t10,0,t10,0,t4,0,t8,0);
 }
 for(t2 = 0; t2 <= NR-1; t2++) {
   for(t4 = t2+1; t4 <= NR; t4++) {
