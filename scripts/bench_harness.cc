@@ -234,7 +234,7 @@ std::pair<CSC *, double> CSRToCSC(uint64_t nnz, uint64_t rank,
 #define NC nc
 #define NNZ nnz
 
-#include <csr_csc_opt2.h>
+#include <csr_csc_opt2_auto.h>
 
 #undef EX_ROW
 #undef EX_COL
@@ -277,7 +277,7 @@ std::pair<COO *, uint64_t> COOToMCOO3D(uint64_t nnz, uint64_t rank,
 #define NZ nz
 #define NNZ nnz
 
-#include <coo3d_mcoo3d_opt.h>
+#include <coo3d_mcoo3d_opt2.h>
 
 #undef EX_ROW3D
 #undef EX_COL3D
@@ -441,7 +441,7 @@ std::pair<CSC *, double> COOToCSC(uint64_t nnz, uint64_t rank,
 #define NC nc
 #define NNZ nnz
 
-#include <coo_csc_opt.h>
+#include <coo_csc_opt2.h>
 
 #undef EX_ROW1
 #undef EX_COL1
