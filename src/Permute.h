@@ -86,7 +86,6 @@ public:
     inline uint32_t getSize() { return currPos;}
     inline int getMap(int idx) {return pos[dim+1][idx];}
     inline int getDim(int dimension, int idx) {
-        assert(dimension<dim && "Dimension has to be less than dim");
         return pos[dimension][idx];
     } 
 
