@@ -74,7 +74,8 @@ public:
 			const  int b){
             return comp(a,b);
 	});
-        for(int i = 0; i < currPos; i++){
+        
+	for(int i = 0; i < currPos; i++){
 	    pos[dim+1][pos[dim][i]] = i;
 	}
     
