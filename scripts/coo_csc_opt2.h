@@ -1,12 +1,6 @@
 #include <synth.h> 
 #define min(a,b) a < b ? a : b
 #define max(a,b) a > b ? a: b
-ReorderStream* P1= new ReorderStream(2);
-ComparatorInt P1Comp = [&](const int a,const int b){
-if (P1->getDim(1,a) < P1->getDim(1,b) )    return true;
-return false;
-}; 
-P1->setComparator(P1Comp);
 #define ACOO(n,ii,jj) EX_ACOO(n)
 #define ACSC(jj,k,ii) EX_ACSC(k)
 #undef s0
@@ -58,6 +52,14 @@ P1->setComparator(P1Comp);
 #define colptr(t0) EX_COLPTR(t0)
 #define row1(t0) EX_ROW1(t0)
 #define row4(t0) EX_ROW(t0)
+
+ReorderStream* P1= new ReorderStream(2);
+ComparatorInt P1Comp = [&](const int a,const int b){
+if (P1->getDim(1,a) < P1->getDim(1,b) )    return true;
+return false;
+}; 
+P1->setComparator(P1Comp);
+
 
 int t1 = 10; 
 int t2 = 0; 
