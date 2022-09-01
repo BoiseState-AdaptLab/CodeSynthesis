@@ -881,7 +881,7 @@ TEST_F(CodeSynthesisUnitTest, TEST_REORDER_STREAM){
     #define RSDIM0(n) rs->getDim(0,n) 
     #define RSDIM1(n) rs->getDim(1,n) 
     ComparatorInt comp = [&](const int a, const int b){
-        return NR*RSDIM1(a) + RSDIM0(a) < NR*RSDIM1(b) + RSDIM0(b);
+        return RSDIM1(a) < RSDIM1(b);
     }; 
     rs->setComparator(comp); 
     rs->insert({0,1}); 

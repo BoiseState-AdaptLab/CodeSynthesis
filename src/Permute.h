@@ -72,15 +72,11 @@ public:
     void sort(){
         std::sort(pos[dim].begin(),pos[dim].end(),[&]( const int a,
 			const  int b){
-            bool isLess = comp(a,b);
-	    if (isLess){
-	        int temp =      pos[dim+1][a];
-	        pos[dim+1][a] = pos[dim+1][b];
-	        pos[dim+1][b] = temp;
-	    }
-            return isLess;
-             
+            return comp(a,b);
 	});
+        for(int i = 0; i < currPos; i++){
+	    pos[dim+1][pos[dim][i]] = i;
+	}
     
     }
     inline uint32_t getSize() { return currPos;}

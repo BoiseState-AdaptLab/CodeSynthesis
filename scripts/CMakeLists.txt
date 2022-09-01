@@ -25,7 +25,7 @@ find_package(OpenMP REQUIRED)
 set_target_properties(bench_harness
 		PROPERTIES
 		RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/scripts"
-		COMPILE_FLAGS "-g -O3  -Wextra ${OpenMP_CXX_FLAGS}"
+		COMPILE_FLAGS "-g -Wextra ${OpenMP_CXX_FLAGS}"
 		)
 target_link_libraries(bench_harness PRIVATE "${OpenMP_CXX_FLAGS}")
 
