@@ -7,7 +7,7 @@ if (a[0] < b[0]) return true;
 return false;
 }; 
 // TODO: Fix this.
-PermuteSimp<decltype(offComp)>* off = new PermuteSimp <decltype(offComp)>(offComp);
+PermuteSimp<decltype(offComp)>* off = new PermuteSimp <decltype(offComp)>(offComp,true);
 #define ACOO(n) EX_ACOO(n)
 #define ADIA(id,dd,jj,kd) EX_ADIA(kd)
 #undef s0
