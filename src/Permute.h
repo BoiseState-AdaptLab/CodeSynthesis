@@ -134,6 +134,32 @@ public:
 
 
 template < typename C>
+class GrowthFunc {
+    C comp;
+    std::map<int,bool> exists; 
+    std::vector<int> pos;
+public:
+    GrowthFunc (C comp): comp(comp) {
+    }
+    void insert(int val) {
+        if (!exists[val]) {
+            pos.push_back(val);
+	    exists[val] = true;
+        }
+    }
+    inline uint32_t getSize() {
+        return pos.size();
+    }
+    inline void sort() {
+        std::sort(pos.begin(),pos.end(),comp);
+    }
+
+    const int getInv(uint32_t i) {
+        return pos[i];
+    }
+};
+
+template < typename C>
 class PermuteSimp {
     C comp;
     int originalPos;
@@ -151,10 +177,6 @@ public:
     void insert(std::vector<int> val) {
 	auto valCp = val;
 	//ensure this is a function 
-	if(!checkFunction) {
-            pos.push_back(valCp);
-            return;
-        }
         auto it = std::find(pos.begin(),pos.end(), val);
         if (it == pos.end()) {
             pos.push_back(val);

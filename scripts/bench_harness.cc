@@ -508,7 +508,7 @@ std::pair<DIA *, double> COOToDIA(uint64_t nnz, uint64_t rank,
     // Copy out the values from off array
     auto stop = std::chrono::high_resolution_clock::now();
     for (int h = 0; h < off->getSize(); h++) {
-        offset.push_back(off->getInv(h)[0]);
+        offset.push_back(off->getInv(h));
     }
 
 
@@ -749,15 +749,19 @@ int main(int argc, char *argv[]) {
 
         COO afterConversion = COO(nnz, rank);
         uint64_t nr = dims[0];
+	int n = 0;
         for (uint64_t i = 0; i < nr; i++) {
             for (uint64_t d = 0; d < dia->off.size(); d++) {
                 int j = dia->off[d] + i;
                 int k = dia->off.size() * i + d;
-                afterConversion.coord[0][k] = i;
-                afterConversion.coord[1][k] = j;
-                afterConversion.values[k] = dia->values[k];
+                if (dia->values[k]!=0){ 
+		afterConversion.coord[0][n] = i;
+                afterConversion.coord[1][n] = j;
+                afterConversion.values[n] = dia->values[k];
+                n++;
+	       	}
             }
-        }
+	}
         output(beforeConversion, afterConversion, milliseconds, conversion, filename);
         delete (dia);
     } else {

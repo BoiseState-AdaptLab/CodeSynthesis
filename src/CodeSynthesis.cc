@@ -1384,6 +1384,19 @@ std::string CodeSynthesis::generateFullCode(std::vector<int>& fuseStmts,
         [&permute](std::pair<std::string,iegenlib::Exp*>& val) {
             return val.first == permute;
         });
+	
+	if(std::find(unknowns.begin(),unknowns.end(),permute)
+			!= unknowns.end()){
+	    // this is a growth function. A growth function is 
+	    // one that fits into case 5 and part of unknown.
+            ss <<"GrowthFunc<decltype(" << permute << "Comp)>* "
+		   << permute << " = new GrowthFunc"<<
+		   "<decltype(" << permute << "Comp)> ("<< permute
+		   << "Comp);\n";
+	    continue;
+ 
+	}
+        
 	//Instantiate reorder stream constructor
 	ss << "ReorderStream* "<< permute <<
 		"= new ReorderStream("<< sourceMapR->outArity()

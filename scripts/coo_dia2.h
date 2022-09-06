@@ -1,20 +1,20 @@
 #include <synth.h> 
 #define min(a,b) a < b ? a : b
 #define max(a,b) a > b ? a: b
-auto offComp = [&](std::vector<int>& a,std::vector<int>& b){
+auto offComp = [&](int a,int b){
 // Manually add the comparator
-if (a[0] < b[0]) return true;
+if (a < b) return true;
 return false;
 }; 
 // TODO: Fix this.
-PermuteSimp<decltype(offComp)>* off = new PermuteSimp <decltype(offComp)>(offComp,true);
+GrowthFunc<decltype(offComp)>* off = new GrowthFunc<decltype(offComp)>(offComp);
 #define ACOO(n) EX_ACOO(n)
 #define ADIA(id,dd,jj,kd) EX_ADIA(kd)
 #undef s0
 #undef s_0
 #undef s1
 #undef s_1
-#define s_0(n)   off->insert({col1(n) - row1(n)}) 
+#define s_0(n)   off->insert(col1(n) - row1(n)) 
 #define s0(__x0, a1, __x2, __x3, __x4, __x5, __x6, __x7, __x8, __x9, __x10)   s_0(a1);
 #define s_1(n, id, dd, jj, kd)   ADIA(id,dd,jj,kd) = ACOO(n ) 
 #define s1(__x0, a1, __x2, a3, __x4, a5, __x6, a7, __x8, a9, __x10)   s_1(a1, a3, a5, a7, a9);
@@ -25,7 +25,7 @@ PermuteSimp<decltype(offComp)>* off = new PermuteSimp <decltype(offComp)>(offCom
 #define col1(t0) EX_COL1(t0)
 #define col1_0(__tv0, __tv1) col1(__tv1)
 // Added this.
-#define off(t0) off->getInv(t0)[0]
+#define off(t0) off->getInv(t0)
 #define off_2(__tv0, __tv1, __tv2, __tv3, __tv4, __tv5) off(__tv5)
 #define row1(t0) EX_ROW1(t0)
 #define row1_1(__tv0, __tv1) row1(__tv1)
@@ -51,7 +51,6 @@ if (NR >= 1 && NC >= 1) {
   // Added this.
   // d < ND
   ND = off->getSize(); 
-  
   // Added this
   off->sort();
   values.resize(ND * NR);
