@@ -752,7 +752,7 @@ int main(int argc, char *argv[]) {
 	int n = 0;
         for (uint64_t i = 0; i < nr; i++) {
             for (uint64_t d = 0; d < dia->off.size(); d++) {
-                int j = dia->off[d] + i;
+                int j = i - dia->off[d];
                 int k = dia->off.size() * i + d;
                 if (dia->values[k]!=0){ 
 		afterConversion.coord[0][n] = i;
@@ -762,6 +762,8 @@ int main(int argc, char *argv[]) {
 	       	}
             }
 	}
+	// order wont stay the same after conversion so it is necessary to 
+	// sort after getting back coo.
         output(beforeConversion, afterConversion, milliseconds, conversion, filename);
         delete (dia);
     } else {

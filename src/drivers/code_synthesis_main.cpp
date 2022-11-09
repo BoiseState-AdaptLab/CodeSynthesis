@@ -83,12 +83,14 @@ int main(int argc, char**argv) {
     
     SparseFormat * bcsr = new SparseFormat();
     bcsr->mapToDense = "{[ii,kk,jj,hr,hc, is, js]->[i,j] : 0<= ii < NR_BR &&"
-                       " browptr(ii) <= kk < browptr(ii+ 1) && jj= bcol(kk) && 0 <= hr"
+                       " browptr(ii) <= kk < browptr(ii+ 1) && jj= bcol(kk)"
+		       " && 0 <= hr"
                        " < BR && 0 <= hc < BC && ii = int_div(i ,BR)"
 		       " && jj = int_div(j , BC)  && i = ii * 99 + hr &&"
                        " j = jj * 999 + hc && i = is && j = js && 0 <= i < NR"
 		       " && 0 <= j < NC }";
-    bcsr->dataAccess = "{[hr,hc,ii,jj,kk, is , js] -> [p]: p= kk * 9999 + hr * 999 + hc }";
+    bcsr->dataAccess = "{[hr,hc,ii,jj,kk, is , js] -> [p]:"
+	    " p= kk * 9999 + hr * 999 + hc }";
 
     bcsr->knowns = { "BR","BC","NR", "NC", "NC_BC","NR_BR","BRBC","int_div"};
     bcsr->ufQuants = { UFQuant( "{[ii]: 0 <= ii <= NR_BR}",
@@ -99,8 +101,10 @@ int main(int argc, char**argv) {
                                 "bcol",false, Monotonic_NONE)
                      };
     bcsr->dataConstraint = "A(i,j) != 0 || ii,jj, x | A(i,j) = 0 && "
-                           "BR ∗ x <= i < BR ∗ ( x + 1) && BC ∗ x <= j < BC ∗ (x+ 1) && "
-                           "BR∗x <= ii < BR∗ ( x + 1) & BC ∗ x <= jj< BC ∗ (x+ 1) && "
+                           "BR ∗ x <= i < BR ∗ ( x + 1) && BC ∗ x <="
+			   " j < BC ∗ (x+ 1) && "
+                           "BR∗x <= ii < BR∗ ( x + 1) &"
+			   " BC ∗ x <= jj< BC ∗ (x+ 1) && "
                            "A(ii,jj) != 0";
     supportedFormats["BCSR"] = bcsr;
 
@@ -118,7 +122,7 @@ int main(int argc, char**argv) {
                       UFQuant( "{[x]:0 <= x < NNZ}","{[i]: 0 <= i <= NC}",
                                "col2",false, Monotonic_NONE,
                                "{[e1,e2]: e1 < e2}",
-                               "{[e1,e2]: i * NR + col2(e1) < j * NC + col2(e2) ")
+                               "{[e1,e2]: DIM0(e1) < DIM0(e2)")
                     };
     supportedFormats["CSR"] = csr;
 
@@ -137,7 +141,7 @@ int main(int argc, char**argv) {
                       UFQuant( "{[x]:0 <= x < NNZ}","{[i]: 0 <= i <= NR}",
                                "row4",false, Monotonic_NONE,
                                "{[e1,e2]: e1 < e2}",
-                               "{[e1,e2]: j * NC + row(e1) < j * NC + row(e2) ")
+                               "{[e1,e2]: DIM1(e1) < DIM1(e2)}")
                     };
     supportedFormats["CSC"] = csc;
 
