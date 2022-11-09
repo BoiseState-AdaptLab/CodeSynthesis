@@ -754,7 +754,7 @@ int main(int argc, char *argv[]) {
             for (uint64_t d = 0; d < dia->off.size(); d++) {
                 int j = i - dia->off[d];
                 int k = dia->off.size() * i + d;
-                if (dia->values[k]!=0){ 
+                if (dia->values[k]!=0 && j >= 0){ 
 		afterConversion.coord[0][n] = i;
                 afterConversion.coord[1][n] = j;
                 afterConversion.values[n] = dia->values[k];
