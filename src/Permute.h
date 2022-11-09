@@ -154,7 +154,7 @@ public:
         std::sort(pos.begin(),pos.end(),comp);
     }
 
-    const int getInv(uint32_t i) {
+    const int get(uint32_t i) {
         return pos[i];
     }
 };

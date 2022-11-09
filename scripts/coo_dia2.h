@@ -25,7 +25,7 @@ GrowthFunc<decltype(offComp)>* off = new GrowthFunc<decltype(offComp)>(offComp);
 #define col1(t0) EX_COL1(t0)
 #define col1_0(__tv0, __tv1) col1(__tv1)
 // Added this.
-#define off(t0) off->getInv(t0)
+#define off(t0) off->get(t0)
 #define off_2(__tv0, __tv1, __tv2, __tv3, __tv4, __tv5) off(__tv5)
 #define row1(t0) EX_ROW1(t0)
 #define row1_1(__tv0, __tv1) row1(__tv1)

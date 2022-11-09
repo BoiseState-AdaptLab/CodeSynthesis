@@ -45,7 +45,7 @@ public:
 
 bool equal(const COO &rhs, const COO &lhs) {
     if (rhs.rank != lhs.rank) {
-        return false;
+	return false;
     }
     if (rhs.nnz != lhs.nnz) {
         return false;
@@ -508,7 +508,7 @@ std::pair<DIA *, double> COOToDIA(uint64_t nnz, uint64_t rank,
     // Copy out the values from off array
     auto stop = std::chrono::high_resolution_clock::now();
     for (int h = 0; h < off->getSize(); h++) {
-        offset.push_back(off->getInv(h));
+        offset.push_back(off->get(h));
     }
 
 
