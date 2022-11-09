@@ -680,19 +680,12 @@ CodeSynthesis::CodeSynthesis(SparseFormat* source,
     permutes = AddPermutationConstraint(invDestMap);
 
     composeRel = invDestMap->Compose(sourceMapR);
-
-    std::cout << "ComposeRel: "<< composeRel->prettyPrintString() << "\n";
-
-
     transRel = composeRel->TransitiveClosure();
-
     // Expanded candidates for statement selections.
     transRelExpanded = substituteDirectEqualities(transRel);
-
-    std::cout << "TransRel:\n" << transRelExpanded->prettyPrintString() << "\n"; 
     sourceDataName = source->dataName;
     destDataName = dest->dataName;
-
+    
     sourceDataConstraint = source->dataConstraint;
     destDataConstraint = source->dataConstraint;
 

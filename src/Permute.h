@@ -151,7 +151,7 @@ public:
         return pos.size();
     }
     inline void sort() {
-        std::sort(pos.begin(),pos.end(),comp);
+        std::sort(pos.begin(),pos.end());
     }
 
     const int getInv(uint32_t i) {
