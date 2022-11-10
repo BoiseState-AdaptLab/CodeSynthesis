@@ -479,14 +479,14 @@ std::pair<CSC *, double> COOToCSC(uint64_t nnz, uint64_t rank,
 std::pair<DIA *, double> COOToDIA(uint64_t nnz, uint64_t rank,
                                   const std::vector<uint64_t> &dims,
                                   const COO &coo) {
-    int nr = dims[0];
-    int nc = dims[1];
+    uint64_t nr = dims[0];
+    uint64_t nc = dims[1];
 
     DIA *dia = new DIA();
     std::vector<int> &offset = dia->off;
     std::vector<double> &values = dia->values;
     auto start = std::chrono::high_resolution_clock::now();
-    int nd = 0;
+    uint64_t nd = 0;
     const std::vector<std::vector<uint64_t>> &coord = coo.coord;
     const std::vector<double> &cooValues = coo.values;
 
@@ -507,7 +507,7 @@ std::pair<DIA *, double> COOToDIA(uint64_t nnz, uint64_t rank,
 #undef EX_ADIA
     // Copy out the values from off array
     auto stop = std::chrono::high_resolution_clock::now();
-    for (int h = 0; h < off->getSize(); h++) {
+    for (uint64_t h = 0; h < off->getSize(); h++) {
         offset.push_back(off->get(h));
     }
 
@@ -753,7 +753,7 @@ int main(int argc, char *argv[]) {
         for (uint64_t i = 0; i < nr; i++) {
             for (uint64_t d = 0; d < dia->off.size(); d++) {
                 int j = i + dia->off[d];
-                int k = dia->off.size() * i + d;
+                long k = dia->off.size() * i + d;
                 if (dia->values[k]!=0){ 
 		afterConversion.coord[0][n] = i;
                 afterConversion.coord[1][n] = j;

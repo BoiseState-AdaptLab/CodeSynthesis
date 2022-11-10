@@ -147,14 +147,14 @@ public:
 	    exists[val] = true;
         }
     }
-    inline uint32_t getSize() {
+    inline uint64_t getSize() {
         return pos.size();
     }
     inline void sort() {
         std::sort(pos.begin(),pos.end(),comp);
     }
 
-    const int get(uint32_t i) {
+    const int get(uint64_t i) {
         return pos[i];
     }
 };

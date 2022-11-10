@@ -1,7 +1,7 @@
 #include <synth.h> 
 #define min(a,b) a < b ? a : b
 #define max(a,b) a > b ? a: b
-auto offComp = [&](int a,int b){
+auto offComp = [&](uint64_t a,uint64_t b){
 // Manually add the comparator
 if (a < b) return true;
 return false;
@@ -30,17 +30,17 @@ GrowthFunc<decltype(offComp)>* off = new GrowthFunc<decltype(offComp)>(offComp);
 #define row1(t0) EX_ROW1(t0)
 #define row1_1(__tv0, __tv1) row1(__tv1)
 
-int t1 = 1; 
-int t2 = 0; 
-int t3 = 0; 
-int t4 = 0; 
-int t5 = 0; 
-int t6 = 0; 
-int t7 = 0; 
-int t8 = 0; 
-int t9 = 0; 
-int t10 = 0; 
-int t11 = 0; 
+uint64_t t1 = 1; 
+uint64_t t2 = 0; 
+uint64_t t3 = 0; 
+uint64_t t4 = 0; 
+uint64_t t5 = 0; 
+uint64_t t6 = 0; 
+uint64_t t7 = 0; 
+uint64_t t8 = 0; 
+uint64_t t9 = 0; 
+uint64_t t10 = 0; 
+uint64_t t11 = 0; 
 
 if (NR >= 1 && NC >= 1) {
   for(t2 = 0; t2 <= NNZ-1; t2++) {
