@@ -131,7 +131,31 @@ TEST_F(CodeSynthesisUnitTest, TEST_CONSTRAINT_TO_STATEMENT) {
     statement = CodeSynthesis::constraintToStatement(e1,"rowptr",td2,caseR);
     EXPECT_EQ(statement,"rowptr->insert({5 ii + hr})");
 
+    // {[i,j] -> [k]}
+    // off(k) = -i + j 
+    // case 5
+    TupleDecl td3(3);
+    td3.setTupleElem(0,"i");
+    td3.setTupleElem(1,"j");
+    td3.setTupleElem(2,"k");
+    
+    e1 = new Exp();
+    UFCallTerm* off = new UFCallTerm("off",1);
+    Exp* arg1 = new Exp();
+    arg1->addTerm(new TupleVarTerm(1,2));
+    off->setParamExp(0,arg1);
 
+
+    e1->addTerm(off);
+    e1->addTerm( new TupleVarTerm(-1,0));
+    e1->addTerm( new TupleVarTerm(1,1));
+    e1->setEquality();
+
+    caseR = CodeSynthesis::GetUFExpressionSynthCase(e1,"off",2,3);
+    statement = CodeSynthesis::constraintToStatement(e1,"off",td3,caseR);
+
+    EXPECT_EQ(statement,"off->insert({i - j})");
+    delete e1;
 
     // col(colinv(5ii+hr,5jj+hc)) = 5jj + hc // case 2
     e1 = new Exp();
@@ -386,8 +410,32 @@ TEST_F(CodeSynthesisUnitTest, CASE_TEST) {
     e1->addTerm(uf);
     e1->addTerm(new TupleVarTerm(-1,1));
     e1->setEquality();
-    std::cerr << e1->toString() << "\n";
     caseR = CodeSynthesis::GetUFExpressionSynthCase(e1,"UF",2,3);
+    EXPECT_EQ(caseR,CASE5);
+    delete e1;
+    
+    // {[i,j] -> [k]}
+    // off(k) = -i + j 
+    // case 5
+    TupleDecl td3(3);
+    td3.setTupleElem(0,"i");
+    td3.setTupleElem(1,"j");
+    td3.setTupleElem(2,"k");
+    
+    e1 = new Exp();
+    UFCallTerm* off = new UFCallTerm("off",1);
+    Exp* arg1 = new Exp();
+    arg1->addTerm(new TupleVarTerm(1,2));
+    off->setParamExp(0,arg1);
+
+
+    e1->addTerm(off);
+    e1->addTerm( new TupleVarTerm(-1,0));
+    e1->addTerm( new TupleVarTerm(1,1));
+    e1->setEquality();
+
+    caseR = CodeSynthesis::GetUFExpressionSynthCase(e1,"off",2,3);
+
     EXPECT_EQ(caseR,CASE5);
     delete e1;
 }
@@ -872,6 +920,33 @@ TEST_F(CodeSynthesisUnitTest, TEST_GET_RESOLVABLE_OUTPUT_TUPLE){
     ASSERT_EQ(res.size(),2);    
     EXPECT_EQ(1,res[0]);
     EXPECT_EQ(2,res[1]);
+    
+    map1 =
+        new iegenlib::Relation("{ [n, ii, jj] -> [id, dd, jj1] : ii - id = 0"
+			" && ii - P0(ii, jj) = 0 && ii - row1(n) = 0 && jj -"
+			" jj1 = 0 && jj - P2(ii, jj) = 0 && jj - col1(n) = 0"
+			" && id - P0(ii, jj) = 0 && id - row1(n) = 0 && dd"
+			" - P1(ii, jj) = 0 && jj1 - P2(ii, jj) = 0 && jj1"
+			" - col1(n) = 0 && P0(ii, jj) - row1(n) = 0 && P2(ii, jj)"
+			" - col1(n) = 0 && ii - jj + off(dd) = 0 && ii - jj1"
+			" + off(dd) = 0 && ii - P2(ii, jj) + off(dd) = 0 &&"
+			" ii - col1(n) + off(dd) = 0 && n >= 0 && ii >= 0 &&"
+			" jj >= 0 && id >= 0 && dd >= 0 && jj1 >= 0 && P0(ii,"
+			" jj) >= 0 && P1(ii, jj) >= 0 && P2(ii, jj) >= 0 &&"
+			" col1(n) >= 0 && row1(n) >= 0 && ii + off(dd) >= 0 &&"
+			" NC - 1 >= 0 && ND - 1 >= 0 && NNZ - 1 >= 0 && NR - 1"
+			" >= 0 && -n + NNZ - 1 >= 0 && -ii + NR - 1 >= 0 &&"
+			" -jj + NC - 1 >= 0 && -id + NR - 1 >= 0 && -dd + ND"
+			" - 1 >= 0 && -jj1 + NC - 1 >= 0 && NC - P2(ii, jj) -"
+			" 1 >= 0 && NC - col1(n) - 1 >= 0 && ND - P1(ii, jj) -"
+			" 1 >= 0 && NR - P0(ii, jj) - 1 >= 0 && NR - row1(n) -"
+			" 1 >= 0 && -ii + NC - off(dd) - 1 >= 0 }");
+
+    std::vector<int> res = code_synthesis::CodeSynthesis
+	    ::GetResolvedOutputTuples(map1,{"off","P1", "P2"});
+    ASSERT_EQ(res.size(),2);    
+    EXPECT_EQ(1,res[0]);
+    EXPECT_EQ(2,res[1]);
 }
 
 TEST_F(CodeSynthesisUnitTest, TEST_REORDER_STREAM){
@@ -896,3 +971,18 @@ TEST_F(CodeSynthesisUnitTest, TEST_REORDER_STREAM){
     EXPECT_EQ(3,rs->getMap(2)); 
 
 }
+
+TEST_F(CodeSynthesisUnitTest, TEST_VALID_ITERATION_SPACE){
+    Set* s = new Set("{[i,k,j,jj,k1]: j = jj && 0 <= i < NR"
+		    " && rowptr(i) <= k < rowptr(i+1)"
+		    " && j = col(k) && k1 = P1(i,j)}");
+    EXPECT_TRUE(CodeSynthesis::IsValidIterationSpace(s));
+    delete s; 
+    
+    s = new Set("{[i,k,j,jj,k1]: 0 <= i < NR"
+		    " && rowptr(i) <= k < rowptr(i+1)"
+		    " && j = col(k) && k1 = P1(i,j)}");
+    EXPECT_FALSE(CodeSynthesis::IsValidIterationSpace(s));
+    delete s;
+}
+

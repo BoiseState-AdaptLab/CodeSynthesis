@@ -155,8 +155,8 @@ int main(int argc, char**argv) {
     // 99 is ND, direct replacement is required.
     dia->dataAccess = "{[id,dd, jj] -> [kd]: kd = 99 * id + dd}";
     dia->knowns = { "NR","NC","NNZ"};
-    dia->ufQuants = { UFQuant( "{[i]: 0 <= i < ND}","{[x]:0 <= x < NNZ}",
-                               "off",true, Monotonic_Increasing)};
+    //dia->ufQuants = { UFQuant( "{[i]: 0 <= i < ND}","{[x]:0 <= x < NNZ}",
+    //                           "off",true, Monotonic_Increasing)};
     // TODO: represent that there exists some non zero for
     // every zero that exists in the same plane as the diagonal.
     dia->dataConstraint = "∃i′, j′, x|"
@@ -165,6 +165,28 @@ int main(int argc, char**argv) {
     // count of the number of non zeros in each diagonal. So for now skip
     supportedFormats["DIA"] = dia;
 
+
+    SparseFormat * ell = new SparseFormat();
+    ell->mapToDense = "{[id,r,jj] -> [ii,j]: jj = j && id = ii && 0 <= id"
+                      " < NR &&  0 <= r < NRR && 0<= ii < NR &&"
+                      " NRR = overmax(j) + 1 && 0 <= r < NRR "
+                      " && j = colR(r) "
+                      "}";
+    // 99 is ND, direct replacement is required.
+    ell->dataAccess = "{[id,r, jj] -> [kd]: kd = 99 * id + r}";
+    ell->knowns = { "NR","NC","NNZ","overmax"};
+    ell->ufQuants = { UFQuant( "{[i]: 0 <= i < ND}","{[x]:0 <= x < NNZ}",
+                               "off",true, Monotonic_Increasing)};
+    // TODO: represent that there exists some non zero for
+    // every zero that exists in the same plane as the ellgonal.
+    ell->dataConstraint = "∃i′, j′, x|"
+                          "A(i′, j′) = 0 ^ i' - j'  = i - j";
+    // It is difficult to represent the rage of offset! It is the
+    // count of the number of non zeros in each ellgonal. So for now skip
+    supportedFormats["ELL"] = ell;
+
+    
+    
     SparseFormat * mortonCoo = new SparseFormat();
     mortonCoo->mapToDense = "{[n1, i , j] -> [i,j]:"
                             " row3(n1) = i and 0 <= n1 and n1 < NNZ "

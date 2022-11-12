@@ -522,6 +522,10 @@ public:
     // TODO: Write an example
     static std::vector<int> GetResolvedOutputTuples(Relation* rel,
 		    const std::vector<std::string>& unknownUFs );
+    // This function checks to see if this iteration space 
+    // is valid
+    // \param set iteration space been considered 
+    static bool IsValidIterationSpace(Set* set);
 };
 }
 

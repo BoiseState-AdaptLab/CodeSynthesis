@@ -672,7 +672,8 @@ CodeSynthesis::CodeSynthesis(SparseFormat* source,
     destMapR = new Relation(dest->mapToDense);
     sourceMapR = new Relation(source->mapToDense);
     if(sourceMapR->outArity()!= destMapR->outArity()) {
-        throw assert_exception("CodeSynthesis:: Format Descriptor map must"
+        throw assert_exception("CodeSynthesis:: Format"
+			" Descriptor map must"
                                " have the same output arity");
     }
     auto invDestMap = destMapR->Inverse();
@@ -1936,7 +1937,16 @@ void CodeSynthesis::CreateIRComponent(std::string currentUF,
     // remove constraints involving unknown UFs
 
     RemoveSymbolicConstraints(unknowns,ufDomain);
-    
+     
+    // Check if the domain created is valid for code generation,
+    // if it isnt; throw exception and do not allow for codegeneration
+    // for this set, it is better for the error to be handled here
+    // than during late code generation phase.
+    if (!IsValidIterationSpace(ufDomain)){
+        throw assert_exception("CreateIRComponent:: Generated Domain"
+			" is not feasible");
+    }
+
     // IF this space is uses a reorder function
     // change the iteration spaace to loop through
     // the reorder function
@@ -2320,4 +2330,62 @@ std::vector<int> CodeSynthesis::GetResolvedOutputTuples(Relation* rel,
        prevSize = res.size();
    }
    return res;
+}
+
+bool CodeSynthesis::IsValidIterationSpace(Set* set){
+   // TODO: Check if set is satisfiable
+	
+   // ITerate through all the tuple variables in the set
+   TupleDecl tup = set->getTupleDecl();
+   for(int i = 0 ; i < tup.size(); i++ ){
+      // Skip this tuple variable if it is a constant
+      if (tup.elemIsConst(i)) continue; 
+      TupleVarTerm tv(i);
+      // Check if it has an upper and lower bound
+      std::list<Exp*> upperBounds = set->GetUpperBounds(tv);
+      std::list<Exp*> lowerBounds = set->GetLowerBounds(tv);
+      // In a condition where a tuple variable only has 
+      // one and not the other constraint then we return 
+      // false because this is gonna fail. It means that the 
+      // tuple has an upper bound and not or lower bound 
+      // or has a lower bound and not an upper bound
+      // which will fail code generation. 
+      if(upperBounds.size() > 0 xor lowerBounds.size() > 0){
+         //Deallocate content of the list 
+	 for(Exp* e : upperBounds) delete e;
+	 for(Exp* e : lowerBounds) delete e;
+	 return false;
+      }
+      // This tuple variable has an upper bound and lower
+      // bound.
+      if(upperBounds.size() > 0 && lowerBounds.size() > 0){
+         //Deallocate content of the list 
+	 for(Exp* e : upperBounds) delete e;
+	 for(Exp* e : lowerBounds) delete e;
+         continue;
+      }
+
+      // Finally check if there is an equality expression
+      // involving this tuple variable.
+      bool foundExpression = false;
+      for(auto conjIt = set->conjunctionBegin();
+		      conjIt != set->conjunctionEnd();
+		      conjIt++){
+         for(Exp* e: (*conjIt)->equalities()){
+	    for(Term* t : e->getTermList()){
+	       TupleVarTerm* tvCast = dynamic_cast<TupleVarTerm*>(t);
+	       if (tvCast!=nullptr &&
+			       tvCast->tvloc() == i){
+	          foundExpression = true;
+		  break;
+	       }
+	    }
+	 }
+      }
+      // If we do not find tuple expression 
+      // involving tuple variable then 
+      // this would noto generate an itertaion space
+      if (!foundExpression) return false;
+   }
+   return true;
 }
