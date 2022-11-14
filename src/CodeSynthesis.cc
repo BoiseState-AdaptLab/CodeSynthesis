@@ -15,6 +15,7 @@
 #include <list>
 #include <numeric>
 #include <bitset>
+#include <stack>
 // TODO: Work on memory management.
 
 using namespace code_synthesis;
@@ -236,6 +237,7 @@ Computation* CodeSynthesis::generateInspectorComputation() {
                 // it does not affect ordering and should not
                 // be used in synthesis processs
                 RemoveSymbolicConstraints({permute},transSet);
+                RemoveSymbolicConstraints({permute},transRel);
                 RemoveSymbolicConstraints({permute},transRelExpanded);
                 RemoveSymbolicConstraints({permute},composeRel);
                 //Referesh expression list in case some
@@ -296,6 +298,7 @@ Computation* CodeSynthesis::generateInspectorComputation() {
             //future permutes that do not directly affect
             //the order of the output tensor will also be removed.
             RemoveSymbolicConstraints({permute},transSet);
+            RemoveSymbolicConstraints({permute},transRel);
             RemoveSymbolicConstraints({permute},transRelExpanded);
             RemoveSymbolicConstraints({permute},composeRel);
             //Referesh expression list in case some
@@ -327,6 +330,8 @@ Computation* CodeSynthesis::generateInspectorComputation() {
         }
         // These are tuple terms that are assigned
         // to some known UFs and input tuple variable.
+	// Get all tuple variables that are resolvable as
+	// a function of input tuple variables
         std::vector<int> resolvedOutputTuples=
 		GetResolvedOutputTuples(transRel,unknownsCopy);
         std::string currentUF = unknownsCopy.back();
@@ -413,7 +418,7 @@ Computation* CodeSynthesis::generateInspectorComputation() {
             }
             // Ignore and move forward if this fails and keep going
 	    try{
-            CreateIRComponent(currentUF,inspector,executionScheduleIndex++, 
+               CreateIRComponent(currentUF,inspector,executionScheduleIndex++, 
 			    ufExpPair.second,
                               ufExpPair.first,unknownsCopy,transSet,reorderUF);
 	    } 
@@ -648,8 +653,10 @@ iegenlib::Set* CodeSynthesis::GetCaseDomain(std::string ufName,Set* s,
     }
 
     if (maxTup == -1) {
-        throw assert_exception("GetCaseDomain: no domain"
-                               " available for expression");
+        // In this case the domain is a a single instance.
+        delete constr;
+	delete res;
+	return new Set("{[0]}");
     }
     // Project out tuple variables after
     // maxTuple.
@@ -1096,66 +1103,93 @@ void CodeSynthesis::addToDataSpace(Computation& comp,
     }
 }
 
+/* Helper Class to return all constraints involving a certain
+ * symbol name.
+ * */
+
+class GetAllConstraintOnSymbolName: public Visitor{
+    std::vector<Exp*> constraints;
+    std::stack<std::pair<int,bool>> s;
+    std::vector<std::string> symbNames;
+    public:
+        GetAllConstraintOnSymbolName(std::vector<std::string> symbNames):
+		symbNames(symbNames){}
+        void preVisitExp(Exp* e) override;
+	void postVisitExp(Exp* e) override;
+	void preVisitUFCallTerm(UFCallTerm* ut) override;
+	void preVisitVarTerm(VarTerm* vt) override;
+	std::vector<Exp*> getConstraints();
+};
+
+void GetAllConstraintOnSymbolName::preVisitExp(Exp* e){
+    if (!s.empty()){
+       s.push({s.top().first+1,false});
+    }else
+       s.push({0,false});
+}
+
+void GetAllConstraintOnSymbolName::preVisitUFCallTerm(UFCallTerm* t){
+    auto itU = std::find(symbNames.begin(),symbNames.end(),t->name());
+    if(itU != symbNames.end()) { 
+        // Pop whatever was stored for this expression 
+	// and push true on the stack
+	// Update every stack information backwards to true
+	int currlevel = s.top().first;
+	int count = 0;
+	while(count <= currlevel){
+	   s.pop();
+	   count++;
+	}
+        count = 0;
+	while(count <= currlevel){
+	   s.push({count,true});
+	   count++;
+	}
+    }
+}
+
+void GetAllConstraintOnSymbolName::preVisitVarTerm(VarTerm* vt){
+    auto itU = std::find(symbNames.begin(),symbNames.end(),vt->symbol());
+    if(itU != symbNames.end()) {
+        // Pop whatever was stored for this expression 
+	// and push true on the stack
+	int currlevel = s.top().first;
+	int count = 0;
+	while(count <= currlevel){
+	   s.pop();
+	   count++;
+	}
+        count = 0;
+	while(count <= currlevel){
+	   s.push({count,true});
+	   count++;
+	}
+
+    }
+}
+
+void GetAllConstraintOnSymbolName::postVisitExp(Exp* e){
+    if (s.top().second){
+        constraints.push_back(e);
+    }
+    s.pop();
+}
+
+
+std::vector<Exp*> GetAllConstraintOnSymbolName::getConstraints(){
+    return constraints;
+}
+
+
 void CodeSynthesis::RemoveSymbolicConstraints(const std::vector<std::string>& symbNames,
         SparseConstraints* sc) {
-    for(auto it = sc->conjunctionBegin();
-            it!= sc->conjunctionEnd();
-            ++it) {
-        Conjunction* conj = (*it);
-        auto itE = conj->equalities().begin();
-        while(itE != conj->equalities().end()) {
-            bool found = false;
-            for(auto t: (*itE)->getTermList()) {
-                std::string name;
-                if(t->isUFCall()) {
-                    UFCallTerm* ut = dynamic_cast<UFCallTerm*>(t);
-                    name = ut->name();
-                } else {
-                    VarTerm* vt = dynamic_cast<VarTerm*>(t);
-                    name = vt? vt->symbol():"";
-                }
-                auto itU =
-                    std::find(symbNames.begin(),symbNames.end(),name);
-                if(itU != symbNames.end()) {
-                    delete (*itE);
-                    itE = conj->equalities().erase(itE);
-                    found = true;
-                    break;
-                }
-            }
-            if (!found) {
-                itE++;
-            }
-        }
-
-        itE = conj->inequalities().begin();
-        while(itE != conj->inequalities().end()) {
-            bool found = false;
-            for(auto t: (*itE)->getTermList()) {
-                std::string name;
-                if(t->isUFCall()) {
-                    UFCallTerm* ut = dynamic_cast<UFCallTerm*>(t);
-                    name = ut->name();
-                } else {
-                    VarTerm* vt = dynamic_cast<VarTerm*>(t);
-                    name = vt? vt->symbol():"";
-                }
-                auto itU =
-                    std::find(symbNames.begin(),symbNames.end(),name);
-                if(itU != symbNames.end()) {
-                    delete (*itE);
-                    itE = conj->equalities().erase(itE);
-                    found = true;
-                    break;
-                }
-            }
-            if (!found) {
-                itE++;
-            }
-        }
-    }
-
-
+    //Instantiate get all coonstraint on symbol name visitor	
+    GetAllConstraintOnSymbolName GCV(symbNames);
+    sc->acceptVisitor(&GCV);
+    std::vector<Exp*> allConstraints = GCV.getConstraints();
+    for (auto constraint : allConstraints){
+        RemoveConstraint(sc,constraint); 
+    }    
 }
 
 // Function returns read accesses for code generated
@@ -2283,7 +2317,10 @@ public:
 	        TupleVarTerm* t = dynamic_cast<TupleVarTerm*>(term);
 		if (t == NULL) continue;
                 int tv_loc= t->tvloc();
-                // Check if this has an unknown UF
+                // We only care about tuple variable location
+		// that is an output tuple.
+		if (tv_loc < inputArity) continue;
+		// Check if this has an unknown UF
 	        bool hasUnknownUF = false;
 	        for(auto unknown: unknownUFs){
 		    if (CodeSynthesis::findCallTerm(e,unknown)!= NULL){

@@ -609,6 +609,19 @@ TEST_F(CodeSynthesisUnitTest, TEST_REMOVE_SYMBOLIC_CONSTRAINTS) {
     EXPECT_EQ("{ [i, j] -> [k] : k - P(i, j) = 0 && "
               "i >= 0 && j >= 0 && -i + NR - 1 >= 0"
               " && -j + NC - 1 >= 0 }",map1->prettyPrintString());
+    delete map1;
+    //Testing nested ufs to be removed
+    map1 =
+        new iegenlib::Relation("{[i,j]->[k]: i >= 0 and i < NR and"
+                               " j >= 0 and j < NC and size_off(off(0)) <= k < rowptr(i+1)"
+                               " and j = col1(k) and P(i,j) = k }");
+    ufs = { "rowptr","col1","off"};
+    CodeSynthesis::RemoveSymbolicConstraints(ufs,map1);
+    
+    EXPECT_EQ("{ [i, j] -> [k] : k - P(i, j) = 0 && "
+              "i >= 0 && j >= 0 && -i + NR - 1 >= 0"
+              " && -j + NC - 1 >= 0 }",map1->prettyPrintString());
+    delete map1;
 }
 
 TEST_F(CodeSynthesisUnitTest,TEST_GETCASEDOMAIN) {
@@ -942,11 +955,11 @@ TEST_F(CodeSynthesisUnitTest, TEST_GET_RESOLVABLE_OUTPUT_TUPLE){
 			" 1 >= 0 && NR - P0(ii, jj) - 1 >= 0 && NR - row1(n) -"
 			" 1 >= 0 && -ii + NC - off(dd) - 1 >= 0 }");
 
-    std::vector<int> res = code_synthesis::CodeSynthesis
+    res = code_synthesis::CodeSynthesis
 	    ::GetResolvedOutputTuples(map1,{"off","P1", "P2"});
     ASSERT_EQ(res.size(),2);    
-    EXPECT_EQ(1,res[0]);
-    EXPECT_EQ(2,res[1]);
+    EXPECT_EQ(3,res[0]);
+    EXPECT_EQ(5,res[1]);
 }
 
 TEST_F(CodeSynthesisUnitTest, TEST_REORDER_STREAM){

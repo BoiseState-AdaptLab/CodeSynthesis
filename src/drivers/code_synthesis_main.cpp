@@ -149,12 +149,12 @@ int main(int argc, char**argv) {
     SparseFormat * dia = new SparseFormat();
     dia->mapToDense = "{[id,dd,jj] -> [ii,j]: jj = j && id = ii && 0 <= id"
                       " < NR &&  0 <= id < NR && 0<= ii < NR &&"
-                      " 0 <= dd < ND "
+                      " 0 <= dd < ND && ND = sizeof(off(0)) "
                       " && j = ii + off(dd) && 0 <= j < NC"
                       "}";
     // 99 is ND, direct replacement is required.
     dia->dataAccess = "{[id,dd, jj] -> [kd]: kd = 99 * id + dd}";
-    dia->knowns = { "NR","NC","NNZ"};
+    dia->knowns = { "NR","NC","NNZ","sizeof"};
     //dia->ufQuants = { UFQuant( "{[i]: 0 <= i < ND}","{[x]:0 <= x < NNZ}",
     //                           "off",true, Monotonic_Increasing)};
     // TODO: represent that there exists some non zero for
