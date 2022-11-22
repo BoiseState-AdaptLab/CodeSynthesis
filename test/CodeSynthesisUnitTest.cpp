@@ -613,7 +613,7 @@ TEST_F(CodeSynthesisUnitTest, TEST_REMOVE_SYMBOLIC_CONSTRAINTS) {
     //Testing nested ufs to be removed
     map1 =
         new iegenlib::Relation("{[i,j]->[k]: i >= 0 and i < NR and"
-                               " j >= 0 and j < NC and size_off(off(0)) <= k < rowptr(i+1)"
+                               " j >= 0 and j < NC and size_off(off) <= k < rowptr(i+1)"
                                " and j = col1(k) and P(i,j) = k }");
     ufs = { "rowptr","col1","off"};
     CodeSynthesis::RemoveSymbolicConstraints(ufs,map1);

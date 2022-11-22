@@ -1972,14 +1972,6 @@ void CodeSynthesis::CreateIRComponent(std::string currentUF,
 
     RemoveSymbolicConstraints(unknowns,ufDomain);
      
-    // Check if the domain created is valid for code generation,
-    // if it isnt; throw exception and do not allow for codegeneration
-    // for this set, it is better for the error to be handled here
-    // than during late code generation phase.
-    if (!IsValidIterationSpace(ufDomain)){
-        throw assert_exception("CreateIRComponent:: Generated Domain"
-			" is not feasible");
-    }
 
     // IF this space is uses a reorder function
     // change the iteration spaace to loop through
@@ -1990,6 +1982,15 @@ void CodeSynthesis::CreateIRComponent(std::string currentUF,
        ufDomain = inv; 
     }
 
+    // Check if the domain created is valid for code generation,
+    // if it isnt; throw exception and do not allow for codegeneration
+    // for this set, it is better for the error to be handled here
+    // than during late code generation phase.
+    if (!IsValidIterationSpace(ufDomain)){
+	std::cerr << "Bad: " << ufDomain->prettyPrintString() << "\n";
+	throw assert_exception("CreateIRComponent:: Generated Domain"
+			" is not feasible");
+    }
     // Get reads and writes.
     auto ufWrites =
         GetWrites(currentUF,exp,ufCase,ufDomain->arity());
