@@ -175,8 +175,6 @@ int main(int argc, char**argv) {
     // 99 is ND, direct replacement is required.
     ell->dataAccess = "{[id,r, jj] -> [kd]: kd = 99 * id + r}";
     ell->knowns = { "NR","NC","NNZ","overmax"};
-    ell->ufQuants = { UFQuant( "{[i]: 0 <= i < ND}","{[x]:0 <= x < NNZ}",
-                               "off",true, Monotonic_Increasing)};
     // TODO: represent that there exists some non zero for
     // every zero that exists in the same plane as the ellgonal.
     ell->dataConstraint = "∃i′, j′, x|"
