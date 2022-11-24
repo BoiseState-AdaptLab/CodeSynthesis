@@ -16,7 +16,7 @@ add_executable(make_fake_mtx_files make_fake_mtx_files.cpp)
 set_target_properties(make_fake_mtx_files
 		PROPERTIES
 		RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/scripts"
-		COMPILE_FLAGS "-g -Wall -Werror -Wextra"
+		COMPILE_FLAGS "-O3 -g -Wall -Werror -Wextra"
 		)
 find_package(OpenMP REQUIRED)
 #set (CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
@@ -25,7 +25,7 @@ find_package(OpenMP REQUIRED)
 set_target_properties(bench_harness
 		PROPERTIES
 		RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/scripts"
-		COMPILE_FLAGS "-g -Wextra ${OpenMP_CXX_FLAGS}"
+		COMPILE_FLAGS "-O3 -g -Wextra ${OpenMP_CXX_FLAGS}"
 		)
 target_link_libraries(bench_harness PRIVATE "${OpenMP_CXX_FLAGS}")
 
