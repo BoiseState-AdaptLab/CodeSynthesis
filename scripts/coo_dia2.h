@@ -1,7 +1,7 @@
 #include <synth.h> 
 #define min(a,b) a < b ? a : b
 #define max(a,b) a > b ? a: b
-auto offComp = [&](uint64_t a,uint64_t b){
+auto offComp = [&](int a,int b){
 // Manually add the comparator
 if (a < b) return true;
 return false;
@@ -53,7 +53,7 @@ if (NR >= 1 && NC >= 1) {
   ND = off->getSize(); 
   // Added this
   off->sort();
-  values.resize(ND * NR);
+  values.resize(ND * NR,INT_MIN);
   if (ND >= 1) {
     for(t2 = 0; t2 <= NNZ-1; t2++) {
       if (col1_0(t1,t2) >= 0 && NR >= row1_1(t1,t2)+1 && row1_1(t1,t2) >= 0 && NC >= col1_0(t1,t2)+1) {
@@ -63,7 +63,7 @@ if (NR >= 1 && NC >= 1) {
             t8=col1_0(t1,t2);
 	    // Changed 99 to ND
             t10=ND*row1_1(t1,t2)+t6;
-            s1(1,t2,0,t4,0,t6,0,t8,0,t10,0);
+	    s1(1,t2,0,t4,0,t6,0,t8,0,t10,0);
           }
         }
       }
