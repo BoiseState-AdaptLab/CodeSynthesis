@@ -535,7 +535,7 @@ void output(const COO &beforeConversion,
 int main(int argc, char *argv[]) {
     if (argc != 3) {
         fprintf(stderr, "Usage: %s <filename (should be in matrix market exchange format)> "
-                        "<type of conversion to run options: csr,sort,coo_mcoo,coo_mcoo3d,csr_csc,coo_csc,coo_dia>\n",
+                        "<type of conversion to run options: coo_csr,sort,coo_mcoo,coo_mcoo3d,csr_csc,coo_csc,coo_dia>\n",
                 argv[0]);
         exit(1);
     }
@@ -596,7 +596,7 @@ int main(int argc, char *argv[]) {
     // TODO: this should apparently be median not average
     int n = 10;
 
-    if (strcmp(conversion, "csr") == 0) {
+    if (strcmp(conversion, "coo_csr") == 0) {
         auto p1 = COOToSortedCOO(nnz, rank, beforeConversion);
         auto sortedCOO = p1.first;
 
