@@ -169,12 +169,12 @@ int main(int argc, char**argv) {
     SparseFormat * ell = new SparseFormat();
     ell->mapToDense = "{[id,r,jj] -> [ii,j]: jj = j && id = ii && 0 <= id"
                       " < NR &&  0 <= r < NRR && 0<= ii < NR &&"
-                      " NRR = overmax(j) + 1 && 0 <= r < NRR "
+                      " NRR = max(j,NRR) + 1 && 0 <= r < NRR "
                       " && j = colR(r) "
                       "}";
     // 99 is ND, direct replacement is required.
     ell->dataAccess = "{[id,r, jj] -> [kd]: kd = 99 * id + r}";
-    ell->knowns = { "NR","NC","NNZ","overmax"};
+    ell->knowns = { "NR","NC","NNZ","max"};
     // TODO: represent that there exists some non zero for
     // every zero that exists in the same plane as the ellgonal.
     ell->dataConstraint = "∃i′, j′, x|"

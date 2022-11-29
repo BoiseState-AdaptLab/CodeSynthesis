@@ -51,6 +51,33 @@ class ReorderStream{
     int dim;
     std::vector<std::vector<int>> pos;
     ComparatorInt comp;
+    void qsort(int l, int  r) {
+
+    uint64_t i, j, p;
+    if(r-l < 2) {
+        return;
+    }
+    p = (l+r) / 2;
+    for(i = l, j = r-1; ; ++i, --j) {
+        while(comp(i, p)) {
+            ++i;
+        }
+        while(comp(p,j)) {
+            --j;
+        }
+        if(i >= j) {
+            break;
+        }
+        spt_SwapValues(tsr, i, j);
+        if(i == p) {
+            p = j;
+        } else if(j == p) {
+            p = i;
+        }
+    }
+    qsort(l, i);
+    qsort(i, r);
+}
 public:
     ReorderStream(int dim): dim(dim),
 	currPos(0),
@@ -69,6 +96,8 @@ public:
     void setComparator(const ComparatorInt& comp){
         this->comp = comp;
     }
+    
+
     void sort(){
         std::sort(pos[dim].begin(),pos[dim].end(),[&]( const int a,
 			const  int b){

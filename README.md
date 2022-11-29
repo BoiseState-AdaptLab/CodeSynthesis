@@ -35,6 +35,14 @@ cd build
 ./bin/CodeSynthesis_Driver -src COO,ACOO -dest CSC,ACSC -fuse 2,3,4,6 -fuselevel 2
 ```
 
+COO3D TO MCOO3D + Fusion
+
+```shell script
+cd build
+./bin/CodeSynthesis_Driver -src 3DCOO,A3DCOO -dest 3DMCOO,A3DMCOO -fuse 2,3,4,5 -fuselevel 2
+```
+
+
 CSR TO DIA
 
 ```shell script
@@ -42,6 +50,12 @@ cd build
 ./bin/CodeSynthesis_Driver -src CSR,ACSR -dest DIA,ADIA
 ```
 
+CSC TO DIA
+
+```shell script
+cd build
+./bin/CodeSynthesis_Driver -src CSC,ACSC -dest DIA,ADIA
+```
 ELL To DIA
 
 ```shell script

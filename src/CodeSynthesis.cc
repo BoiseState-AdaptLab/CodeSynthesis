@@ -421,6 +421,15 @@ Computation* CodeSynthesis::generateInspectorComputation() {
                CreateIRComponent(currentUF,inspector,executionScheduleIndex++, 
 			    ufExpPair.second,
                               ufExpPair.first,unknownsCopy,transSet,reorderUF);
+
+	       // If what was solved for is case 5, case 2 or Case 1
+	       // perform early optimization and dont generate code for any other
+	       // constraints on this uf.
+	       // early optimizations to remove multiple 
+	       // statements doing the same thing
+               if (ufExpPair.second == CASE5 || ufExpPair.second == CASE2 || ufExpPair.second == CASE5 ) {
+                  break;
+	       }
 	    } 
 	    catch(...){
 	    
@@ -1275,8 +1284,10 @@ Set* CodeSynthesis::GetMonotonicDomain(std::string uf, MonotonicType type,
 
     std::list<Exp*> upperBounds = ufDomain->GetUpperBounds(tVar);
     std::list<Exp*> lowerBounds = ufDomain->GetLowerBounds(tVar);
-
-    ss << "{[e1,e2]: e1 < e2 ";
+    // Early optimization rather than have e1 < e2,
+    // we can add e2 = e1 + 1 which holds true for the 
+    // relationship between e1 and e2
+    ss << "{[e1,e2]: e1 + 1 = e2 ";
     for(Exp* e : upperBounds) {
         ss << " && e1 <= " << e->toString();
         ss << " && e2 <= " << e->toString();
