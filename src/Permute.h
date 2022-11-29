@@ -51,6 +51,7 @@ class ReorderStream{
     int dim;
     std::vector<std::vector<int>> pos;
     ComparatorInt comp;
+    /*
     void qsort(int l, int  r) {
 
     uint64_t i, j, p;
@@ -77,7 +78,7 @@ class ReorderStream{
     }
     qsort(l, i);
     qsort(i, r);
-}
+  }*/
 public:
     ReorderStream(int dim): dim(dim),
 	currPos(0),
