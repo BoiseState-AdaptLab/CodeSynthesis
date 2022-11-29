@@ -56,7 +56,7 @@ CSC TO DIA
 cd build
 ./bin/CodeSynthesis_Driver -src CSC,ACSC -dest DIA,ADIA
 ```
-ELL To DIA
+ELL To DIA (ELL Descriptor Incomplete)
 
 ```shell script
 cd build
