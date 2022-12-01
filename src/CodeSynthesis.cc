@@ -778,9 +778,7 @@ CodeSynthesis::CodeSynthesis(SparseFormat* source,
 	     }
 	  }
        }
-       std::cerr << "Before: "<< composeRel->prettyPrintString() << "\n";
        AddTupleRelationships(composeRel,tupleRels);
-       std::cerr << "After: "<< composeRel->prettyPrintString() << "\n";
        for (auto tupPair : tupleRels){
 	  // Quick hack  TODO: fix this.
 	  // We already know what the permute function will be 
@@ -791,7 +789,7 @@ CodeSynthesis::CodeSynthesis(SparseFormat* source,
 		  std::to_string(tupPair.first - sourceMapR->inArity()); 
           RemoveConstraintsInvTupleUF(composeRel,tv,permuteName);
        }  
-       std::cerr << "After pERMUTE REMOVEAL: "<< composeRel->prettyPrintString() << "\n";
+      
     }
     
     
@@ -1503,9 +1501,8 @@ CodeSynthesis::getCopyReadAccess() {
 std::string CodeSynthesis::generateFullCode(std::vector<int>& fuseStmts,
         int level) {
     Computation* comp = generateInspectorComputation();
+    // Manual Fusion
     ReadReductionFusionOptimization(comp,fuseStmts,level);
-     
-    
     std::stringstream ss;
     ss << getSupportingMacros();
     for(auto permute : permutes ) {
