@@ -466,13 +466,46 @@ Computation* CodeSynthesis::generateInspectorComputation() {
 	    }
         }
 
+	// Create monotonicty component if needed
+        CreateMontonicityIRComponent(inspector,currentUF,executionScheduleIndex++);       
+        
         unknownsCopy.pop_back();
     }
-    // Generate code to ensure universal constraint
-    for(auto uf : unknowns) {
-        iegenlib::MonotonicType type = iegenlib::queryMonoTypeEnv(uf);
+    // Skip copy code for now
+    // CodeGen (RS2->S1(I)) - Data copy Code
+    iegenlib::Set* copyDomain = composeRel->ToSet();
 
-        if(type==Monotonic_NONE)  continue;
+    // IF this space uses a reorder function
+    // change the iteration spaace to loop through
+    // the reorder function
+    if (reorderUF){
+       Set* inv = GetInverseIterationSpace(copyDomain,reorderUF);
+       delete copyDomain;
+       copyDomain = inv; 
+    }
+    std::string copyStmt = GetCopyStmt(sourceDataName,destDataName,destMapR,
+                                       sourceMapR);
+    iegenlib::Relation* execSchedule =
+        getExecutionSchedule(
+            copyDomain,executionScheduleIndex++);
+    auto copyReads = getCopyReadAccess();
+    auto copyWrites = getCopyWriteAccess();
+    inspector->addStmt(new Stmt(copyStmt,copyDomain->prettyPrintString(),
+                                execSchedule->prettyPrintString(),copyReads,
+                                copyWrites));
+    inspector->padExecutionSchedules();
+    return inspector;
+}
+
+void CodeSynthesis::CreateMontonicityIRComponent(Computation* inspector,
+		    std::string uf,int executionScheduleIndex){
+
+
+    // Generate Code to enforce monotonicity on 
+	// UF if needed	
+	iegenlib::MonotonicType type = iegenlib::queryMonoTypeEnv(uf);
+
+        if(type==Monotonic_NONE)  return;
         iegenlib::Set* domain = iegenlib::queryDomainCurrEnv(uf);
 
 
@@ -500,39 +533,15 @@ Computation* CodeSynthesis::generateInspectorComputation() {
         // Get execution schedule
         iegenlib::Relation* execSched =
             getExecutionSchedule(
-                stmtDomain,executionScheduleIndex++);
+                stmtDomain,executionScheduleIndex);
 
         inspector->addStmt(new Stmt(monStmt,stmtDomain->prettyPrintString()
                                     ,execSched->prettyPrintString()
                                     ,ufReads,ufWrites));
         delete stmtDomain;
         delete execSched;
-    }
-    // Skip copy code for now
-    // CodeGen (RS2->S1(I)) - Data copy Code
-    iegenlib::Set* copyDomain = composeRel->ToSet();
-
-    // IF this space uses a reorder function
-    // change the iteration spaace to loop through
-    // the reorder function
-    if (reorderUF){
-       Set* inv = GetInverseIterationSpace(copyDomain,reorderUF);
-       delete copyDomain;
-       copyDomain = inv; 
-    }
-    std::string copyStmt = GetCopyStmt(sourceDataName,destDataName,destMapR,
-                                       sourceMapR);
-    iegenlib::Relation* execSchedule =
-        getExecutionSchedule(
-            copyDomain,executionScheduleIndex++);
-    auto copyReads = getCopyReadAccess();
-    auto copyWrites = getCopyWriteAccess();
-    inspector->addStmt(new Stmt(copyStmt,copyDomain->prettyPrintString(),
-                                execSchedule->prettyPrintString(),copyReads,
-                                copyWrites));
-    inspector->padExecutionSchedules();
-    return inspector;
 }
+
 /// This returns a string to allocate memory for an unknown
 /// term.
 /// \param unknownTerm

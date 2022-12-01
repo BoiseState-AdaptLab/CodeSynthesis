@@ -585,6 +585,13 @@ public:
     // and UF from constraint
     static void RemoveConstraintsInvTupleUF(SparseConstraints* sc ,
 		    TupleVarTerm& tv, std::string& ufName);
+
+    // Function creates montonic IR component of a synthesized uf
+    // if needed.
+    // \param inspector(out) the result is added to the inspector
+    // \param uf   the uf been considered
+    static void CreateMontonicityIRComponent(Computation* inspector,
+		    std::string uf,int executionScheduleIndex);
 };
 }
 
