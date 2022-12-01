@@ -228,9 +228,11 @@ Computation* CodeSynthesis::generateInspectorComputation() {
         if (permuteExpCandidate.size() == 1) {
             auto caseP = permuteExpCandidate[0].second;
             auto pExp = permuteExpCandidate[0].first;
+            
 
-
-            // Check if this permutation will affect reordering
+            // Check if this permutation will affect reordering also 
+	    // check if this reordering function is the same conditions
+	    // as the destination format.
             if (!permuteSelfRef &&
                     GeneratePermuteConditions(permute,composeRel,ufQuants).empty()) {
                 // Remove every instance of this permute as
@@ -247,6 +249,8 @@ Computation* CodeSynthesis::generateInspectorComputation() {
                 removedPermutes.push_back(permute);
                 continue;
             }
+	    
+           
 
             std::string pStmt =
                 constraintToStatement(pExp,
@@ -411,6 +415,10 @@ Computation* CodeSynthesis::generateInspectorComputation() {
 	    }
             continue;
         }
+	// Early optimization to avoid generating multiple
+	// case3s and case4s for a single UF
+	int case3Count = 0;
+	int case4Count = 0;
         for(auto ufExpPair: expUfs) {
             // Avoid Generating code for Case5 that is bounded by
             if (ufExpPair.second == CASE5 ) {
@@ -418,6 +426,18 @@ Computation* CodeSynthesis::generateInspectorComputation() {
             }
             // Ignore and move forward if this fails and keep going
 	    try{
+               // TODO: Stop all early optimizations
+	       // Early optimiztion to only generate a single matching
+	       // pair if cases 3 and case 4 for a certain UF
+	       if (ufExpPair.second == CASE3 && case3Count > 0){
+	          continue;
+	       }
+
+
+	       if (ufExpPair.second == CASE4 && case4Count > 0 ){
+	          continue;
+	       }
+		
                CreateIRComponent(currentUF,inspector,executionScheduleIndex++, 
 			    ufExpPair.second,
                               ufExpPair.first,unknownsCopy,transSet,reorderUF);
@@ -429,6 +449,16 @@ Computation* CodeSynthesis::generateInspectorComputation() {
 	       // statements doing the same thing
                if (ufExpPair.second == CASE5 || ufExpPair.second == CASE2 || ufExpPair.second == CASE5 ) {
                   break;
+	       }
+               // Early optimiztion to only generate a single matching
+	       // pair if cases 3 and case 4 for a certain UF
+	       if (ufExpPair.second == CASE3){
+		  case3Count++;
+	       }
+
+
+	       if (ufExpPair.second == CASE4){
+		  case4Count++;
 	       }
 	    } 
 	    catch(...){
@@ -693,13 +723,77 @@ CodeSynthesis::CodeSynthesis(SparseFormat* source,
                                " have the same output arity");
     }
     auto invDestMap = destMapR->Inverse();
+    // Do not add permutation constraint if 
+    // both source and destination format has
+    // the same sorting constraint.
+    
+
+
     // Add the Permutation constraint.
     permutes = AddPermutationConstraint(invDestMap);
 
     composeRel = invDestMap->Compose(sourceMapR);
+    
+    // Compute Reorder Info of source and destination
+    auto sourceReorderInfos = ReorderInfoAnalysis(sourceMapR, source->ufQuants);
+    auto destReorderInfos = ReorderInfoAnalysis(destMapR,dest->ufQuants);
+
+    if (sourceReorderInfos.size() != 0 && destReorderInfos.size()!=0){
+       // There might be a possiblity of having the same reordering 
+       // constraint hence no need for reordering permutations in 
+       // the composed relation
+       
+       // new tuple relationships of equivalant tuple variables
+       // with direct relationships.
+       // First element of the pair is the destionation
+       // tuple variable and second element of the pair
+       // is the first tuple variable.
+       std::vector<std::pair<int,int>> tupleRels;
+       for( auto destReorderInfo : destReorderInfos){
+          // Look for equivalent reorder info in 
+	  for (auto propertyPair : destReorderInfo->propertyPairs){ 
+	     for (auto sourceReorderInfo : sourceReorderInfos){
+	        auto it = std::find_if(sourceReorderInfo->propertyPairs.begin(),
+			       sourceReorderInfo->propertyPairs.end(),
+		       [&propertyPair](PropertyPair& pair){ 
+	                  // TODO: have a better solution than just consttraint 
+			  // comparison
+		          return *(pair.first.get()) ==*(propertyPair.first.get())
+			  && *(pair.second.get()) ==*(propertyPair.second.get());
+		       });
+                if(it != sourceReorderInfo->propertyPairs.end()){
+                    // destination tuple is + tuple plus source Map input tuple
+		    tupleRels.push_back({destReorderInfo->tupleIndex + sourceMapR->inArity(),
+				    sourceReorderInfo->tupleIndex});
+		}		
+	     }
+	  }
+       }
+       std::cerr << "Before: "<< composeRel->prettyPrintString() << "\n";
+       AddTupleRelationships(composeRel,tupleRels);
+       std::cerr << "After: "<< composeRel->prettyPrintString() << "\n";
+       for (auto tupPair : tupleRels){
+	  // Quick hack  TODO: fix this.
+	  // We already know what the permute function will be 
+	  // for certain destination tuple variable so we will
+	  // just go ahead to use that.
+	  TupleVarTerm tv(1,tupPair.first);
+	  std::string permuteName = PERMUTE_NAME + 
+		  std::to_string(tupPair.first - sourceMapR->inArity()); 
+          RemoveConstraintsInvTupleUF(composeRel,tv,permuteName);
+       }  
+       std::cerr << "After pERMUTE REMOVEAL: "<< composeRel->prettyPrintString() << "\n";
+    }
+    
+    
+    
+    
+    
     transRel = composeRel->TransitiveClosure();
     // Expanded candidates for statement selections.
     transRelExpanded = substituteDirectEqualities(transRel);
+    
+    
     sourceDataName = source->dataName;
     destDataName = dest->dataName;
     
@@ -785,7 +879,7 @@ AddPermutationConstraint(Relation* rel) {
     // in the input tuple.
     std::vector<std::string> permutes;
     for(int i = 0; i < rel->outArity(); i++) {
-        Exp* e  = new Exp();
+	Exp* e  = new Exp();
         std::string name = PERMUTE_NAME + std::to_string(i);
         UFCallTerm* pUF = new UFCallTerm(1,name,rel->inArity());
         for(int i =0 ; i < rel->inArity(); i++) {
@@ -1428,6 +1522,11 @@ std::string CodeSynthesis::generateFullCode(std::vector<int>& fuseStmts,
 			!= unknowns.end()){
 	    // this is a growth function. A growth function is 
 	    // one that fits into case 5 and part of unknown.
+            ss << "ComparatorInt "<< permute <<"Comp = ";
+            ss << "[&](const int a,const int b){\n";
+            ss << GeneratePermuteConditions(permute,composeRel,ufQuants);
+            ss << "return false;\n";
+            ss << "}; \n";
             ss <<"GrowthFunc<decltype(" << permute << "Comp)>* "
 		   << permute << " = new GrowthFunc"<<
 		   "<decltype(" << permute << "Comp)> ("<< permute
@@ -1442,10 +1541,10 @@ std::string CodeSynthesis::generateFullCode(std::vector<int>& fuseStmts,
 		<< ");\n";
         // Generate Comparator code.
         ss << "ComparatorInt "<< permute <<"Comp = ";
-        ss << "[&](const int a,const int b){\n";
-        if (it!=selfRefs.end()) {
-            ss << GenerateSelfRefPermuteConditions(it->second, it->first);
-        }
+        ss << "[&](const int e1,const int b){\n";
+	//if (it!=selfRefs.end()) {
+        //    ss << GenerateSelfRefPermuteConditions(it->second, it->first);
+        //}
         ss << GeneratePermuteConditions(permute,composeRel,ufQuants);
         ss << "return false;\n";
         ss << "}; \n";
@@ -1765,10 +1864,10 @@ std::string CodeSynthesis::GeneratePermuteConditions(std::string& permute,
 
         if (type == Monotonic_Increasing
                 || type == Monotonic_Nondecreasing) {
-            ss << "a[0] < b[0]";
+            ss << "a < b";
         } else if (type == Monotonic_Decreasing
                    || type == Monotonic_Nonincreasing) {
-            ss << "a[0] > b[0]";
+            ss << "a > b";
         }
         ss << ")\n return true ; \n";
     }
@@ -1795,37 +1894,9 @@ std::string CodeSynthesis::GeneratePermuteConditions(std::string& permute,
             if (tupTerm == NULL) continue;
 
             if (tupTerm->type() != "TupleVarTerm") continue;
-
-            // Get range of term
-            std::list<Exp*> lowerBounds =
-                c->GetLowerBounds(*((TupleVarTerm*)tupTerm));
-            std::list<Exp*> upperBounds =
-                c->GetUpperBounds(*((TupleVarTerm*)tupTerm));
-
-            Set * permuteRange = new Set(1);
-            Conjunction* permRangeConj =
-                *permuteRange->conjunctionBegin();
-            // Search for
-            TupleVarTerm tup(0);
-            // Build permute range with upper and lower.
-            // bounds.
-            for(Exp* e : upperBounds) {
-                Term* tupClone = tup.clone();
-                tupClone->setCoefficient(-1);
-                e->addTerm(tupClone);
-                e->setInequality();
-                permRangeConj->addInequality(e);
-            }
-
-            for(Exp* e : lowerBounds) {
-                Term* tupClone = tup.clone();
-                tupClone->setCoefficient(1);
-                e->multiplyBy(-1);
-                e->addTerm(tupClone);
-                e->setInequality();
-                permRangeConj->addInequality(e);
-            }
-            permuteRange->cleanUp();
+            
+	    Set* permuteRange = GetTupleTermRange(
+			    dynamic_cast<TupleVarTerm*>(tupTerm),c);
 
             // Now we have a permute range, we need to
             // look for which UF satisfies => Domain(UF) = range(Permute)
@@ -1998,7 +2069,6 @@ void CodeSynthesis::CreateIRComponent(std::string currentUF,
     // for this set, it is better for the error to be handled here
     // than during late code generation phase.
     if (!IsValidIterationSpace(ufDomain)){
-	std::cerr << "Bad: " << ufDomain->prettyPrintString() << "\n";
 	throw assert_exception("CreateIRComponent:: Generated Domain"
 			" is not feasible");
     }
@@ -2438,3 +2508,128 @@ bool CodeSynthesis::IsValidIterationSpace(Set* set){
    }
    return true;
 }
+
+
+bool CodeSynthesis::DependsOnTupleRange(Exp * e, int start , int end){
+   for(int i = start; i <= end ; i++){
+       TupleVarTerm tv(i);
+       if (e->dependsOn(tv)) return true;
+   }
+   return false;
+}
+
+
+Set* CodeSynthesis::GetTupleTermRange(TupleVarTerm* tupTerm, Conjunction* conj){
+
+ // Get range of term
+ std::list<Exp*> lowerBounds =
+     conj->GetLowerBounds(*tupTerm);
+ std::list<Exp*> upperBounds =
+     conj->GetUpperBounds(*tupTerm);
+
+ Set * range = new Set(1);
+ Conjunction* rangeConj =
+     *range->conjunctionBegin();
+ // Search for
+ TupleVarTerm tup(0);
+ // Build permute range with upper and lower.
+ 
+
+ for(Exp* e : upperBounds) {
+     // Check if expression contains 
+		// a tuple variable we do not 
+		// want to use such expressions
+		if (DependsOnTupleRange(e,0,conj->arity())){
+                       delete e;
+		       continue;
+		}	       
+		Term* tupClone = tup.clone();
+     tupClone->setCoefficient(-1);
+		
+		e->addTerm(tupClone);
+     e->setInequality();
+     rangeConj->addInequality(e);
+ }
+
+ for(Exp* e : lowerBounds) {
+     // Check if expression contains 
+		// a tuple variable we do not 
+		// want to use such expressions
+		if (DependsOnTupleRange(e,0,conj->arity())){
+		       delete e;
+			continue;
+		}
+     Term* tupClone = tup.clone();
+     tupClone->setCoefficient(1);
+     e->multiplyBy(-1);
+     e->addTerm(tupClone);
+     e->setInequality();
+     rangeConj->addInequality(e);
+ }
+
+ range->cleanUp();
+ return range;
+}
+
+std::vector<std::shared_ptr<ReorderTupleInfo>> 
+	    CodeSynthesis::ReorderInfoAnalysis(Relation* mapToDense, 
+			    std::vector<UFQuant>& ufQuants){
+   std::vector<std::shared_ptr<ReorderTupleInfo>> res;
+   for(int i = 0; i < mapToDense->inArity(); i++){
+      auto rTupInfo = std::make_shared<ReorderTupleInfo>();
+      TupleVarTerm tv(i);
+      Set* range = GetTupleTermRange(&tv,*mapToDense->conjunctionBegin());
+      rTupInfo->tupleIndex = i;
+      rTupInfo->range = std::move(std::unique_ptr<Set>(range));
+      // TODO: this is code is a repititon
+      
+      for (auto ufQuant : ufQuants) {
+           Set* ufQuantDomain = new Set(ufQuant.domain);
+           if (*ufQuantDomain ==* (rTupInfo->range.get()) &&
+                        ufQuant.rhsProperty!= "") {
+                rTupInfo->propertyPairs.push_back(
+				{std::make_shared<Set>(ufQuant.lhsProperty),
+				std::make_shared<Set> (ufQuant.rhsProperty)});	
+	   }
+      }
+      // Only add stuff that has more than one propertypair
+      if (rTupInfo->propertyPairs.size() > 0)
+         res.push_back(rTupInfo);
+   }
+   return res;
+}
+
+void CodeSynthesis::AddTupleRelationships(SparseConstraints* sc,
+		    std::vector<std::pair<int,int>>& tupleRels){
+   for(auto conjIt = sc->conjunctionBegin();
+		  conjIt != sc->conjunctionEnd(); conjIt++){
+      for ( auto pair : tupleRels){
+         Exp* e = new Exp();
+         e->addTerm(new TupleVarTerm(1,pair.first));
+	 e->addTerm(new TupleVarTerm(-1,pair.second));
+	 e->setEquality();
+	 (*conjIt)->addEquality(e);
+      }
+   }  
+}
+
+void CodeSynthesis::RemoveConstraintsInvTupleUF(SparseConstraints*sc,
+		TupleVarTerm& tv, std::string& ufName){
+
+   for(auto conjIt = sc->conjunctionBegin(); conjIt!= sc->conjunctionEnd();
+		   conjIt++){
+       for (auto e : (*conjIt)->equalities()){
+          if (findCallTerm(e,ufName)!=NULL && e->dependsOn(tv)){
+             //Add the negation of every term in this expression
+	     //to set it equal to zero
+             for(Term* t : e ->getTermList()){
+	        Term* tClone = t->clone();
+		tClone->setCoefficient(-tClone->coefficient());
+		e->addTerm(tClone);
+	     }
+	  } 
+       }
+       (*conjIt)->cleanUp();
+   }
+}
+

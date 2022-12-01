@@ -5,7 +5,7 @@
 #ifndef CODESYNTHESIS_CODESYNTHESIS_H
 #define CODESYNTHESIS_CODESYNTHESIS_H
 #include <iegenlib.h>
-
+#include <memory>
 #include <utility>
 #include <vector>
 #include <computation/Computation.h>
@@ -63,6 +63,27 @@ struct SparseFormat {
     std::vector<UFQuant> ufQuants;
     std::vector<std::string> knowns;
 };
+typedef std::pair<std::shared_ptr<Set>,std::shared_ptr<Set>>
+     PropertyPair;
+typedef std::vector<PropertyPair>
+     PropertyPairVector;
+/*class ReorderTupleInfo holds information on tuple variables
+ * present in a map, its range, and its list of ordering constraints
+ * this is useful for making decisions to generate permutations
+ * or not depending if source and destination formats already have
+ * similar ordering.
+ * */
+struct ReorderTupleInfo{
+    int tupleIndex;
+    std::unique_ptr<Set> range;
+    // Contains all the lhs and rhs properties
+    // extracted from uninterprted function 
+    // quantifiers. First of the pair has the lhs
+    // and second of each pair has the rhs, 
+    //
+    // Memory is managed using a unique pointer
+    PropertyPairVector propertyPairs;
+};
 
 //Helper data structure specifying a universal
 //quantifier
@@ -88,8 +109,6 @@ struct UFQuant {
 
 class CodeSynthesis {
 private:
-    
-
     // Contains permute and other growing functions.
     std::vector<std::string> permutes;
 
@@ -443,7 +462,11 @@ public:
     // For multiple Tuple output variable, permutation becomes
     //     rel = {[i,j] ->[i,k]}
     //     P0(i,j) = i ^ P1(i,j) = k
+    // \param rel the relation
+    // \param excludeList list of tuple variables
+    //                    permutations shouldnt be generated for.
     // Returns a list of permutation names: P0,P1,....,Pn
+    //
     static std::vector<std::string> AddPermutationConstraint
     (Relation* rel);
 
@@ -523,9 +546,45 @@ public:
     static std::vector<int> GetResolvedOutputTuples(Relation* rel,
 		    const std::vector<std::string>& unknownUFs );
     // This function checks to see if this iteration space 
-    // is valid
+    // is valid for code generation
     // \param set iteration space been considered 
     static bool IsValidIterationSpace(Set* set);
+    
+    //This function computes information on tuple variables that 
+    //has some form of ordering constraint imposed due to universal
+    //quantifiers on uninterpreted functions. Function also returns
+    //the range of the tuple variable, and the reordering constraint 
+    //
+    //Memory automatically managed with smart ptrs.
+    static std::vector<std::shared_ptr<ReorderTupleInfo>> 
+	    ReorderInfoAnalysis(Relation* mapToDense, 
+			    std::vector<UFQuant>& ufQuants); 
+    
+    // This function returns true if the expression e
+    // depends on any tuple variable in the range 
+    // start and end, start and end inclusive [start,end]
+    static bool DependsOnTupleRange(Exp * e, int start , int end);
+   
+    // This function returns a range that represents the upper and 
+    // lower bound of a tuple variable term
+    //
+    // \param tupTerm (not adopted) 
+    // \param conj    conjunction
+    //
+    // \returns set owned by the caller
+    static Set* GetTupleTermRange(TupleVarTerm* tupTerm, Conjunction* conj);
+    
+    // Function adds new expressions that directly equate tuples
+    // in tupleRel together.
+    // Throws an exception if the tuple indices in tuple Rels is out
+    // of bound.
+    static void AddTupleRelationships(SparseConstraints* sc,
+		    std::vector<std::pair<int,int>>& tupleRels);
+
+    // Function removes constraints invovling tuple variables
+    // and UF from constraint
+    static void RemoveConstraintsInvTupleUF(SparseConstraints* sc ,
+		    TupleVarTerm& tv, std::string& ufName);
 };
 }
 

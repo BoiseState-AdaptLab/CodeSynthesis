@@ -100,11 +100,7 @@ public:
     
 
     void sort(){
-        std::sort(pos[dim].begin(),pos[dim].end(),[&]( const int a,
-			const  int b){
-            return comp(a,b);
-	});
-        
+        std::sort(pos[dim].begin(),pos[dim].end(),comp); 
 	for(int i = 0; i < currPos; i++){
 	    pos[dim+1][pos[dim][i]] = i;
 	}

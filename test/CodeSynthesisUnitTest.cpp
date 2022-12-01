@@ -999,3 +999,34 @@ TEST_F(CodeSynthesisUnitTest, TEST_VALID_ITERATION_SPACE){
     delete s;
 }
 
+TEST_F(CodeSynthesisUnitTest, TEST_REORDER_INFO_ANALYSIS){
+   // TODO: Add more tests
+   std::vector<UFQuant> ufQuants ={ UFQuant( "{[x]:0 <= x < NNZ}","{[i]: 0 <= i <= NC}",
+                               "col1",false, Monotonic_NONE),
+                      UFQuant( "{[x]:0 <= x < NNZ}","{[i]: 0 <= i <= NR}",
+                               "row1",false, Monotonic_NONE,
+                               "{[e1,e2]: e1 < e2}",
+                               "{[e1,e2]: DIM0(e1) < DIM0(e2)}")
+                    }; 
+
+   Relation* mapToDense = new Relation( "{[n,ii ,jj] -> [i,j]:"
+                      " row1(n) = ii and 0 <= n and n < NNZ "
+                      "and col1(n) = jj and i = ii and"
+		      " j = jj and i >= 0 and "
+                      " i < NR and j >= 0 and j < NC}");
+
+   auto res = CodeSynthesis::ReorderInfoAnalysis(mapToDense,ufQuants);
+   ASSERT_EQ(1,res.size());
+   //Compare tuple index to see if it is the first tuple index n 
+   //which is expected to be the reorder tuple
+   EXPECT_EQ(0,res[0]->tupleIndex);
+   ASSERT_EQ(1,res[0]->propertyPairs.size());
+   //Compare the lhs of property Pairs in tuple variable
+   EXPECT_EQ("{ [e1, e2] : -e1 + e2 - 1 >= 0 }",res[0]->propertyPairs[0].
+		   first->prettyPrintString());
+
+
+   //Compare the rhs of property Pairs in tuple variable
+   EXPECT_EQ("{ [e1, e2] : -DIM0(e1) + DIM0(e2) - 1 >= 0 }",res[0]->propertyPairs[0].
+		   second->prettyPrintString());
+}

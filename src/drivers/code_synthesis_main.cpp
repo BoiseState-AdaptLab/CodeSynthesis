@@ -31,7 +31,9 @@ int main(int argc, char**argv) {
     coo->ufQuants = { UFQuant( "{[x]:0 <= x < NNZ}","{[i]: 0 <= i <= NC}",
                                "col1",false, Monotonic_NONE),
                       UFQuant( "{[x]:0 <= x < NNZ}","{[i]: 0 <= i <= NR}",
-                               "row1",false, Monotonic_NONE)
+                               "row1",false, Monotonic_NONE,
+                               "{[e1,e2]: e1 < e2}",
+                               "{[e1,e2]: DIM0(e1) < DIM0(e2)}")
                     };
     coo->dataConstraint = "A[n]!=0";
     coo->dataAccess = "{[n,ii,jj] -> [n]}";
@@ -70,7 +72,8 @@ int main(int argc, char**argv) {
                                      "MORTON(row3(e2),col3(e2),mz3d(e2))} "),
 
                             UFQuant( "{[x]:0 <= x < NNZ}","{[i]: 0 <= i <= NR}",
-                                     "mrow3",false, Monotonic_NONE, "{[e1,e2]: e1 < e2}",
+                                     "mrow3",false, Monotonic_NONE,
+				     "{[e1,e2]: e1 < e2}",
                                      "{[e1,e2]: MORTON(row3(e1),col3(e1),mz3d(e1)) < "
                                      "MORTON(row3(e2),col3(e2),mz3d(e2))} ")
                           };
@@ -113,7 +116,7 @@ int main(int argc, char**argv) {
     csr->mapToDense = "{[ii,k, jj]->[i,j]: ii >= 0 and ii < NR  and jj = j"
 	    	      " and ii= i and i >= 0 and i < NR and"
                       " j >= 0 and j < NC and rowptr(ii) <= k < rowptr(ii+1)"
-                      " and jj = col2(k)}";
+                      " and jj = col2(k) and 0 <= k < NNZ}";
     csr->dataAccess = "{[ii,k,jj] -> [k]}";
     csr->knowns = { "NR","NC","NNZ"};
     csr->dataConstraint = "A[k]!=0";
@@ -122,7 +125,7 @@ int main(int argc, char**argv) {
                       UFQuant( "{[x]:0 <= x < NNZ}","{[i]: 0 <= i <= NC}",
                                "col2",false, Monotonic_NONE,
                                "{[e1,e2]: e1 < e2}",
-                               "{[e1,e2]: DIM0(e1) < DIM0(e2)")
+                               "{[e1,e2]: DIM0(e1) < DIM0(e2)}")
                     };
     supportedFormats["CSR"] = csr;
 
