@@ -662,7 +662,7 @@ int main(int argc, char *argv[]) {
         delete (mcoo);
     } else if (strcmp(conversion, "coo_mcoo3d") == 0) {
         assert(dims.size() == 3 && "Dims must be 3D");
-	    COO *mcoo;
+        COO *mcoo;
         double milliseconds = 0;
         for (int i = 0; i < n; i++) {
             auto p = COOToMCOO3D(nnz, rank, dims, beforeConversion);
@@ -753,21 +753,21 @@ int main(int argc, char *argv[]) {
 
         COO afterConversion = COO(nnz, rank);
         uint64_t nr = dims[0];
-	int n = 0;
+        int n = 0;
         for (uint64_t i = 0; i < nr; i++) {
             for (uint64_t d = 0; d < dia->off.size(); d++) {
                 int j = i + dia->off[d];
                 long k = dia->off.size() * i + d;
-                if (dia->values[k]!=INT_MIN){ 
-		afterConversion.coord[0][n] = i;
-                afterConversion.coord[1][n] = j;
-                afterConversion.values[n] = dia->values[k];
-                n++;
-	       	}
+                if (dia->values[k] != INT_MIN) {
+                    afterConversion.coord[0][n] = i;
+                    afterConversion.coord[1][n] = j;
+                    afterConversion.values[n] = dia->values[k];
+                    n++;
+                }
             }
-	}
-	// order wont stay the same after conversion so it is necessary to 
-	// sort after getting back coo.
+        }
+        // order wont stay the same after conversion so it is necessary to
+        // sort after getting back coo.
         output(beforeConversion, afterConversion, milliseconds, conversion, filename);
         delete (dia);
     } else {
