@@ -365,6 +365,10 @@ COO *createSorted(const COO &coo) {
                           return one < two;
                       }
                   }
+                  // There shouldn't be duplicates, but if there are make sure they end up in a deterministic order.
+                  if (coo.values[i1] != coo.values[i2]) {
+                      return coo.values[i1] < coo.values[i2];
+                  }
                   return false;
               });
 
