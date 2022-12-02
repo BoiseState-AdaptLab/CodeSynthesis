@@ -662,8 +662,7 @@ int main(int argc, char *argv[]) {
         delete (mcoo);
     } else if (strcmp(conversion, "coo_mcoo3d") == 0) {
         assert(dims.size() == 3 && "Dims must be 3D");
-        n=10;
-	COO *mcoo;
+	    COO *mcoo;
         double milliseconds = 0;
         for (int i = 0; i < n; i++) {
             auto p = COOToMCOO3D(nnz, rank, dims, beforeConversion);
