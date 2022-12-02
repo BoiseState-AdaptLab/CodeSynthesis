@@ -45,7 +45,7 @@ public:
 
 bool equal(const COO &rhs, const COO &lhs) {
     if (rhs.rank != lhs.rank) {
-	return false;
+        return false;
     }
     if (rhs.nnz != lhs.nnz) {
         return false;
@@ -369,10 +369,11 @@ COO *createSorted(const COO &coo) {
               });
 
     // load data into new COO matrix based on row index
-    for (int k = 0; k < coo.nnz; k++) {
+    for (uint64_t k = 0; k < coo.nnz; k++) {
         sorted->values[k] = coo.values[idx[k]];
-        sorted->coord[0][k] = coo.coord[0][idx[k]];
-        sorted->coord[1][k] = coo.coord[1][idx[k]];
+        for (uint64_t i = 0; i < coo.rank; i++) {
+            sorted->coord[i][k] = coo.coord[i][idx[k]];
+        }
     }
 
     return sorted;
