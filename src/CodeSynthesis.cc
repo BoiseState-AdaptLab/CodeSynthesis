@@ -370,10 +370,6 @@ Computation* CodeSynthesis::generateInspectorComputation() {
 	int case3Count = 0;
 	int case4Count = 0;
         for(auto ufExpPair: expUfs) {
-            // Avoid Generating code for Case5 that is bounded by
-            if (ufExpPair.second == CASE5 ) {
-                continue;
-            }
             // Ignore and move forward if this fails and keep going
 	    try{
                // TODO: Stop all early optimizations
