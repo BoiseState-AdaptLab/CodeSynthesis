@@ -45,7 +45,7 @@ public:
 
 bool equal(const COO &rhs, const COO &lhs) {
     if (rhs.rank != lhs.rank) {
-	return false;
+        return false;
     }
     if (rhs.nnz != lhs.nnz) {
         return false;
@@ -365,14 +365,19 @@ COO *createSorted(const COO &coo) {
                           return one < two;
                       }
                   }
+                  // There shouldn't be duplicates, but if there are make sure they end up in a deterministic order.
+                  if (coo.values[i1] != coo.values[i2]) {
+                      return coo.values[i1] < coo.values[i2];
+                  }
                   return false;
               });
 
     // load data into new COO matrix based on row index
-    for (int k = 0; k < coo.nnz; k++) {
+    for (uint64_t k = 0; k < coo.nnz; k++) {
         sorted->values[k] = coo.values[idx[k]];
-        sorted->coord[0][k] = coo.coord[0][idx[k]];
-        sorted->coord[1][k] = coo.coord[1][idx[k]];
+        for (uint64_t i = 0; i < coo.rank; i++) {
+            sorted->coord[i][k] = coo.coord[i][idx[k]];
+        }
     }
 
     return sorted;
@@ -748,21 +753,21 @@ int main(int argc, char *argv[]) {
 
         COO afterConversion = COO(nnz, rank);
         uint64_t nr = dims[0];
-	int n = 0;
+        int n = 0;
         for (uint64_t i = 0; i < nr; i++) {
             for (uint64_t d = 0; d < dia->off.size(); d++) {
                 int j = i + dia->off[d];
                 long k = dia->off.size() * i + d;
-                if (dia->values[k]!=INT_MIN){ 
-		afterConversion.coord[0][n] = i;
-                afterConversion.coord[1][n] = j;
-                afterConversion.values[n] = dia->values[k];
-                n++;
-	       	}
+                if (dia->values[k] != INT_MIN) {
+                    afterConversion.coord[0][n] = i;
+                    afterConversion.coord[1][n] = j;
+                    afterConversion.values[n] = dia->values[k];
+                    n++;
+                }
             }
-	}
-	// order wont stay the same after conversion so it is necessary to 
-	// sort after getting back coo.
+        }
+        // order wont stay the same after conversion so it is necessary to
+        // sort after getting back coo.
         output(beforeConversion, afterConversion, milliseconds, conversion, filename);
         delete (dia);
     } else {
