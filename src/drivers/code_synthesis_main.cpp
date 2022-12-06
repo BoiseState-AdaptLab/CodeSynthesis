@@ -133,7 +133,7 @@ int main(int argc, char**argv) {
 
     SparseFormat * csc = new SparseFormat();
     csc->mapToDense = "{[jj,k,ii]->[i,j]: jj = j and 0 <= jj < NC and"
-	    	      "  ii = i and  i >= 0 and i < NR and"
+	    	      "  ii = i and 0 <= k < NNZ and  i >= 0 and i < NR and"
                       " j >= 0 and j < NC and colptr(jj) <= k < colptr(jj+1)"
                       " and ii = row4(k) }";
     csc->dataAccess = "{[jj,k,ii] -> [k]}";

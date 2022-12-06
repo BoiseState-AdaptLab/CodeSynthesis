@@ -173,6 +173,10 @@ public:
 	    exists[val] = true;
         }
     }
+    inline uint64_t search(int value){
+        auto res = std::lower_bound(pos.begin(),pos.end(),value);
+	return res - pos.begin();
+    }
     inline uint64_t getSize() {
         return pos.size();
     }

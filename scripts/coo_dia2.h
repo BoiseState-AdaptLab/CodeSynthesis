@@ -58,14 +58,12 @@ if (NR >= 1 && NC >= 1) {
     for(t2 = 0; t2 <= NNZ-1; t2++) {
       if (col1_0(t1,t2) >= 0 && NR >= row1_1(t1,t2)+1 && row1_1(t1,t2) >= 0 && NC >= col1_0(t1,t2)+1) {
         t4=row1_1(t1,t2);
-        for(t6 = 0; t6 <= ND-1; t6++) {
-          if (col1_0(t1,t2) == off_2(t1,t2,t3,t4,t5,t6)+t4) {
-            t8=col1_0(t1,t2);
-	    // Changed 99 to ND
-            t10=ND*row1_1(t1,t2)+t6;
-	    s1(1,t2,0,t4,0,t6,0,t8,0,t10,0);
-          }
-        }
+        t8=col1_0(t1,t2);
+        // Replace with binary search
+	t6=off->search(t8-t4);	
+	// Changed 99 to ND
+        t10=ND*row1_1(t1,t2)+t6;
+	s1(1,t2,0,t4,0,t6,0,t8,0,t10,0);
       }
     }
   }

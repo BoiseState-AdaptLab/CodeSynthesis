@@ -28,6 +28,14 @@ Driver generates synth.h and synth.c files which can be compiled / added to a pr
 
 ### Examples
 
+COO TO CSR + Fusion
+```shell script
+cd build
+./bin/CodeSynthesis_Driver -src COO,ACOO -dest CSR,ACSR  -fuse 0,1 -fuselevel 1
+```
+
+
+
 COO TO CSC + Fusion
 
 ```shell script
@@ -49,6 +57,13 @@ CSR TO DIA
 cd build
 ./bin/CodeSynthesis_Driver -src CSR,ACSR -dest DIA,ADIA
 ```
+
+CSR TO CSC + FUSION
+``` shell script
+cd build
+./bin/CodeSynthesis_Driver -src CSR,ACSR -dest CSC,ACSC -fuse 2,3,4,6 -fuselevel 2
+```
+
 
 CSC TO DIA
 

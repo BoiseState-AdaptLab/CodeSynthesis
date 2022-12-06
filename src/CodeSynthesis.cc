@@ -364,57 +364,7 @@ Computation* CodeSynthesis::generateInspectorComputation() {
             unknownsCopy.insert(unknownsCopy.begin(),currentUF);
             continue;
         }
-        // Check for prefered conditions among candidate
-        // If equality & rhs is a function of known, we
-        // care about such conditions and ignore other candidates
-        auto it  = std::find_if(expUfs.begin(),expUfs.end(),
-        [&](std::pair<iegenlib::Exp*,SynthExpressionCase> a) {
-            if (a.second == CASE3 || a.second == CASE4)
-                return false;
-            Exp* constr = a.first;
-            Term* term = findCallTerm(constr,currentUF);
-            Term* tClone = term->clone();
-            tClone->setCoefficient(1);
-            Exp* solvedFor = constr->solveForFactor(tClone);
-            if (solvedFor== NULL)
-                return false;
-            // Contains unknownsCopy
-            bool containsUnknown = false;
-            for(auto unknown: unknownsCopy) {
-                if (findCallTerm(solvedFor,unknown) != NULL)
-                    containsUnknown = true;
-            }
-            delete solvedFor;
-	    bool domainBounded = IsDomainBoundedByUnknown(term,
-			    unknownsCopy,composeRel);
-            // This candidate is only viable if the current UF Term
-            // domain is bounded by unknownsCopy.
-            return !containsUnknown && domainBounded;
-        });
 
-        if ( it != expUfs.end()) {
-            // Ignore and move forward if this fails and keep going
-	    try{
-	        CreateIRComponent(currentUF,inspector,executionScheduleIndex++, it->second,
-                                  it->first,unknownsCopy,transSet,reorderUF);
-            
-	        // Remove from unknown list since this has been solved.
-                unknownsCopy.pop_back();
-                if (it->second == CASE5) {
-                    permutes.push_back(currentUF);
-                    UFCallTerm* ut = dynamic_cast<UFCallTerm*>(
-                                     findCallTerm(it->first,currentUF));
-
-                    if(ut!=NULL && queryMonoTypeEnv(currentUF)!= Monotonic_NONE) {
-                        CreateSortIRComponent(ut,inspector,executionScheduleIndex++);
-                    }
-                }
-	    } 
-	    catch(...){
-	    
-	    }
-            continue;
-        }
 	// Early optimization to avoid generating multiple
 	// case3s and case4s for a single UF
 	int case3Count = 0;
@@ -442,6 +392,17 @@ Computation* CodeSynthesis::generateInspectorComputation() {
 			    ufExpPair.second,
                               ufExpPair.first,unknownsCopy,transSet,reorderUF);
 
+                if (ufExpPair.second  == CASE5) {
+                    permutes.push_back(currentUF);
+                    UFCallTerm* ut = dynamic_cast<UFCallTerm*>(
+                                     findCallTerm(ufExpPair.first,currentUF));
+
+                    if(ut!=NULL && queryMonoTypeEnv(currentUF)!= Monotonic_NONE) {
+                        CreateSortIRComponent(ut,inspector,executionScheduleIndex++);
+                    }
+                }
+	       
+	       
 	       // If what was solved for is case 5, case 2 or Case 1
 	       // perform early optimization and dont generate code for any other
 	       // constraints on this uf.
@@ -1547,7 +1508,7 @@ std::string CodeSynthesis::generateFullCode(std::vector<int>& fuseStmts,
 		<< ");\n";
         // Generate Comparator code.
         ss << "ComparatorInt "<< permute <<"Comp = ";
-        ss << "[&](const int e1,const int b){\n";
+        ss << "[&](const int e1,const int e2){\n";
 	//if (it!=selfRefs.end()) {
         //    ss << GenerateSelfRefPermuteConditions(it->second, it->first);
         //}
