@@ -336,21 +336,23 @@ Computation* CodeSynthesis::generateInspectorComputation() {
         // to some known UFs and input tuple variable.
 	// Get all tuple variables that are resolvable as
 	// a function of input tuple variables
-        std::vector<int> resolvedOutputTuples=
+        std::vector<int> resolvedOutputTuples = 
 		GetResolvedOutputTuples(transRel,unknownsCopy);
         std::string currentUF = unknownsCopy.back();
         // Get all the list of viable candidates
         // for the current UF
 	typedef std::pair<iegenlib::Exp*,SynthExpressionCase> ExpCasePair;
-        std::list<ExpCasePair> expUfs;
+        std::vector<ExpCasePair> expUfs;
         for(auto e : expList) {
+            std::cout << "uf: " << currentUF << ", " << e->
+		    prettyPrintString(transRel->getTupleDecl());
             if(findCallTerm(e,currentUF)!=NULL) {
                 // Get case a uf in a constraint falls into.
                 auto ufCase =
                     GetUFExpressionSynthCase(e,
                      currentUF,transRel->inArity(),transRel->arity(),
 		     resolvedOutputTuples);
-		std::cout << "uf: " << currentUF << ", " << e->toString() << ", Case: "<< ufCase << "\n";
+		std::cout << ", Case: "<< ufCase << "\n";
 		// IF UF satisifies synthesis case
                 if(ufCase !=UNDEFINED && ufCase != SELF_REF) {
                     expUfs.push_back({e,ufCase});
@@ -364,6 +366,23 @@ Computation* CodeSynthesis::generateInspectorComputation() {
             unknownsCopy.insert(unknownsCopy.begin(),currentUF);
             continue;
         }
+        
+	// Sort expUFs using the number of tuples and other
+	// conditions. This is added just to help with early 
+	// optimizations. So input tuples have a higher score
+	// than output tuples even though the output tuple 
+	// might be resolvable and is gotten as a function of
+	// the input tuple. The more tuples, the higher the score
+	// so we don't pick wrong optimization options for cases 
+	// 3 and 4.
+        std::sort(expUfs.begin(),expUfs.end(),
+		[this](ExpCasePair& a, ExpCasePair& b){
+		   int aScore = GetCandidateScore(a.first,transRel->inArity(),
+				  transRel->arity());
+		   int bScore =  GetCandidateScore(b.first,transRel->inArity(),
+				  transRel->arity());
+		   return aScore > bScore;
+		});	
 
 	// Early optimization to avoid generating multiple
 	// case3s and case4s for a single UF
@@ -382,7 +401,7 @@ Computation* CodeSynthesis::generateInspectorComputation() {
 
 	       if (ufExpPair.second == CASE4 && case4Count > 0 ){
 	          continue;
-	       }
+	      }
 		
                CreateIRComponent(currentUF,inspector,executionScheduleIndex++, 
 			    ufExpPair.second,
@@ -410,13 +429,13 @@ Computation* CodeSynthesis::generateInspectorComputation() {
                // Early optimiztion to only generate a single matching
 	       // pair if cases 3 and case 4 for a certain UF
 	       if (ufExpPair.second == CASE3){
-		  case3Count++;
+	          case3Count++;
 	       }
 
 
 	       if (ufExpPair.second == CASE4){
 		  case4Count++;
-	       }
+	     }
 	    } 
 	    catch(...){
 	    
@@ -751,7 +770,7 @@ CodeSynthesis::CodeSynthesis(SparseFormat* source,
     
     
     
-    
+    std::cout << "Composed Rel: " << composeRel->prettyPrintString() << "\n";
     
     transRel = composeRel->TransitiveClosure();
     // Expanded candidates for statement selections.
@@ -2596,3 +2615,14 @@ void CodeSynthesis::RemoveConstraintsInvTupleUF(SparseConstraints*sc,
    }
 }
 
+int CodeSynthesis::GetCandidateScore(Exp* e,int inArity, int arity){
+   int score = 0;
+   for(int i = 0; i < arity; i++){
+      TupleVarTerm t(1,i);
+      if(e->dependsOn(t)) {
+         if (i < inArity) score+=INPUT_TUPLE_SCORE;
+	 else score+=OUTPUT_TUPLE_SCORE;
+      }
+   }
+   return score;
+}

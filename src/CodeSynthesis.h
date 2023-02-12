@@ -12,6 +12,9 @@
 #include <iegenlib/set_relation/environment.h>
 #include <iegenlib/set_relation/UninterpFunc.h>
 namespace code_synthesis {
+#define INPUT_TUPLE_SCORE 10
+#define OUTPUT_TUPLE_SCORE 1
+
 #define PERMUTE_NAME "P"
 // Number of times to retry synthesis
 // before failing.
@@ -592,6 +595,15 @@ public:
     // \param uf   the uf been considered
     static void CreateMontonicityIRComponent(Computation* inspector,
 		    std::string uf,int executionScheduleIndex);
+    
+    // Function assigns a score to a constraint candidate for 
+    // early optimizations. Input tuples have a higher score
+    // than output tuples even though the output tuple 
+    // might be resolvable and is gotten as a function of
+    // the input tuple. The more tuples, the higher the score
+    // so we don't pick wrong optimization options for cases 
+    // 3 and 4.
+    static int GetCandidateScore(Exp* e, int inArity, int arity);
 };
 }
 
