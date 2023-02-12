@@ -344,14 +344,14 @@ Computation* CodeSynthesis::generateInspectorComputation() {
 	typedef std::pair<iegenlib::Exp*,SynthExpressionCase> ExpCasePair;
         std::vector<ExpCasePair> expUfs;
         for(auto e : expList) {
-            std::cout << "uf: " << currentUF << ", " << e->
-		    prettyPrintString(transRel->getTupleDecl());
             if(findCallTerm(e,currentUF)!=NULL) {
                 // Get case a uf in a constraint falls into.
                 auto ufCase =
                     GetUFExpressionSynthCase(e,
                      currentUF,transRel->inArity(),transRel->arity(),
 		     resolvedOutputTuples);
+                std::cout << "uf: " << currentUF << ", " << e->
+		    prettyPrintString(transRel->getTupleDecl());
 		std::cout << ", Case: "<< ufCase << "\n";
 		// IF UF satisifies synthesis case
                 if(ufCase !=UNDEFINED && ufCase != SELF_REF) {
@@ -770,7 +770,7 @@ CodeSynthesis::CodeSynthesis(SparseFormat* source,
     
     
     
-    std::cout << "Composed Rel: " << composeRel->prettyPrintString() << "\n";
+    //std::cout << "Composed Rel: " << composeRel->prettyPrintString() << "\n";
     
     transRel = composeRel->TransitiveClosure();
     // Expanded candidates for statement selections.
