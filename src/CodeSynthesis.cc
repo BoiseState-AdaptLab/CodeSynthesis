@@ -772,7 +772,7 @@ CodeSynthesis::CodeSynthesis(SparseFormat* source,
     
     //std::cout << "Composed Rel: " << composeRel->prettyPrintString() << "\n";
     
-    transRel = composeRel->TransitiveClosure();
+    transRel = new Relation(*composeRel);
     // Expanded candidates for statement selections.
     transRelExpanded = substituteDirectEqualities(transRel);
     
@@ -1475,7 +1475,7 @@ CodeSynthesis::getCopyReadAccess() {
 
 
 std::string CodeSynthesis::generateFullCode(std::vector<int>& fuseStmts,
-        int level) {
+        int level,iegenlib::Set* known ) {
     Computation* comp = generateInspectorComputation();
     // Manual Fusion
     ReadReductionFusionOptimization(comp,fuseStmts,level);
@@ -1582,7 +1582,7 @@ std::string CodeSynthesis::generateFullCode(std::vector<int>& fuseStmts,
                       destDataAccessMap->getTupleDecl().elemVarString(i))   << "]";
     }
     ss << "\n";
-    std::string code = comp->codeGen();
+    std::string code = comp->codeGen(known);
 
     for(auto permute : permutes) {
         // This has to be modified to use

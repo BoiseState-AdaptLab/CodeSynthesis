@@ -214,7 +214,8 @@ public:
 
     ~CodeSynthesis();
 
-    std::string generateFullCode( std::vector<int>& fuseStmts,int level);
+    std::string generateFullCode( std::vector<int>& fuseStmts,int level,
+		    iegenlib::Set* known = NULL);
 
 
     /// This gets the list of all expressions in a conjunction.

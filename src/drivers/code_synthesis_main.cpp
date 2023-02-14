@@ -10,10 +10,10 @@
 
 using namespace code_synthesis;
 int main(int argc, char**argv) {
-    if(argc != 5 && argc != 9) {
+    if(argc != 5 && argc != 9 && argc!=7 && argc!= 11) {
         std::cerr << "Usage: synthDriver -src "
                   <<"<formatname>,<dataName> -dest <formatName>,<dataName> "
-                  <<" [-fuse <fuse-list> -fuselevel <level>]\n";
+                  <<" [-fuse <fuse-list> -fuselevel <level> ] [-known \"<space>\"] \n";
         return 0;
     }
     // Load preset optimizations
@@ -213,7 +213,7 @@ int main(int argc, char**argv) {
     SparseFormat* sourceFormat = NULL;
     SparseFormat* destFormat = NULL;
 
-
+    Set* known = NULL;
     while(currIndex < argc ) {
         std::string argString (argv[currIndex]);
         if(argString == "-src") {
@@ -259,12 +259,19 @@ int main(int argc, char**argv) {
             std::string level(argv[++currIndex]);
             fuseLevel = std::stoi(level);
         }
-        currIndex++;
+        
+        if (argString == "-known"){
+	    std::string s(argv[++currIndex]);
+	    std::cout << "test: "<< s << "\n";
+	    known = new Set(s);
+	}	
+	
+	currIndex++;
     }
     assert(sourceFormat && destFormat
            && "Unsopported Source or Destination Format");
     CodeSynthesis* synth = new CodeSynthesis(sourceFormat, destFormat);
-    std::string code = synth->generateFullCode(fuseStmts,fuseLevel);
+    std::string code = synth->generateFullCode(fuseStmts,fuseLevel,known);
     std::ofstream fileOut;
     fileOut.open("synth.h");
     fileOut << synth->GetSupportHeader();

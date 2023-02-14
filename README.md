@@ -21,10 +21,48 @@ more formats will be added
 ```shell script
 cd build
 ./bin/CodeSynthesis_Driver -src <formatname>,<dataName> -dest <formatName>,<dataName>\
-[-fuse <statement-list-delimited-by-comma> -fuselevel <level>]
+[-fuse <statement-list-delimited-by-comma> -fuselevel <level>] [-known "<set>"]
 ```
 
+
+
 Driver generates synth.h and synth.c files which can be compiled / added to a pre-existing project.
+
+### Optimization options
+
+Fuse Syntax:
+
+Example S0: {[0,i,0,j,0] | stuff}; S1:{[1,i,0,j,0] | stuff}
+
+Option: -fuse S0,S1  -fuselevel 2
+
+```cpp
+for (i to ..)
+   for (j to ..)
+      S0
+
+for (i to ..)
+   for (j to ..)
+      S1
+```
+
+Result
+S0: {[0,i,0,j,0] | stuff}; S1:{[0,i,1,j,0] | stuff}
+
+
+```cpp
+for (i to ..)
+   for (j to ..)
+      S0
+      S1
+```
+
+Constraint simplification:
+
+option: -known "<iteration space>"
+
+The iteration space explores constraints that are true and not needed to be generated
+
 
 ### Examples
 
