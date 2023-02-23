@@ -1473,10 +1473,21 @@ CodeSynthesis::getCopyReadAccess() {
     return res;
 }
 
+void CodeSynthesis::ApplyTransforms(Computation* comp,
+		    std::vector<std::pair<int,std::string>>& transforms){
+    for(auto pair: transforms){
+        comp->addTransformation(pair.first,new Relation(pair.second));
+    }
+}
+
 
 std::string CodeSynthesis::generateFullCode(std::vector<int>& fuseStmts,
-        int level,iegenlib::Set* known ) {
+        int level,iegenlib::Set* known,
+	std::vector<std::pair<int,std::string>> transforms ) {
     Computation* comp = generateInspectorComputation();
+    comp->padExecutionSchedules();
+    // Apply transformation recipes
+    ApplyTransforms(comp,transforms);
     // Manual Fusion
     ReadReductionFusionOptimization(comp,fuseStmts,level);
     std::stringstream ss;

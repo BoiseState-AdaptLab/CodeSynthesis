@@ -215,7 +215,9 @@ public:
     ~CodeSynthesis();
 
     std::string generateFullCode( std::vector<int>& fuseStmts,int level,
-		    iegenlib::Set* known = NULL);
+		    iegenlib::Set* known = NULL,
+		    std::vector<std::pair<int,std::string>> transforms
+		    =   std::vector<std::pair<int,std::string>>());
 
 
     /// This gets the list of all expressions in a conjunction.
@@ -511,6 +513,10 @@ public:
     static std::string GeneratePermuteConditions(std::string& permute,
             iegenlib::Relation* composeRel,
             std::vector<UFQuant>& ufQuants);
+
+    // This function applies transformations to a computation
+    static void ApplyTransforms(Computation* comp,
+		    std::vector<std::pair<int,std::string>>& transforms);
 
     // This function agressively fuses loops with true dependency
     // in order.

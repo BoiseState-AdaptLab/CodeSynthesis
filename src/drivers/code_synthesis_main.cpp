@@ -10,10 +10,11 @@
 
 using namespace code_synthesis;
 int main(int argc, char**argv) {
-    if(argc != 5 && argc != 9 && argc!=7 && argc!= 11) {
+    if(argc != 5 && argc != 9 && argc!=7 && argc!= 11 && argc!= 13) {
         std::cerr << "Usage: synthDriver -src "
                   <<"<formatname>,<dataName> -dest <formatName>,<dataName> "
-                  <<" [-fuse <fuse-list> -fuselevel <level> ] [-known \"<space>\"] \n";
+                  <<" [-fuse <fuse-list> -fuselevel <level> ] [-known \"<space>\"] "
+		  <<"[-recipe <filename [format: statementid,map \\newline]>]\n";
         return 0;
     }
     // Load preset optimizations
@@ -212,7 +213,7 @@ int main(int argc, char**argv) {
     int currIndex = 1;
     SparseFormat* sourceFormat = NULL;
     SparseFormat* destFormat = NULL;
-
+    std::vector<std::pair<int,std::string>> transforms;
     Set* known = NULL;
     while(currIndex < argc ) {
         std::string argString (argv[currIndex]);
@@ -247,7 +248,6 @@ int main(int argc, char**argv) {
             while ((pos = s.find(delimiter)) != std::string::npos) {
                 token = s.substr(0, pos);
                 fuseStmts.push_back(std::stoi(token));
-		std::cout <<  token << "\n";
                 s.erase(0, pos + delimiter.length());
             }
 
@@ -262,16 +262,31 @@ int main(int argc, char**argv) {
         
         if (argString == "-known"){
 	    std::string s(argv[++currIndex]);
-	    std::cout << "test: "<< s << "\n";
 	    known = new Set(s);
 	}	
 	
+	if (argString == "-recipe"){
+	    std::string fname(argv[++currIndex]);
+	    std::ifstream fstream(fname);
+	    std::string line;
+	    std::cout << "Transformation Recipes Applied \n";
+	    while(getline(fstream,line)){
+		std::cout << line <<"\n";
+		std::size_t pos = line.find(" ");
+		int statementId = std::stoi(line.substr(0,pos));
+		std::string transform= line.substr(pos);
+		std::cout << statementId << " " << transform << "\n";
+	        transforms.push_back({statementId,transform});
+	    }
+
+	}
 	currIndex++;
     }
     assert(sourceFormat && destFormat
            && "Unsopported Source or Destination Format");
     CodeSynthesis* synth = new CodeSynthesis(sourceFormat, destFormat);
-    std::string code = synth->generateFullCode(fuseStmts,fuseLevel,known);
+    std::string code = synth->generateFullCode(fuseStmts,fuseLevel,
+		    known,transforms);
     std::ofstream fileOut;
     fileOut.open("synth.h");
     fileOut << synth->GetSupportHeader();
